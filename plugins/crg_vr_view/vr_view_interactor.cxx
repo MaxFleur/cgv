@@ -108,6 +108,48 @@ void vr_view_interactor::set_blit_vr_view_width(int width)
 	}
 }
 
+const vr_view_interactor::dvec3 vr_view_interactor::get_eye() const
+{
+	if (rendered_display_index >= 0)
+		return get_eye_of_kit(rendered_eye, rendered_display_index);
+	else
+		return view::get_eye();
+}
+
+vr_view_interactor::dvec3 vr_view_interactor::get_view_dir() const
+{
+	if (rendered_display_index >= 0)
+		return get_view_dir_of_kit(rendered_display_index);
+	else
+		return view::get_view_dir();
+}
+
+vr_view_interactor::dvec3 vr_view_interactor::get_view_up_dir() const
+{
+	if (rendered_display_index >= 0)
+		return get_view_up_dir_of_kit(rendered_display_index);
+	else
+		return view::get_view_up_dir();
+}
+
+void vr_view_interactor::put_coordinate_system(dvec3& x, dvec3& y, dvec3& z) const
+{
+	z = -get_view_dir();
+	z.normalize();
+	x = cross(get_view_up_dir(), z);
+	x.normalize();
+	y = cross(z, x);
+}
+
+void vr_view_interactor::put_coordinate_system(vec3& x, vec3& y, vec3& z) const
+{
+	dvec3 dx, dy, dz;
+	put_coordinate_system(dx, dy, dz);
+	x = dx;
+	y = dy;
+	z = dz;
+}
+
 /// return a pointer to the state of the current vr kit
 const vr::vr_kit_state* vr_view_interactor::get_current_vr_state() const
 {
@@ -129,7 +171,7 @@ vr_view_interactor::dvec3 vr_view_interactor::get_view_dir_of_kit(int vr_kit_idx
 	if (vr_kit_idx == -1)
 		vr_kit_idx = current_vr_handle_index;
 	if (vr_kit_idx < 0 || vr_kit_idx >= (int) kit_states.size())
-		return get_view_dir();
+		return view::get_view_dir();
 	return -reinterpret_cast<const vec3&>(kit_states[vr_kit_idx].hmd.pose[6]);
 }
 
@@ -149,8 +191,29 @@ vr_view_interactor::dvec3 vr_view_interactor::get_eye_of_kit(int eye, int vr_kit
 	if (vr_kit_idx == -1)
 		vr_kit_idx = current_vr_handle_index;
 	if (vr_kit_idx < 0 || vr_kit_idx >= (int) kit_states.size())
-		return get_eye();
-	return reinterpret_cast<const vec3&>(kit_states[vr_kit_idx].hmd.pose[9]);
+		return view::get_eye();
+
+	const mat3& R_w_h = reinterpret_cast<const mat3&>(kit_states[vr_kit_idx].hmd.pose[0]);
+	const vec3& p_w_h = reinterpret_cast<const vec3&>(kit_states[vr_kit_idx].hmd.pose[9]);
+	switch (eye)
+	{
+	case 0:
+		{
+			float left_eye_to_head[12];
+			get_vr_kit_from_index(vr_kit_idx)->put_eye_to_head_matrix(0, left_eye_to_head);
+			const vec3& p_h_l = reinterpret_cast<const vec3&>(left_eye_to_head[9]);
+			return reinterpret_cast<vec3&>(R_w_h * p_h_l + p_w_h);
+		}
+	case 1:
+		{
+			float right_eye_to_head[12];
+			get_vr_kit_from_index(vr_kit_idx)->put_eye_to_head_matrix(1, right_eye_to_head);
+			const vec3& p_h_r = reinterpret_cast<const vec3&>(right_eye_to_head[9]);
+			return reinterpret_cast<vec3&>(R_w_h * p_h_r + p_w_h);
+		}
+	default:
+		return reinterpret_cast<const vec3&>(kit_states[vr_kit_idx].hmd.pose[9]);
+	}
 }
 
 /// query the currently set event type flags

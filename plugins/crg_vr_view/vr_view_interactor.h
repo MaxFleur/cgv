@@ -230,13 +230,13 @@ public:
 	dvec3 get_view_up_dir_of_kit(int vr_kit_idx = -1) const;
 	//! query the eye position of a vr kit.
 	/*! parameter \c eye is one of
-	    -1 .. left eye
-		 0 .. cyclopic eye
+	     0 .. left eye
 		 1 .. right eye
+		 any other number .. cyclopic eye
 		if parameter vr_kit_idx defaults to -1, the eye position of the current vr kit is returned
 		if there are not vr kits or the \c vr_kit_idx parameter is invalid the eye position of the
 		\c vr_view_interactor is returned*/
-	dvec3 get_eye_of_kit(int eye = 0, int vr_kit_idx = -1) const;
+	dvec3 get_eye_of_kit(int eye = -1, int vr_kit_idx = -1) const;
 	//@}
 	
 	/**@name vr rendering*/
@@ -263,11 +263,25 @@ public:
 	void set_blit_vr_view_width(int width);
 	//@}
 
-	/**@name vr render process*/
+	/**@name override view*/
 	//@{
 	/// return the currently rendered eye
+	const dvec3 get_eye() const;
+	/// return the currently rendered view direction
+	dvec3 get_view_dir() const;
+	/// return the currently rendered view up direction
+	dvec3 get_view_up_dir() const;
+
+	void put_coordinate_system(dvec3& x, dvec3& y, dvec3& z) const;
+	void put_coordinate_system(vec3& x, vec3& y, vec3& z) const;
+	//@}
+
+	/**@name vr render process*/
+	//@{
+	/// return the currently rendered eye index
 	int get_rendered_eye() const { return rendered_eye; }
 	/// return the vr kit currently rendered
+	int get_rendered_vr_kit_index() const { return rendered_display_index; }
 	/// return a pointer to the current vr kit
 	vr::gl_vr_display* get_rendered_display() const { return rendered_display_ptr; }
 	/// return pointer to rendered vr kit or nullptr if birds eye view is rendered

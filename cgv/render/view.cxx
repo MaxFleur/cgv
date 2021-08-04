@@ -50,12 +50,12 @@ const view::dvec3& view::get_focus() const
 	return focus;
 }
 ///
-const view::dvec3& view::get_view_up_dir() const
+view::dvec3 view::get_view_up_dir() const
 {
 	return view_up_dir;
 }
 ///
-const view::dvec3& view::get_view_dir() const
+view::dvec3 view::get_view_dir() const
 {
 	return view_dir;
 }

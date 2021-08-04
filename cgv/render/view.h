@@ -54,7 +54,7 @@ public:
 	dvec3& ref_focus();
 
 	/// query current view direction
-	const dvec3& get_view_dir() const;
+	virtual dvec3 get_view_dir() const;
 	/// set view direction without ensuring orthogonality to view up direction
 	virtual void set_view_dir(const dvec3& vd);
 	void set_view_dir(const vec3& vd) { set_view_dir(dvec3(vd)); }
@@ -64,7 +64,7 @@ public:
 	dvec3& ref_view_dir();
 
 	/// query current view up direction
-	const dvec3& get_view_up_dir() const;
+	virtual dvec3 get_view_up_dir() const;
 	/// set view up direction without ensuring orthogonality to view direction
 	virtual void set_view_up_dir(const dvec3& vud);
 	void set_view_up_dir(const vec3& vud) { set_view_up_dir(dvec3(vud)); }
@@ -98,8 +98,8 @@ public:
 	//! construct coordinate system with z in negative view direction and x and y aligned with the right and up direction of the viewed image
 	/*! If view direction and view up direction are not orthogonal, the y direction will point in the
 	component of the view up direction that is orthogonal to the view direction. */
-	void put_coordinate_system(dvec3& x, dvec3& y, dvec3& z) const;
-	void put_coordinate_system(vec3& x, vec3& y, vec3& z) const;
+	virtual void put_coordinate_system(dvec3& x, dvec3& y, dvec3& z) const;
+	virtual void put_coordinate_system(vec3& x, vec3& y, vec3& z) const;
 	//! compute axis and angle of a rotation that the current view_dir and view_up_dir to the given target_view_dir and target_view_up_dir
 	/*! returns the result of the function cgv::math::decompose_rotation_to_axis_and_angle()*/
 	int compute_axis_and_angle(const dvec3& target_view_dir, const dvec3& target_view_up_dir, dvec3& axis, double& angle);
@@ -108,7 +108,7 @@ public:
 	//! query the eye point, which is computed from focus, view dir, y extent at focus and y view angle
 	/*! With the y view angle approaching 0, the eye point moves infinitely far away. To avoid
 	    numerical problems, the eye point is computed with an y view angle no less than 0.1.*/
-	const dvec3 get_eye() const;
+	virtual const dvec3 get_eye() const;
 	//! set view dir and y view angle keeping focus and y extent such that get_eye() returns the passed point, return whether this was successful.
 	/*! Recomputes view up direction to make it orthogonal to view direction. 
 	    In the case that the eye point is identical to the current focus point the function fails and returns false. 
