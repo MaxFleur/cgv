@@ -51,6 +51,8 @@ public:
 	// Set this to uvec2(0) to use the size from the context
 	void set_size(uvec2 size) { this->size = size; }
 
+	uvec2 get_size() { return size; }
+
 	void add_attachment(const std::string& name, const std::string& format = "uint8[R,G,B]", TextureFilter tf = TF_NEAREST, bool attach = true);
 
 	bool enable_attachment(context& ctx, const std::string& name, int tex_unit = -1);
