@@ -220,12 +220,12 @@ void plot_base::draw_rectangles(cgv::render::context& ctx, cgv::render::attribut
 {
 	auto& rr = cgv::render::ref_rectangle_renderer(ctx);
 	rr.set_render_style(rrs);
-	rr.enable_attribute_array_manager(ctx, aam);
+	//rr.enable_attribute_array_manager(ctx, aam);
 	rr.set_rectangle_array(ctx, R);
 	rr.set_color_array(ctx, C);
 	rr.set_depth_offset_array(ctx, D);
 	rr.render(ctx, offset, R.size() - offset);
-	rr.disable_attribute_array_manager(ctx, aam);
+	//rr.disable_attribute_array_manager(ctx, aam);
 }
 
 

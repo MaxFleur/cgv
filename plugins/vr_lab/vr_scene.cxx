@@ -93,7 +93,7 @@ void vr_scene::build_scene(float w, float d, float h, float W)
 {
 	construct_room(w, d, h, W, false, false);
 	construct_environment(0.3f, 3 * w, 3 * d, w, d, h);
-	construct_table(table_width, table_depth, table_height, leg_width, leg_offset, table_color, leg_color);
+	//construct_table(table_width, table_depth, table_height, leg_width, leg_offset, table_color, leg_color);
 }
 
 vr_scene::vr_scene()
@@ -138,7 +138,7 @@ void vr_scene::on_set(void* member_ptr)
 	if (member_ptr >= &table_width && member_ptr < &leg_color + 1) {
 		boxes.resize(boxes.size() - 5);
 		box_colors.resize(box_colors.size() - 5);
-		construct_table(table_width, table_depth, table_height, leg_width, leg_offset, table_color, leg_color);
+		//construct_table(table_width, table_depth, table_height, leg_width, leg_offset, table_color, leg_color);
 	}
 	update_member(member_ptr);
 	post_redraw();

@@ -47,14 +47,7 @@ protected:
 	void build_scene(float w, float d, float h, float W);
 	//@}
 
-
-	//@name labels
-	//@{	
-	/// use label manager to organize labels in texture
-	label_manager lm;
-
 	/// store label placements for rectangle renderer
-	std::vector<vec3> label_positions;
 	std::vector<quat> label_orientations;
 	std::vector<vec2> label_extents;
 	std::vector<vec4> label_texture_ranges;
@@ -65,6 +58,13 @@ protected:
 	/// for rectangle renderer a rectangle_render_style is needed
 	cgv::render::rectangle_render_style rrs;
 public:
+
+	//@name labels
+	//@{
+	/// use label manager to organize labels in texture
+	label_manager lm;
+	std::vector<vec3> label_positions;
+
 	/// different coordinate systems used to place labels
 	enum CoordinateSystem
 	{
