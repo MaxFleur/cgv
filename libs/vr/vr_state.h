@@ -31,8 +31,8 @@ namespace vr {
 	/// enumerate all VR keys starting at 1024
 	enum VRKeys {
 		VR_UNKNOWN = 1024,
-		VR_SYSTEM,          //!< VIVE: system button; occulus: ???
-		VR_MENU,            //!< VIVE: menu button; occulus: start button
+		VR_SYSTEM,          //!< VIVE: system button; occulus: ???; Valve Index: menu/system button
+		VR_MENU,            //!< VIVE: menu button; occulus: start button; Valve Index: B button
 		VR_GRIP,            //!< grip button
 		VR_DPAD_DOWN_LEFT,  //!< direction pad diagonally down and left
 		VR_DPAD_DOWN,       //!< direction pad down

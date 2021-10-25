@@ -119,6 +119,8 @@ public:
 	void set_label_border_color(const rgba& border_color);
 	/// set the common border width in percent of the minimal extent
 	void set_label_border_width(float border_width);
+
+	unsigned get_nr_of_labels() { return label_positions.size(); };
 	//@}
 
 public:
