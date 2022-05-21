@@ -1,0 +1,414 @@
+#version 430
+
+#define NUM_STEPS 128
+#define INTERPOLATION_MODE 1
+#define ENABLE_NOISE_OFFSET 1
+#define BLEND_MODE 0
+#define ENABLE_SCALE_ADJUSTMENT 0
+#define ENABLE_LIGHTING 0
+#define ENABLE_DEPTH_TEST 0
+
+//***** begin interface of fragment.glfs ***********************************
+uniform float gamma = 2.2;
+void finish_fragment(vec4 color);
+//***** end interface of fragment.glfs ***********************************
+
+//***** begin interface of view.glsl ***********************************
+mat4 get_modelview_matrix();
+mat4 get_projection_matrix();
+mat4 get_modelview_projection_matrix();
+mat4 get_inverse_modelview_matrix();
+mat4 get_inverse_modelview_projection_matrix();
+mat3 get_normal_matrix();
+mat3 get_inverse_normal_matrix();
+//***** end interface of view.glsl ***********************************
+
+//***** begin interface of surface.glsl ***********************************
+vec4 compute_reflected_appearance(vec3 position_eye, vec3 normal_eye, vec4 color, int side);
+//***** end interface of surface.glsl ***********************************
+
+layout (binding = 0) uniform sampler3D volume_tex;
+layout (binding = 1) uniform sampler2D transfer_function_tex;
+layout (binding = 2) uniform sampler2D noise_tex;
+#if ENABLE_LIGHTING == 1
+layout (binding = 3) uniform sampler3D gradient_tex;
+#endif
+#if ENABLE_DEPTH_TEST == 1
+layout (binding = 4) uniform sampler2D depth_tex;
+#endif
+
+uniform vec2 viewport_dims;
+uniform float opacity_scale;
+uniform float size_scale;
+uniform vec3 clip_box_min;
+uniform vec3 clip_box_max;
+
+uniform mat4 clip_box_transform;
+uniform mat4 clip_box_transform_inverse;
+uniform mat4 volume_transform;
+uniform mat4 volume_transform_inverse;
+
+uniform mat4 combined_transform;
+uniform mat4 combined_transform_inverse;
+
+in vec4 position_fs;
+in vec3 position_object;
+in vec3 eye_fs;
+
+/*--------------------------------------------------------------------------*\
+Copyright (c) 2008-2009, Danny Ruijters. All rights reserved.
+http://www.dannyruijters.nl/cubicinterpolation/
+This file is part of CUDA Cubic B-Spline Interpolation (CI).
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+*  Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+*  Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+*  Neither the name of the copyright holders nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+The views and conclusions contained in the software and documentation are
+those of the authors and should not be interpreted as representing official
+policies, either expressed or implied.
+When using this code in a scientific project, please cite one or all of the
+following papers:
+*  Daniel Ruijters and Philippe Thévenaz,
+   GPU Prefilter for Accurate Cubic B-Spline Interpolation, 
+   The Computer Journal, vol. 55, no. 1, pp. 15-20, January 2012.
+   http://dannyruijters.nl/docs/cudaPrefilter3.pdf
+*  Daniel Ruijters, Bart M. ter Haar Romeny, and Paul Suetens,
+   Efficient GPU-Based Texture Interpolation using Uniform B-Splines,
+   Journal of Graphics Tools, vol. 13, no. 4, pp. 61-69, 2008.
+\*--------------------------------------------------------------------------*/
+
+// tricubic interpolation function (see copyright notice above)
+vec4 textureCubic(sampler3D tex, vec3 coord) {
+
+	// shift the coordinate from [0,1] to [-0.5, tex_size-0.5]
+	vec3 tex_size = vec3(textureSize(volume_tex, 0));
+	vec3 coord_grid = coord * tex_size - 0.5;
+	vec3 index = floor(coord_grid);
+	vec3 fraction = coord_grid - index;
+	vec3 one_frac = 1.0 - fraction;
+
+	vec3 w0 = 1.0/6.0 * one_frac*one_frac*one_frac;
+	vec3 w1 = 2.0/3.0 - 0.5 * fraction*fraction*(2.0-fraction);
+	vec3 w2 = 2.0/3.0 - 0.5 * one_frac*one_frac*(2.0-one_frac);
+	vec3 w3 = 1.0/6.0 * fraction*fraction*fraction;
+
+	vec3 g0 = w0 + w1;
+	vec3 g1 = w2 + w3;
+	vec3 mult = 1.0 / tex_size;
+	vec3 h0 = mult * ((w1 / g0) - 0.5 + index);  //h0 = w1/g0 - 1, move from [-0.5, nrOfVoxels-0.5] to [0,1]
+	vec3 h1 = mult * ((w3 / g1) + 1.5 + index);  //h1 = w3/g1 + 1, move from [-0.5, nrOfVoxels-0.5] to [0,1]
+
+	// fetch the eight linear interpolations
+	// weighting and fetching is interleaved for performance and stability reasons
+	vec4 tex000 = texture(tex, h0);
+	vec4 tex100 = texture(tex, vec3(h1.x, h0.y, h0.z));
+	tex000 = mix(tex100, tex000, g0.x);  //weigh along the x-direction
+	vec4 tex010 = texture(tex, vec3(h0.x, h1.y, h0.z));
+	vec4 tex110 = texture(tex, vec3(h1.x, h1.y, h0.z));
+	tex010 = mix(tex110, tex010, g0.x);  //weigh along the x-direction
+	tex000 = mix(tex010, tex000, g0.y);  //weigh along the y-direction
+	vec4 tex001 = texture(tex, vec3(h0.x, h0.y, h1.z));
+	vec4 tex101 = texture(tex, vec3(h1.x, h0.y, h1.z));
+	tex001 = mix(tex101, tex001, g0.x);  //weigh along the x-direction
+	vec4 tex011 = texture(tex, vec3(h0.x, h1.y, h1.z));
+	vec4 tex111 = texture(tex, h1);
+	tex011 = mix(tex111, tex011, g0.x);  //weigh along the x-direction
+	tex001 = mix(tex011, tex001, g0.y);  //weigh along the y-direction
+
+	return mix(tex001, tex000, g0.z);  //weigh along the z-direction
+}
+
+// smooth filtering from https://www.shadertoy.com/view/XsfGDn
+vec4 textureSmooth(sampler3D tex, vec3 coord) {
+	
+	vec3 tex_size = vec3(textureSize(volume_tex, 0));
+	vec3 uv = coord * tex_size + 0.5;
+
+	vec3 iuv = floor(uv);
+	vec3 fuv = fract(uv);
+
+	uv = iuv + fuv*fuv*(3.0-2.0*fuv); // fuv*fuv*fuv*(fuv*(fuv*6.0-15.0)+10.0);
+	uv = (uv - 0.5)/tex_size;
+
+	return texture(tex, uv);
+}
+
+vec4 textureNearest(sampler3D tex, vec3 coord) {
+	
+	ivec3 tex_size = textureSize(volume_tex, 0);
+	ivec3 uv = ivec3(coord * tex_size);
+
+	return texelFetch(volume_tex, uv, 0);
+}
+
+/*vec3 gradient(vec3 coords, int channel) {
+
+	vec3 tex_size = vec3(textureSize(volume_tex, 0));
+	vec3 ts = 1.0 / tex_size;
+
+	float xr = texture(volume_tex, coords + ts * vec3(+1, 0, 0))[channel];
+	float xl = texture(volume_tex, coords + ts * vec3(-1, 0, 0))[channel];
+	float yr = texture(volume_tex, coords + ts * vec3(0, +1, 0))[channel];
+	float yl = texture(volume_tex, coords + ts * vec3(0, -1, 0))[channel];
+	float zr = texture(volume_tex, coords + ts * vec3(0, 0, +1))[channel];
+	float zl = texture(volume_tex, coords + ts * vec3(0, 0, -1))[channel];
+	return -0.5 * vec3(xr - xl, yr - yl, zr - zl);
+}*/
+
+vec3 object_space_view_dir(vec3 v) {
+
+    //return object_space_eye_pos() - v;
+    return eye_fs - v;
+}
+
+vec3 calculate_lighting(vec3 col, vec3 normal, vec3 light_dir, vec3 eye_dir, float specular_intensity) {
+
+    float ndotl = max(mix(0.0f, 1.5f, dot(normal, light_dir)), 0.5f); // modified, to avoid volume becoming too dark
+    vec3 diffuse = ndotl * col;
+    vec3 v = eye_dir;
+    vec3 r = normalize(reflect(-light_dir, normal));
+    float rdotv = max( dot( r, v ), 0.0 );
+    float specular = pow(rdotv, 32.0f) * specular_intensity;
+    return diffuse + specular;
+}
+
+vec3 safe_normalize(vec3 v) {
+
+	float len = length(v);
+	return len > 0.000001 ? v/len : vec3(0.0);
+}
+
+bool intersect_box(vec3 origin, vec3 direction, out float t_min, out float t_max) {
+
+	vec3 inv_dir = 1.0 / direction;
+
+	float t1 = (-0.5 - origin.x)*inv_dir.x;
+	float t2 = (+0.5 - origin.x)*inv_dir.x;
+
+	t_min = min(t1, t2);
+	t_max = max(t1, t2);
+
+	t1 = (-0.5 - origin.y)*inv_dir.y;
+	t2 = (+0.5 - origin.y)*inv_dir.y;
+
+	t_min = max(t_min, min(t1, t2));
+	t_max = min(t_max, max(t1, t2));
+
+	t1 = (-0.5 - origin.z)*inv_dir.z;
+	t2 = (+0.5 - origin.z)*inv_dir.z;
+
+	t_min = max(t_min, min(t1, t2));
+	t_max = min(t_max, max(t1, t2));
+
+	return t_max > max(t_min, 0.0f);
+}
+
+void main()
+{
+	const float step_size = 1.732051 / NUM_STEPS;
+	vec2 frag_tex_coords = gl_FragCoord.xy / viewport_dims;
+
+#if ENABLE_LIGHTING == 1
+	// light is static to window
+	//const vec3 light_dir = normalize((get_inverse_modelview_matrix() * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+
+	// light is placed in scene
+	//const vec3 light_dir = normalize(object_space_view_dir(vec3(0.0, 1.0, 0.0)));
+	const vec3 light_dir = normalize(vec3(0.0, 1.0, 0.0));
+#endif
+
+	vec3 ray_org;
+	vec3 eye_pos;
+
+#if ENABLE_DEPTH_TEST == 0
+	ray_org = position_object;
+#else
+	float depth = texture(depth_tex, frag_tex_coords).r;
+	
+	vec4 clip_space_pos = vec4(frag_tex_coords * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+
+	vec4 object_space_pos = get_inverse_modelview_projection_matrix() * clip_space_pos;
+	object_space_pos /= object_space_pos.w;
+
+	vec3 eye = eye_fs;
+
+	vec3 pos_to_eye = position_object - eye;
+	vec3 depth_pos_to_eye = object_space_pos.xyz - eye;
+
+	if(dot(pos_to_eye, pos_to_eye) < dot(depth_pos_to_eye, depth_pos_to_eye))
+		ray_org = position_object;
+	else
+		ray_org = object_space_pos.xyz;
+
+#endif
+	// transform the ray origin and eye position into volume space (object -> clip box -> volume)
+	ray_org = (combined_transform * vec4(ray_org, 1.0)).xyz;
+	eye_pos = (combined_transform * vec4(eye_fs, 1.0)).xyz;
+	// calculate the viewing ray in volume space
+	vec3 ray_dir = normalize(eye_pos - ray_org);
+
+	vec3 transformed_org = (combined_transform_inverse * vec4(ray_org, 1.0)).xyz;
+	vec3 transformed_dir = (combined_transform_inverse * vec4(ray_dir, 0.0)).xyz;
+	
+	float t1, t2;
+	float t3, t4;
+	bool i1 = intersect_box(transformed_org, transformed_dir, t1, t2);
+	bool i2 = intersect_box(ray_org, ray_dir, t3, t4);
+
+	// test if ray intersects both boxes and return transparent fragment if not
+	if(!i1 || !i2) {
+		finish_fragment(vec4(1.0, 0.0, 0.0, 0.0));
+		return;
+	}
+
+	// use interval arithmetic to get the intersection shape/volume
+	t1 = max(t1, t3);
+	t2 = min(t2, t4);
+
+	// ray end point may lie behind the eye position
+	// take the minimum of the distances to the eye and ray end position
+	float te = length(eye_pos - ray_org);
+	t2 = min(t2, te);
+
+	// make sure the ray origin is not moved further back (important when depth testing is enabled)
+	t1 = max(t1, 0.0);
+
+	// update the ray origin as it may have changed
+	ray_org += t1*ray_dir;
+
+	// transform position to texture coordinates: [-0.5,0.5] -> [0.0,1.0]
+	ray_org += 0.5;
+
+#if ENABLE_NOISE_OFFSET == 1
+	// add a small offset noise to the ray origin to prevent ring artifacts
+	ivec2 ts = textureSize(noise_tex, 0);
+	ray_org += (2.0 * ray_dir / NUM_STEPS) * texture(noise_tex, frag_tex_coords*ts).r;
+#endif
+
+	vec3 vol_size = vec3(1.0, 1.0, 0.106705);
+
+	// this seems kinda wrong in direct comparison to second option
+	//float scale_adjust = ray_dir.x*ray_dir.x * vol_size.x + ray_dir.y*ray_dir.y * vol_size.y + ray_dir.z*ray_dir.z * vol_size.z;
+
+	vec3 rd = abs(ray_dir);
+	float scale_adjust = dot(abs(ray_dir), vol_size);
+	scale_adjust /= rd.x + rd.y + rd.z;
+
+
+	float dt = t2 - t1;
+	vec4 color = vec4(0.0);
+
+	for(int istep = 0; istep < NUM_STEPS; ++istep) {
+		// calculate the current ray position
+		float t = istep * step_size;
+		vec3 pos = ray_org + t*ray_dir;
+
+		if(t >= dt)
+			break;
+
+		vec3 uvw = pos;
+
+#if (INTERPOLATION_MODE == 0)
+		vec4 density = textureNearest(volume_tex, uvw);
+#elif (INTERPOLATION_MODE == 1)
+		vec4 density = texture(volume_tex, uvw);
+#elif (INTERPOLATION_MODE == 2)
+		vec4 density = textureSmooth(volume_tex, uvw);
+#else
+		vec4 density = textureCubic(volume_tex, uvw);
+#endif
+		const float texel_size = 1.0/4.0;
+		vec4 color_in0 = texture(transfer_function_tex, vec2(density[0], 0*texel_size + 0.5*texel_size));
+		vec4 color_in1 = texture(transfer_function_tex, vec2(density[1], 1*texel_size + 0.5*texel_size));
+		vec4 color_in2 = texture(transfer_function_tex, vec2(density[2], 2*texel_size + 0.5*texel_size));
+		vec4 color_in3 = texture(transfer_function_tex, vec2(density[3], 3*texel_size + 0.5*texel_size));
+		
+#if ENABLE_LIGHTING == 1
+		// get the normal from a precomputed texture as the average gradient over all 4 channels
+		vec3 normal = -safe_normalize(texture(gradient_tex, uvw).xyz);
+		// apply lighting to all input colors
+		color_in0.rgb *= calculate_lighting(color_in0.rgb, normal, light_dir, ray_dir, 0.3);
+		color_in1.rgb *= calculate_lighting(color_in1.rgb, normal, light_dir, ray_dir, 0.3);
+		color_in2.rgb *= calculate_lighting(color_in2.rgb, normal, light_dir, ray_dir, 0.3);
+		color_in3.rgb *= calculate_lighting(color_in3.rgb, normal, light_dir, ray_dir, 0.3);
+#endif
+		// scale the alpha channel based on the global opacity scale
+#if BLEND_MODE < 2
+		// scale each channel by 1/4 when blending all 4 channels as seperate layers
+		// to normalize their total contribution
+		color_in0.a *= 0.25 * opacity_scale;
+		color_in1.a *= 0.25 * opacity_scale;
+		color_in2.a *= 0.25 * opacity_scale;
+		color_in3.a *= 0.25 * opacity_scale;
+#else
+		color_in0.a *= opacity_scale;
+		color_in1.a *= opacity_scale;
+		color_in2.a *= opacity_scale;
+		color_in3.a *= opacity_scale;
+#endif
+
+#if ENABLE_SCALE_ADJUSTMENT == 1
+		// dont know if this is correct but it works for now
+		color_in0.a *= size_scale;
+		color_in1.a *= size_scale;
+		color_in2.a *= size_scale;
+		color_in3.a *= size_scale;
+
+		float step_fac = -exp(-step_size * scale_adjust) + 1.0;
+		color_in0.a *= step_fac;
+		color_in1.a *= step_fac;
+		color_in2.a *= step_fac;
+		color_in3.a *= step_fac;
+#endif
+
+		// premultiply alpha
+		color_in0.rgb *= color_in0.a;
+		color_in1.rgb *= color_in1.a;
+		color_in2.rgb *= color_in2.a;
+		color_in3.rgb *= color_in3.a;
+
+#if BLEND_MODE == 0
+		// blend channels in RGBA order treating them as seperate layers
+		// blend overall samples back to front
+		color = color_in0 + (1.0 - color_in0.a)*color;
+		color = color_in1 + (1.0 - color_in1.a)*color;
+		color = color_in2 + (1.0 - color_in2.a)*color;
+		color = color_in3 + (1.0 - color_in3.a)*color;
+#elif BLEND_MODE == 1
+		// blend channels in ABGR order treating them as seperate layers
+		// blend overall samples back to front
+		color = color_in3 + (1.0 - color_in3.a)*color;
+		color = color_in2 + (1.0 - color_in2.a)*color;
+		color = color_in1 + (1.0 - color_in1.a)*color;
+		color = color_in0 + (1.0 - color_in0.a)*color;
+#elif BLEND_MODE == 2
+		// average the color contributions from the individual channels
+		// this feels counter intuitive but seems to work
+		vec4 color_in = color_in0 + color_in1 + color_in2 + color_in3;
+		color_in *= 0.25;
+		// blend back to front
+		color = color_in + (1.0 - color_in.a)*color;
+#endif
+		//if(color.a > 1.0f)
+        //    break;
+	}
+
+	finish_fragment(color);
+}

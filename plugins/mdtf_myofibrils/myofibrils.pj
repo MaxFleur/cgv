@@ -1,0 +1,20 @@
+@=
+projectType="application_plugin";
+projectName="myofibrils";
+projectGUID="3F2EE2A4-F25F-4A32-A509-9345411E288D";
+addProjectDirs=[CGV_DIR."/libs", CGV_DIR."/plugins", CGV_DIR."/3rd"];
+addIncDirs=[CGV_DIR."/libs", CGV_BUILD_DIR."/".projectName, INPUT_DIR];
+addProjectDeps=[
+	"cgv_utils", "cgv_type", "cgv_reflect", "cgv_data", "cgv_signal", "cgv_base", "cmi_io", "cgv_media", "cgv_gui", "cgv_render", "cgv_os",
+	"cgv_reflect_types", "cgv_gl", "cgv_glutil", "plot", "glew", "cg_fltk", "crg_stereo_view", "crg_light", "crg_grid", "cg_icons", "cgv_viewer"
+];
+
+addSharedDefines=["MYOFIBRILS_EXPORTS"];
+
+addCommandLineArguments=[
+	'config:"'.INPUT_DIR.'/config.def"',
+	after("type(shader_config):shader_path='".INPUT_DIR."/glsl;".CGV_DIR."/libs/plot/glsl;".CGV_DIR."/libs/cgv_gl/glsl;".CGV_DIR."/libs/cgv_glutil/glsl'", "cg_fltk")
+];
+
+cppLanguageStandard="stdcpp17";
+useOpenMP=1;

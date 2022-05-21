@@ -1,0 +1,24 @@
+<TransferFunctions>
+  <TransferFunction stain="Projectin">
+    <Point position="0.000000" r="255" g="255" b="255" opacity="0.000000"/>
+    <Point position="0.137097" r="255" g="255" b="255" opacity="0.046980"/>
+    <Point position="0.251613" r="255" g="255" b="255" opacity="0.114094"/>
+    <Point position="1.000000" r="255" g="255" b="255" opacity="0.000000"/>
+  </TransferFunction>
+  <TransferFunction stain="Actin">
+    <Point position="0.000000" r="0" g="255" b="0" opacity="0.000000"/>
+    <Point position="0.138172" r="0" g="255" b="0" opacity="0.000000"/>
+    <Point position="0.278495" r="0" g="255" b="0" opacity="0.114094"/>
+    <Point position="0.357527" r="0" g="255" b="0" opacity="0.000000"/>
+    <Point position="0.515591" r="255" g="209" b="0" opacity="0.000000"/>
+    <Point position="0.594086" r="255" g="219" b="0" opacity="0.234899"/>
+  </TransferFunction>
+  <TransferFunction stain="Obscurin">
+    <Point position="0.099462" r="0" g="0" b="255" opacity="0.000000"/>
+    <Point position="0.170968" r="0" g="0" b="255" opacity="0.187919"/>
+  </TransferFunction>
+  <TransferFunction stain="Sallimus">
+    <Point position="0.139785" r="255" g="0" b="0" opacity="0.000000"/>
+    <Point position="0.206989" r="255" g="0" b="0" opacity="0.234899"/>
+  </TransferFunction>
+</TransferFunctions>

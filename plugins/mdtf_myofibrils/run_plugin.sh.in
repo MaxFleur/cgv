@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+${SCRIPT_DIR}/bin/cgv_viewer plugin:cg_fltk \
+    "type(shader_config):shader_path='@CMAKE_SOURCE_DIR@/glsl;@CGV_DIR@/libs/plot/glsl;@CGV_DIR@/libs/cgv_gl/glsl;@CGV_DIR@/libs/cgv_glutil/glsl'" \
+    plugin:cg_ext \
+    plugin:crg_stereo_view \
+    plugin:cg_meta \
+    plugin:cmi_io \
+	plugin:crg_light \
+	plugin:cg_icons \
+	plugin:crg_antialias \
+	plugin:crg_depth_of_field \
+	plugin:crg_grid \
+    plugin:scivis-stereo \
+    config:"@CMAKE_SOURCE_DIR@/config.def"
