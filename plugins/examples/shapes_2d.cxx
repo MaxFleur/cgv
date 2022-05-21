@@ -295,7 +295,7 @@ public:
 		points.push_back(point(ivec2(700, 600)));
 		// add 2 control points for the line
 		points.push_back(point(vec2(100, 500)));
-		points.push_back(point(vec2(69, 420)));
+		points.push_back(point(vec2(100, 400)));
 		// add 4 control points for the curve
 		points.push_back(point(vec2(600, 300)));
 		points.push_back(point(vec2(650, 400)));
