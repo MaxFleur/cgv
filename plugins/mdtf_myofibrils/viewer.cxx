@@ -69,6 +69,14 @@ viewer::viewer() : application_plugin("Viewer") {
 	length_histogram_po_ptr = register_overlay<plot_overlay>("Length Histogram Overlay");
 
 	sstyle.radius = 0.0003f;
+
+	pcp_ptr = register_overlay<pcp_overlay>("PCP Overlay");
+	
+	// pcp2_ptr = register_overlay<pcp2_overlay>("PCP 2 Overlay");
+	// pcp2_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_END, cgv::glutil::overlay::AO_END);
+	
+	// sp_ptr = register_overlay<sp_overlay>("SP Overlay");
+	// sp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
 }
 
 void viewer::clear(cgv::render::context& ctx) {
@@ -653,6 +661,27 @@ void viewer::create_gui() {
 		align("\b");
 		end_tree_node(sarcomere_style);
 	}
+
+	if (begin_tree_node("PCP", pcp_ptr, false)) {
+		align("\a");
+		inline_object_gui(pcp_ptr);
+		align("\b");
+		end_tree_node(pcp_ptr);
+	}
+
+	if (begin_tree_node("PCP 2", pcp2_ptr, false)) {
+		align("\a");
+		inline_object_gui(pcp2_ptr);
+		align("\b");
+		end_tree_node(pcp2_ptr);
+	}
+
+	if (begin_tree_node("SP", sp_ptr, false)) {
+		align("\a");
+		inline_object_gui(sp_ptr);
+		align("\b");
+		end_tree_node(sp_ptr);
+	}
 	add_member_control(this, "Show", show_sarcomeres, "check");
 	//add_member_control(this, "Clip", clip_sarcomeres, "check");
 
@@ -677,6 +706,39 @@ void viewer::create_gui() {
 		inline_object_gui(length_histogram_po_ptr);
 		align("\b");
 		end_tree_node(length_histogram_po_ptr);
+	}
+}
+
+void viewer::create_pcp()
+{
+
+	ivec3 volume_resolution(1024, 1024, dataset.num_slices);
+
+	std::vector<vec4> data;
+
+	for (unsigned z = 0; z < volume_resolution.z(); ++z) {
+		for (unsigned y = 0; y < volume_resolution.y(); ++y) {
+			for (unsigned x = 0; x < volume_resolution.x(); ++x) {
+
+				float v0 = static_cast<float>(dataset.raw_data.get<unsigned char>(0, z, y, x));
+				float v1 = static_cast<float>(dataset.raw_data.get<unsigned char>(1, z, y, x));
+				float v2 = static_cast<float>(dataset.raw_data.get<unsigned char>(2, z, y, x));
+				float v3 = static_cast<float>(dataset.raw_data.get<unsigned char>(3, z, y, x));
+
+				data.push_back(vec4(v0, v1, v2, v3) / 255.0f);
+			}
+		}
+	}
+
+	if (pcp_ptr)
+		pcp_ptr->set_data(data);
+
+	if (pcp2_ptr)
+		pcp2_ptr->set_data(data);
+
+	if (sp_ptr) {
+		sp_ptr->set_data(data);
+		sp_ptr->set_names(dataset.stain_names);
 	}
 }
 
@@ -792,6 +854,7 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 
 	create_length_histogram();
 	create_segment_render_data();
+	create_pcp();
 	//create_selected_segment_render_data();
 
 	// transfer function is optional

@@ -20,6 +20,10 @@
 
 #include "plot_overlay.h"
 
+#include "pcp_overlay.h"
+#include "pcp2_overlay.h"
+#include "sp_overlay.h"
+
 using namespace cgv::render;
 
 class viewer : public cgv::glutil::application_plugin {
@@ -157,6 +161,12 @@ protected:
 	std::vector<vec3> sarcomeres;
 	cone_render_style sarcomere_style;
 	cgv::glutil::cone_render_data<> sarcomeres_rd;
+
+	pcp_overlay_ptr pcp_ptr = nullptr;
+	pcp2_overlay_ptr pcp2_ptr = nullptr;
+	sp_overlay_ptr sp_ptr = nullptr;
+
+	void create_pcp();
 
 	bool read_data_set(context& ctx, const std::string& filename);
 	bool read_image_slices(context& ctx, const std::string& filename);
