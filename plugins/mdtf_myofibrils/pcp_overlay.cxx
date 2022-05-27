@@ -23,6 +23,9 @@ pcp_overlay::pcp_overlay() {
 	// change its size to be the same as the overlay
 	fbc.set_size(get_overlay_size());
 
+	// register a rectangle shader for the content canvas, to draw a frame around the plot
+	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
+
 	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main frame buffer
 	viewport_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
@@ -61,6 +64,27 @@ void pcp_overlay::on_set(void* member_ptr) {
 	if(member_ptr == &line_alpha) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
+	}
+
+	if (member_ptr == &m_id_left) {
+		m_id_left = cgv::math::clamp(m_id_left, 0, 3);
+		if (m_protein_names.size() > 3 && labels.size() > 1)
+			labels.set_text(0, m_protein_names[m_id_left]);
+	}
+	if (member_ptr == &m_id_right) {
+		m_id_right = cgv::math::clamp(m_id_right, 0, 3);
+		if (m_protein_names.size() > 3 && labels.size() > 1)
+			labels.set_text(0, m_protein_names[m_id_right]);
+	}
+	if (member_ptr == &m_id_bottom) {
+		m_id_bottom = cgv::math::clamp(m_id_bottom, 0, 3);
+		if (m_protein_names.size() > 3 && labels.size() > 1)
+			labels.set_text(0, m_protein_names[m_id_bottom]);
+	}
+	if (member_ptr == &m_id_center) {
+		m_id_center = cgv::math::clamp(m_id_center, 0, 3);
+		if (m_protein_names.size() > 3 && labels.size() > 1)
+			labels.set_text(0, m_protein_names[m_id_center]);
 	}
 
 	update_member(member_ptr);
@@ -206,6 +230,10 @@ void pcp_overlay::create_gui() {
 	// add controls for parameters
 	add_member_control(this, "Threshold", threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "Line Alpha", line_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "Protein left:", m_id_left, "value", "min=0;max=3;step=1");
+	add_member_control(this, "Protein right:", m_id_right, "value", "min=0;max=3;step=1");
+	add_member_control(this, "Protein bottom:", m_id_bottom, "value", "min=0;max=3;step=1");
+	add_member_control(this, "Protein center:", m_id_center, "value", "min=0;max=3;step=1");
 }
 
 void pcp_overlay::init_styles(cgv::render::context& ctx) {
@@ -232,6 +260,14 @@ void pcp_overlay::init_styles(cgv::render::context& ctx) {
 	line_prog_widgets.enable(ctx);
 	m_line_style_widgets.apply(ctx, line_prog_widgets);
 	line_prog_widgets.disable(ctx);
+
+	// configure style for the plot labels
+	cgv::glutil::shape2d_style text_style;
+	text_style.fill_color = rgba(rgb(0.0f), 1.0f);
+	text_style.border_color.alpha() = 0.0f;
+	text_style.border_width = 0.333f;
+	text_style.use_blending = true;
+	text_style.apply_gamma = false;
 
 	// configure style for final blending of whole overlay
 	overlay_style.fill_color = rgba(1.0f);
@@ -271,23 +307,23 @@ void pcp_overlay::update_content() {
 
 		if(avg > threshold) {
 			// Left to right
-			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[0]));
-			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[1]));
+			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_id_left]));
+			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_id_right]));
 			// Left to center
-			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[0]));
-			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[3]));
+			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_id_left]));
+			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_id_center]));
 			// Left to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[0]));
-			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[2]));
+			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_id_left]));
+			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_id_bottom]));
 			// Right to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[1]));
-			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[2]));
+			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_id_right]));
+			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_id_bottom]));
 			// Right to center
-			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[1]));
-			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[3]));
+			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_id_right]));
+			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_id_center]));
 			// Bottom to center
-			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[2]));
-			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[3]));
+			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_id_bottom]));
+			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_id_center]));
 		}
 	}
 

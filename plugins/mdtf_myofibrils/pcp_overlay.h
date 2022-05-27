@@ -2,6 +2,7 @@
 
 #include <cgv_glutil/frame_buffer_container.h>
 #include <cgv_glutil/generic_renderer.h>
+#include <cgv_glutil/msdf_gl_font_renderer.h>
 #include <cgv_glutil/overlay.h>
 #include <cgv_glutil/2d/canvas.h>
 #include <cgv_glutil/2d/shape2d_styles.h>
@@ -52,6 +53,8 @@ protected:
 	line_geometry m_line_geometry_relations;
 	line_geometry m_line_geometry_widgets;
 
+	cgv::glutil::msdf_text_geometry labels;
+
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
 	/// update the overlay content (called by a button in the gui)
@@ -94,6 +97,13 @@ private:
 	};
 
 	std::vector<line> m_widget_lines;
+
+	std::vector<std::string> m_protein_names;
+
+	int m_id_left = 0;
+	int m_id_right = 1;
+	int m_id_bottom = 2;
+	int m_id_center = 3;
 
 	void initWidgets();
 	void addWidgets();
