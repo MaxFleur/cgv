@@ -40,8 +40,8 @@ void pcp_overlay::clear(cgv::render::context& ctx) {
 
 	m_line_renderer_relations.destruct(ctx);
 	m_line_renderer_widgets.destruct(ctx);
-	m_lines_relations.destruct(ctx);
-	m_lines_widgets.destruct(ctx);
+	m_line_geometry_relations.destruct(ctx);
+	m_line_geometry_widgets.destruct(ctx);
 }
 
 bool pcp_overlay::self_reflect(cgv::reflect::reflection_handler& _rh) {
@@ -155,14 +155,14 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 	int count = 100000;
 
 	// make sure to not draw more lines than available
-	if(total_count + count > m_lines_relations.get_vertex_count())
-		count = m_lines_relations.get_vertex_count() - total_count;
+	if(total_count + count > m_line_geometry_relations.get_vertex_count())
+		count = m_line_geometry_relations.get_vertex_count() - total_count;
 
 	auto& line_prog_widgets = m_line_renderer_widgets.ref_prog();
 	line_prog_widgets.enable(ctx);
 	content_canvas.set_view(ctx, line_prog_widgets);
 	line_prog_widgets.disable(ctx);
-	m_line_renderer_widgets.render(ctx, PT_LINES, m_lines_widgets);
+	m_line_renderer_widgets.render(ctx, PT_LINES, m_line_geometry_widgets);
 
 	// get the shader program of the line renderer
 	auto& line_prog_relations = m_line_renderer_relations.ref_prog();
@@ -175,7 +175,7 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 	// and we cannot enable a program that is already enabled.
 	line_prog_relations.disable(ctx);
 	// draw the lines from the given geometry with offset and count
-	m_line_renderer_relations.render(ctx, PT_LINES, m_lines_relations, total_count, count);
+	m_line_renderer_relations.render(ctx, PT_LINES, m_line_geometry_relations, total_count, count);
 
 	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
 	fbc.disable(ctx);
@@ -188,7 +188,7 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 
 	// Stop the process if we have drawn all available lines,
 	// otherwise request drawing of another frame.
-	bool run = total_count < m_lines_relations.get_vertex_count();
+	bool run = total_count < m_line_geometry_relations.get_vertex_count();
 	if(run)
 		post_redraw();
 	else
@@ -255,15 +255,10 @@ void pcp_overlay::update_content() {
 
 	// reset previous total count and line geometry
 	total_count = 0;
-	m_lines_relations.clear();
-	m_lines_widgets.clear();
+	m_line_geometry_relations.clear();
+	m_line_geometry_widgets.clear();
 
 	addWidgets();
-
-	// setup plot origin and sizes
-	vec2 org = static_cast<vec2>(domain.pos());
-	float h = domain.size().y();
-	float step = static_cast<float>(domain.size().x()) / 3.0f;
 
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
@@ -274,18 +269,24 @@ void pcp_overlay::update_content() {
 		avg *= 0.25f;
 
 		if(avg > threshold) {
-			// scale the values from [0,1] to the plot height
-			vec4 scaled = v * h + org.y();
-
-			// add a total of 3 lines, connecting the 4 parallel coordinate axes
-			m_lines_relations.add(vec2(org.x() + 0 * step, scaled[0]));
-			m_lines_relations.add(vec2(org.x() + 1 * step, scaled[1]));
-
-			m_lines_relations.add(vec2(org.x() + 1 * step, scaled[1]));
-			m_lines_relations.add(vec2(org.x() + 2 * step, scaled[2]));
-
-			m_lines_relations.add(vec2(org.x() + 2 * step, scaled[2]));
-			m_lines_relations.add(vec2(org.x() + 3 * step, scaled[3]));
+			// Left to right
+			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[0]));
+			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[1]));
+			// Left to center
+			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[0]));
+			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[3]));
+			// Left to bottom
+			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[0]));
+			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[2]));
+			// Right to bottom
+			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[1]));
+			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[2]));
+			// Right to center
+			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[1]));
+			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[3]));
+			// Bottom to center
+			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[2]));
+			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[3]));
 		}
 	}
 
@@ -296,54 +297,53 @@ void pcp_overlay::update_content() {
 }
 
 void pcp_overlay::initWidgets() {
-	m_stored_widget_lines.clear();
+	m_widget_lines.clear();
 
 	const auto sizeX = domain.size().x();
 	const auto sizeY = domain.size().y();
-	/// General order: Left, centered and right line for relations, then closing line
 	// Left widget
 	const ivec2 x_left_0 {static_cast<int32_t>(sizeX * 0.3f), static_cast<int32_t>(sizeY * 0.95f)};
 	const ivec2 x_left_1 {static_cast<int32_t>(sizeX * 0.35f), static_cast<int32_t>(sizeY * 0.75f)};
 	const ivec2 x_left_2 {static_cast<int32_t>(sizeX * 0.23f), static_cast<int32_t>(sizeY * 0.45f)};
 	const ivec2 x_left_3 {static_cast<int32_t>(sizeX * 0.1f), static_cast<int32_t>(sizeY * 0.45f)};
-	m_stored_widget_lines.push_back(line({x_left_0, x_left_1}));
-	m_stored_widget_lines.push_back(line({x_left_1, x_left_2}));
-	m_stored_widget_lines.push_back(line({x_left_2, x_left_3}));
-	m_stored_widget_lines.push_back(line({x_left_3, x_left_0}));
+	m_widget_lines.push_back(line({x_left_0, x_left_1}));
+	m_widget_lines.push_back(line({x_left_1, x_left_2}));
+	m_widget_lines.push_back(line({x_left_2, x_left_3}));
+	m_widget_lines.push_back(line({x_left_3, x_left_0}));
 
 	// Right widget
-	const ivec2 x_right_0{static_cast<int32_t>(sizeX * 0.7f), static_cast<int32_t>(sizeY * 0.95f)};
-	const ivec2 x_right_1{static_cast<int32_t>(sizeX * 0.65f), static_cast<int32_t>(sizeY * 0.75f)};
-	const ivec2 x_right_2{static_cast<int32_t>(sizeX * 0.77f), static_cast<int32_t>(sizeY * 0.45f)};
-	const ivec2 x_right_3{static_cast<int32_t>(sizeX * 0.9f), static_cast<int32_t>(sizeY * 0.45f)};
-	m_stored_widget_lines.push_back(line({x_right_0, x_right_1}));
-	m_stored_widget_lines.push_back(line({x_right_1, x_right_2}));
-	m_stored_widget_lines.push_back(line({x_right_2, x_right_3}));
-	m_stored_widget_lines.push_back(line({x_right_3, x_right_0}));
+	const ivec2 x_right_0{static_cast<int32_t>(sizeX * 0.9f), static_cast<int32_t>(sizeY * 0.45f)};
+	const ivec2 x_right_1{static_cast<int32_t>(sizeX * 0.77f), static_cast<int32_t>(sizeY * 0.45f)};
+	const ivec2 x_right_2{static_cast<int32_t>(sizeX * 0.65f), static_cast<int32_t>(sizeY * 0.75f)};
+	const ivec2 x_right_3{static_cast<int32_t>(sizeX * 0.7f), static_cast<int32_t>(sizeY * 0.95f)};
+	m_widget_lines.push_back(line({x_right_0, x_right_1}));
+	m_widget_lines.push_back(line({x_right_1, x_right_2}));
+	m_widget_lines.push_back(line({x_right_2, x_right_3}));
+	m_widget_lines.push_back(line({x_right_3, x_right_0}));
 
-	// Right widget
+	// Bottom widget
 	const ivec2 x_bottom_0{static_cast<int32_t>(sizeX * 0.23f), static_cast<int32_t>(sizeY * 0.05f)};
 	const ivec2 x_bottom_1{static_cast<int32_t>(sizeX * 0.33f), static_cast<int32_t>(sizeY * 0.25f)};
 	const ivec2 x_bottom_2{static_cast<int32_t>(sizeX * 0.67f), static_cast<int32_t>(sizeY * 0.25f)};
 	const ivec2 x_bottom_3{static_cast<int32_t>(sizeX * 0.77f), static_cast<int32_t>(sizeY * 0.05f)};
-	m_stored_widget_lines.push_back(line({x_bottom_0, x_bottom_1}));
-	m_stored_widget_lines.push_back(line({x_bottom_1, x_bottom_2}));
-	m_stored_widget_lines.push_back(line({x_bottom_2, x_bottom_3}));
-	m_stored_widget_lines.push_back(line({x_bottom_3, x_bottom_0}));
+	m_widget_lines.push_back(line({x_bottom_0, x_bottom_1}));
+	m_widget_lines.push_back(line({x_bottom_1, x_bottom_2}));
+	m_widget_lines.push_back(line({x_bottom_2, x_bottom_3}));
+	m_widget_lines.push_back(line({x_bottom_3, x_bottom_0}));
 
 	// Center widget, order: Left, right, bottom
 	const ivec2 x_center_0{static_cast<int32_t>(sizeX * 0.4f), static_cast<int32_t>(sizeY * 0.4f)};
 	const ivec2 x_center_1{static_cast<int32_t>(sizeX * 0.5f), static_cast<int32_t>(sizeY * 0.6f)};
 	const ivec2 x_center_2{static_cast<int32_t>(sizeX * 0.6f), static_cast<int32_t>(sizeY * 0.4f)};
-	m_stored_widget_lines.push_back(line({x_center_0, x_center_1}));
-	m_stored_widget_lines.push_back(line({x_center_1, x_center_2}));
-	m_stored_widget_lines.push_back(line({x_center_2, x_center_0}));
+	m_widget_lines.push_back(line({x_center_0, x_center_1}));
+	m_widget_lines.push_back(line({x_center_1, x_center_2}));
+	m_widget_lines.push_back(line({x_center_2, x_center_0}));
 }
 
 
 void pcp_overlay::addWidgets() {
-	for (const auto l : m_stored_widget_lines) {
-		m_lines_widgets.add(l.a);
-		m_lines_widgets.add(l.b);
+	for (const auto l : m_widget_lines) {
+		m_line_geometry_widgets.add(l.a);
+		m_line_geometry_widgets.add(l.b);
 	}
 }

@@ -49,8 +49,8 @@ protected:
 	cgv::glutil::generic_renderer m_line_renderer_widgets;
 	/// define a geometry class holding only 2d position values
 	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
-	line_geometry m_lines_relations;
-	line_geometry m_lines_widgets;
+	line_geometry m_line_geometry_relations;
+	line_geometry m_line_geometry_widgets;
 
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
@@ -93,7 +93,7 @@ private:
 		}
 	};
 
-	std::vector<line> m_stored_widget_lines;
+	std::vector<line> m_widget_lines;
 
 	void initWidgets();
 	void addWidgets();
