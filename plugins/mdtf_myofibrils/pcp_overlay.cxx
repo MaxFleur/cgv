@@ -242,7 +242,7 @@ void pcp_overlay::init_styles(cgv::render::context& ctx) {
 	overlay_style.border_width = 3.0f;
 	overlay_style.feather_width = 0.0f;
 
-	// also does not chnage, so is only set whenever this method is called
+	// also does not change, so is only set whenever this method is called
 	auto& overlay_prog = viewport_canvas.enable_shader(ctx, "rectangle");
 	overlay_style.apply(ctx, overlay_prog);
 	viewport_canvas.disable_current_shader(ctx);
@@ -263,12 +263,11 @@ void pcp_overlay::update_content() {
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
 		// Map the vector values to a range between 0.1 and 0.9 
-		// so the outmost parts of the wudget lines stay clear
+		// so the outmost parts of the widget lines stay clear
 		const vec4& v = (data[i] * 0.8f) + 0.1f;
 
 		// calculate the average to allow filtering with the given threshold
-		float avg = v[0] + v[1] + v[2] + v[3];
-		avg *= 0.25f;
+		const auto avg = (v[0] + v[1] + v[2] + v[3]) * 0.25f;
 
 		if(avg > threshold) {
 			// Left to right
@@ -303,40 +302,41 @@ void pcp_overlay::initWidgets() {
 
 	const auto sizeX = domain.size().x();
 	const auto sizeY = domain.size().y();
+	/// General line generation order: Left, center, right relations line, then a last line for closing
 	// Left widget
-	const ivec2 x_left_0 {static_cast<int32_t>(sizeX * 0.3f), static_cast<int32_t>(sizeY * 0.95f)};
-	const ivec2 x_left_1 {static_cast<int32_t>(sizeX * 0.35f), static_cast<int32_t>(sizeY * 0.75f)};
-	const ivec2 x_left_2 {static_cast<int32_t>(sizeX * 0.23f), static_cast<int32_t>(sizeY * 0.45f)};
-	const ivec2 x_left_3 {static_cast<int32_t>(sizeX * 0.1f), static_cast<int32_t>(sizeY * 0.45f)};
+	const vec2 x_left_0 {sizeX * 0.3f, sizeY * 0.95f};
+	const vec2 x_left_1 {sizeX * 0.35f, sizeY * 0.75f};
+	const vec2 x_left_2 {sizeX * 0.23f, sizeY * 0.45f};
+	const vec2 x_left_3 {sizeX * 0.1f, sizeY * 0.45f};
 	m_widget_lines.push_back(line({x_left_0, x_left_1}));
 	m_widget_lines.push_back(line({x_left_1, x_left_2}));
 	m_widget_lines.push_back(line({x_left_2, x_left_3}));
 	m_widget_lines.push_back(line({x_left_3, x_left_0}));
 
 	// Right widget
-	const ivec2 x_right_0{static_cast<int32_t>(sizeX * 0.9f), static_cast<int32_t>(sizeY * 0.45f)};
-	const ivec2 x_right_1{static_cast<int32_t>(sizeX * 0.77f), static_cast<int32_t>(sizeY * 0.45f)};
-	const ivec2 x_right_2{static_cast<int32_t>(sizeX * 0.65f), static_cast<int32_t>(sizeY * 0.75f)};
-	const ivec2 x_right_3{static_cast<int32_t>(sizeX * 0.7f), static_cast<int32_t>(sizeY * 0.95f)};
+	const vec2 x_right_0{sizeX * 0.9f, sizeY * 0.45f};
+	const vec2 x_right_1{sizeX * 0.77f, sizeY * 0.45f};
+	const vec2 x_right_2{sizeX * 0.65f, sizeY * 0.75f};
+	const vec2 x_right_3{sizeX * 0.7f, sizeY * 0.95f};
 	m_widget_lines.push_back(line({x_right_0, x_right_1}));
 	m_widget_lines.push_back(line({x_right_1, x_right_2}));
 	m_widget_lines.push_back(line({x_right_2, x_right_3}));
 	m_widget_lines.push_back(line({x_right_3, x_right_0}));
 
 	// Bottom widget
-	const ivec2 x_bottom_0{static_cast<int32_t>(sizeX * 0.23f), static_cast<int32_t>(sizeY * 0.05f)};
-	const ivec2 x_bottom_1{static_cast<int32_t>(sizeX * 0.33f), static_cast<int32_t>(sizeY * 0.25f)};
-	const ivec2 x_bottom_2{static_cast<int32_t>(sizeX * 0.67f), static_cast<int32_t>(sizeY * 0.25f)};
-	const ivec2 x_bottom_3{static_cast<int32_t>(sizeX * 0.77f), static_cast<int32_t>(sizeY * 0.05f)};
+	const vec2 x_bottom_0{sizeX * 0.23f, sizeY * 0.05f};
+	const vec2 x_bottom_1{sizeX * 0.33f, sizeY * 0.25f};
+	const vec2 x_bottom_2{sizeX * 0.67f, sizeY * 0.25f};
+	const vec2 x_bottom_3{sizeX * 0.77f, sizeY * 0.05f};
 	m_widget_lines.push_back(line({x_bottom_0, x_bottom_1}));
 	m_widget_lines.push_back(line({x_bottom_1, x_bottom_2}));
 	m_widget_lines.push_back(line({x_bottom_2, x_bottom_3}));
 	m_widget_lines.push_back(line({x_bottom_3, x_bottom_0}));
 
 	// Center widget, order: Left, right, bottom
-	const ivec2 x_center_0{static_cast<int32_t>(sizeX * 0.4f), static_cast<int32_t>(sizeY * 0.4f)};
-	const ivec2 x_center_1{static_cast<int32_t>(sizeX * 0.5f), static_cast<int32_t>(sizeY * 0.6f)};
-	const ivec2 x_center_2{static_cast<int32_t>(sizeX * 0.6f), static_cast<int32_t>(sizeY * 0.4f)};
+	const vec2 x_center_0{sizeX * 0.4f, sizeY * 0.4f};
+	const vec2 x_center_1{sizeX * 0.5f, sizeY * 0.6f};
+	const vec2 x_center_2{sizeX * 0.6f, sizeY * 0.4f};
 	m_widget_lines.push_back(line({x_center_0, x_center_1}));
 	m_widget_lines.push_back(line({x_center_1, x_center_2}));
 	m_widget_lines.push_back(line({x_center_2, x_center_0}));
@@ -344,6 +344,8 @@ void pcp_overlay::initWidgets() {
 
 
 void pcp_overlay::addWidgets() {
+	m_line_geometry_widgets.clear();
+
 	for (const auto l : m_widget_lines) {
 		m_line_geometry_widgets.add(l.a);
 		m_line_geometry_widgets.add(l.b);
