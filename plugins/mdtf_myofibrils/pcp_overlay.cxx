@@ -16,7 +16,7 @@ pcp_overlay::pcp_overlay() {
 	set_overlay_alignment(AO_START, AO_END);
 	set_overlay_stretch(SO_NONE);
 	set_overlay_margin(ivec2(-3));
-	set_overlay_size(ivec2(1000, 500));
+	set_overlay_size(ivec2(800, 500));
 	
 	// add a color attachment to the content frame buffer with support for transparency (alpha)
 	fbc.add_attachment("color", "flt32[R,G,B,A]");
@@ -220,7 +220,7 @@ void pcp_overlay::init_styles(cgv::render::context& ctx) {
 	m_line_style_widgets.use_fill_color = true;
 	m_line_style_widgets.apply_gamma = false;
 	m_line_style_widgets.fill_color = rgba(1.0f, 0.0f, 0.0f, 1.0f);
-	m_line_style_widgets.width = 6.0f;
+	m_line_style_widgets.width = 3.0f;
 
 	// as the line style does not change during rendering, we can set it here once
 	auto& line_prog_relations = m_line_renderer_relations.ref_prog();
@@ -297,14 +297,53 @@ void pcp_overlay::update_content() {
 
 void pcp_overlay::initWidgets() {
 	m_stored_widget_lines.clear();
-	// Left widget, starting with the left line
-	m_stored_widget_lines.push_back(
-		  line({static_cast<float>(domain.size().x() * 0.2f), static_cast<float>(domain.size().x() * 0.3f)}));
+
+	const auto sizeX = domain.size().x();
+	const auto sizeY = domain.size().y();
+	/// General order: Left, centered and right line for relations, then closing line
+	// Left widget
+	const ivec2 x_left_0 {static_cast<int32_t>(sizeX * 0.3f), static_cast<int32_t>(sizeY * 0.95f)};
+	const ivec2 x_left_1 {static_cast<int32_t>(sizeX * 0.35f), static_cast<int32_t>(sizeY * 0.75f)};
+	const ivec2 x_left_2 {static_cast<int32_t>(sizeX * 0.23f), static_cast<int32_t>(sizeY * 0.45f)};
+	const ivec2 x_left_3 {static_cast<int32_t>(sizeX * 0.1f), static_cast<int32_t>(sizeY * 0.45f)};
+	m_stored_widget_lines.push_back(line({x_left_0, x_left_1}));
+	m_stored_widget_lines.push_back(line({x_left_1, x_left_2}));
+	m_stored_widget_lines.push_back(line({x_left_2, x_left_3}));
+	m_stored_widget_lines.push_back(line({x_left_3, x_left_0}));
+
+	// Right widget
+	const ivec2 x_right_0{static_cast<int32_t>(sizeX * 0.7f), static_cast<int32_t>(sizeY * 0.95f)};
+	const ivec2 x_right_1{static_cast<int32_t>(sizeX * 0.65f), static_cast<int32_t>(sizeY * 0.75f)};
+	const ivec2 x_right_2{static_cast<int32_t>(sizeX * 0.77f), static_cast<int32_t>(sizeY * 0.45f)};
+	const ivec2 x_right_3{static_cast<int32_t>(sizeX * 0.9f), static_cast<int32_t>(sizeY * 0.45f)};
+	m_stored_widget_lines.push_back(line({x_right_0, x_right_1}));
+	m_stored_widget_lines.push_back(line({x_right_1, x_right_2}));
+	m_stored_widget_lines.push_back(line({x_right_2, x_right_3}));
+	m_stored_widget_lines.push_back(line({x_right_3, x_right_0}));
+
+	// Right widget
+	const ivec2 x_bottom_0{static_cast<int32_t>(sizeX * 0.23f), static_cast<int32_t>(sizeY * 0.05f)};
+	const ivec2 x_bottom_1{static_cast<int32_t>(sizeX * 0.33f), static_cast<int32_t>(sizeY * 0.25f)};
+	const ivec2 x_bottom_2{static_cast<int32_t>(sizeX * 0.67f), static_cast<int32_t>(sizeY * 0.25f)};
+	const ivec2 x_bottom_3{static_cast<int32_t>(sizeX * 0.77f), static_cast<int32_t>(sizeY * 0.05f)};
+	m_stored_widget_lines.push_back(line({x_bottom_0, x_bottom_1}));
+	m_stored_widget_lines.push_back(line({x_bottom_1, x_bottom_2}));
+	m_stored_widget_lines.push_back(line({x_bottom_2, x_bottom_3}));
+	m_stored_widget_lines.push_back(line({x_bottom_3, x_bottom_0}));
+
+	// Center widget, order: Left, right, bottom
+	const ivec2 x_center_0{static_cast<int32_t>(sizeX * 0.4f), static_cast<int32_t>(sizeY * 0.4f)};
+	const ivec2 x_center_1{static_cast<int32_t>(sizeX * 0.5f), static_cast<int32_t>(sizeY * 0.6f)};
+	const ivec2 x_center_2{static_cast<int32_t>(sizeX * 0.6f), static_cast<int32_t>(sizeY * 0.4f)};
+	m_stored_widget_lines.push_back(line({x_center_0, x_center_1}));
+	m_stored_widget_lines.push_back(line({x_center_1, x_center_2}));
+	m_stored_widget_lines.push_back(line({x_center_2, x_center_0}));
 }
 
 
 void pcp_overlay::addWidgets() {
-
-	m_lines_widgets.add(vec2(m_stored_widget_lines.at(0).a));
-	m_lines_widgets.add(vec2(m_stored_widget_lines.at(0).b));
+	for (const auto l : m_stored_widget_lines) {
+		m_lines_widgets.add(l.a);
+		m_lines_widgets.add(l.b);
+	}
 }
