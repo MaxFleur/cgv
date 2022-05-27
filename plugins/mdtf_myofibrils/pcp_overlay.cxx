@@ -262,7 +262,9 @@ void pcp_overlay::update_content() {
 
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
-		const vec4& v = data[i];
+		// Map the vector values to a range between 0.1 and 0.9 
+		// so the outmost parts of the wudget lines stay clear
+		const vec4& v = (data[i] * 0.8f) + 0.1f;
 
 		// calculate the average to allow filtering with the given threshold
 		float avg = v[0] + v[1] + v[2] + v[3];
