@@ -732,6 +732,7 @@ void viewer::create_pcp()
 
 	if (pcp_ptr)
 		pcp_ptr->set_data(data);
+		pcp_ptr->set_names(dataset.stain_names);
 
 	if (pcp2_ptr)
 		pcp2_ptr->set_data(data);

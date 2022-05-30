@@ -53,7 +53,10 @@ protected:
 	line_geometry m_line_geometry_relations;
 	line_geometry m_line_geometry_widgets;
 
+	cgv::glutil::msdf_font font;
+	cgv::glutil::msdf_gl_font_renderer font_renderer;
 	cgv::glutil::msdf_text_geometry labels;
+	float font_size = 18.0f;
 
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
@@ -80,6 +83,7 @@ public:
 	void create_gui();
 	
 	void set_data(std::vector<vec4>& data) { this->data = data; }
+	void set_names(std::vector<std::string>& names) { m_protein_names = names; }
 
 private:
 

@@ -45,6 +45,9 @@ void pcp_overlay::clear(cgv::render::context& ctx) {
 	m_line_renderer_widgets.destruct(ctx);
 	m_line_geometry_relations.destruct(ctx);
 	m_line_geometry_widgets.destruct(ctx);
+
+	font.destruct(ctx);
+	font_renderer.destruct(ctx);
 }
 
 bool pcp_overlay::self_reflect(cgv::reflect::reflection_handler& _rh) {
@@ -68,23 +71,23 @@ void pcp_overlay::on_set(void* member_ptr) {
 
 	if (member_ptr == &m_id_left) {
 		m_id_left = cgv::math::clamp(m_id_left, 0, 3);
-		if (m_protein_names.size() > 3 && labels.size() > 1)
+		if (m_protein_names.size() > 3 && labels.size() > 1) 
 			labels.set_text(0, m_protein_names[m_id_left]);
 	}
 	if (member_ptr == &m_id_right) {
 		m_id_right = cgv::math::clamp(m_id_right, 0, 3);
 		if (m_protein_names.size() > 3 && labels.size() > 1)
-			labels.set_text(0, m_protein_names[m_id_right]);
+			labels.set_text(1, m_protein_names[m_id_right]);
 	}
 	if (member_ptr == &m_id_bottom) {
 		m_id_bottom = cgv::math::clamp(m_id_bottom, 0, 3);
 		if (m_protein_names.size() > 3 && labels.size() > 1)
-			labels.set_text(0, m_protein_names[m_id_bottom]);
+			labels.set_text(2, m_protein_names[m_id_bottom]);
 	}
 	if (member_ptr == &m_id_center) {
 		m_id_center = cgv::math::clamp(m_id_center, 0, 3);
 		if (m_protein_names.size() > 3 && labels.size() > 1)
-			labels.set_text(0, m_protein_names[m_id_center]);
+			labels.set_text(3, m_protein_names[m_id_center]);
 	}
 
 	update_member(member_ptr);
@@ -101,10 +104,17 @@ bool pcp_overlay::init(cgv::render::context& ctx) {
 	success &= viewport_canvas.init(ctx);
 	success &= m_line_renderer_relations.init(ctx);
 	success &= m_line_renderer_widgets.init(ctx);
+	success &= font_renderer.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
 	if(success)
 		init_styles(ctx);
+
+	// setup the font type and size to use for the label geometry
+	if (font.init(ctx)) {
+		labels.set_msdf_font(&font);
+		labels.set_font_size(font_size);
+	}
 
 	return success;
 }
@@ -128,6 +138,20 @@ void pcp_overlay::init_frame(cgv::render::context& ctx) {
 		viewport_canvas.set_resolution(ctx, get_viewport_size());
 
 		initWidgets();
+
+		if (font.is_initialized()) {
+			labels.clear();
+
+			labels.add_text("0", ivec2(domain.size().x() * 0.27f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
+			labels.add_text("1", ivec2(domain.size().x() * 0.73f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
+			labels.add_text("2", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.18f), cgv::render::TA_NONE);
+			labels.add_text("3", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.48f), cgv::render::TA_NONE);
+
+			on_set(&m_id_left);
+			on_set(&m_id_right);
+			on_set(&m_id_bottom);
+			on_set(&m_id_center);
+		}
 	}
 }
 
@@ -173,6 +197,14 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 	if(total_count == 0) {
 		glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+
+		auto& font_prog = font_renderer.ref_prog();
+		font_prog.enable(ctx);
+		content_canvas.set_view(ctx, font_prog);
+		font_prog.disable(ctx);
+		for (int i = 0; i < labels.size(); i++) {
+			font_renderer.render(ctx, get_overlay_size(), labels, i, 1);
+		}
 	}
 
 	// the amount of lines that will be drawn in each step
@@ -268,6 +300,11 @@ void pcp_overlay::init_styles(cgv::render::context& ctx) {
 	text_style.border_width = 0.333f;
 	text_style.use_blending = true;
 	text_style.apply_gamma = false;
+
+	auto& font_prog = font_renderer.ref_prog();
+	font_prog.enable(ctx);
+	text_style.apply(ctx, font_prog);
+	font_prog.disable(ctx);
 
 	// configure style for final blending of whole overlay
 	overlay_style.fill_color = rgba(1.0f);
