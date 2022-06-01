@@ -26,12 +26,12 @@ pcp_overlay::pcp_overlay() {
 	// register a rectangle shader for the content canvas, to draw a frame around the plot
 	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
-	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main frame buffer
+	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main
+	// frame buffer
 	viewport_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
 	// initialize the line renderer with a shader program capable of drawing 2d lines
-	m_line_renderer_relations = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
-	m_line_renderer_widgets = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
+	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 }
 
 void pcp_overlay::clear(cgv::render::context& ctx) {
@@ -41,8 +41,7 @@ void pcp_overlay::clear(cgv::render::context& ctx) {
 	viewport_canvas.destruct(ctx);
 	fbc.clear(ctx);
 
-	m_line_renderer_relations.destruct(ctx);
-	m_line_renderer_widgets.destruct(ctx);
+	m_line_renderer.destruct(ctx);
 	m_line_geometry_relations.destruct(ctx);
 	m_line_geometry_widgets.destruct(ctx);
 
@@ -95,19 +94,18 @@ void pcp_overlay::on_set(void* member_ptr) {
 }
 
 bool pcp_overlay::init(cgv::render::context& ctx) {
-	
+
 	bool success = true;
 
 	// initialize the offline frame buffer, canvases and line renderer
 	success &= fbc.ensure(ctx);
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
-	success &= m_line_renderer_relations.init(ctx);
-	success &= m_line_renderer_widgets.init(ctx);
+	success &= m_line_renderer.init(ctx);
 	success &= font_renderer.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
-	if(success)
+	if (success)
 		init_styles(ctx);
 
 	// setup the font type and size to use for the label geometry
@@ -193,6 +191,8 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 	// enable the offline frame buffer, so all things are drawn into its attached textures
 	fbc.enable(ctx);
 
+	auto& line_prog = m_line_renderer.ref_prog();
+
 	// make sure to reset the color buffer if we update the content from scratch
 	if(total_count == 0) {
 		glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
@@ -205,33 +205,26 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 		for (int i = 0; i < labels.size(); i++) {
 			font_renderer.render(ctx, get_overlay_size(), labels, i, 1);
 		}
+
+		line_prog.enable(ctx);
+		content_canvas.set_view(ctx, line_prog);
+		m_line_style_widgets.apply(ctx, line_prog);
+		line_prog.disable(ctx);
+		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
 	}
 
 	// the amount of lines that will be drawn in each step
 	int count = 100000;
 
 	// make sure to not draw more lines than available
-	if(total_count + count > m_line_geometry_relations.get_vertex_count())
+	if (total_count + count > m_line_geometry_relations.get_vertex_count())
 		count = m_line_geometry_relations.get_vertex_count() - total_count;
 
-	auto& line_prog_widgets = m_line_renderer_widgets.ref_prog();
-	line_prog_widgets.enable(ctx);
-	content_canvas.set_view(ctx, line_prog_widgets);
-	line_prog_widgets.disable(ctx);
-	m_line_renderer_widgets.render(ctx, PT_LINES, m_line_geometry_widgets);
-
-	// get the shader program of the line renderer
-	auto& line_prog_relations = m_line_renderer_relations.ref_prog();
-	// enable before we change anything
-	line_prog_relations.enable(ctx);
-	// Sets uniforms of the line shader program according to the content canvas,
-	// which are needed to calculate pixel coordinates.
-	content_canvas.set_view(ctx, line_prog_relations);
-	// Disable, since the renderer will enable and disable its shader program automatically
-	// and we cannot enable a program that is already enabled.
-	line_prog_relations.disable(ctx);
-	// draw the lines from the given geometry with offset and count
-	m_line_renderer_relations.render(ctx, PT_LINES, m_line_geometry_relations, total_count, count);
+	line_prog.enable(ctx);
+	content_canvas.set_view(ctx, line_prog);
+	m_line_style_relations.apply(ctx, line_prog);
+	line_prog.disable(ctx);
+	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_relations, total_count, count);
 
 	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
 	fbc.disable(ctx);
@@ -281,17 +274,6 @@ void pcp_overlay::init_styles(cgv::render::context& ctx) {
 	m_line_style_widgets.apply_gamma = false;
 	m_line_style_widgets.fill_color = rgba(1.0f, 0.0f, 0.0f, 1.0f);
 	m_line_style_widgets.width = 3.0f;
-
-	// as the line style does not change during rendering, we can set it here once
-	auto& line_prog_relations = m_line_renderer_relations.ref_prog();
-	line_prog_relations.enable(ctx);
-	m_line_style_relations.apply(ctx, line_prog_relations);
-	line_prog_relations.disable(ctx);
-
-	auto& line_prog_widgets = m_line_renderer_widgets.ref_prog();
-	line_prog_widgets.enable(ctx);
-	m_line_style_widgets.apply(ctx, line_prog_widgets);
-	line_prog_widgets.disable(ctx);
 
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;

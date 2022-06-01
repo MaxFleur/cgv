@@ -46,8 +46,7 @@ protected:
 	float line_alpha = 0.0001f;
 
 	/// renderer for the 2d plot lines
-	cgv::glutil::generic_renderer m_line_renderer_relations;
-	cgv::glutil::generic_renderer m_line_renderer_widgets;
+	cgv::glutil::generic_renderer m_line_renderer;
 	/// define a geometry class holding only 2d position values
 	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
 	line_geometry m_line_geometry_relations;
