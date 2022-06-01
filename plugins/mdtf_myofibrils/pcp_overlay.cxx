@@ -396,8 +396,25 @@ void pcp_overlay::initWidgets() {
 	m_widget_lines.push_back(line({x_center_0, x_center_1}));
 	m_widget_lines.push_back(line({x_center_1, x_center_2}));
 	m_widget_lines.push_back(line({x_center_2, x_center_0}));
-}
 
+	// draw smaller boundaries on the relations borders
+	for (int i = 0; i < 15; i++) {
+		// ignore the "back" lines of the widgets, they don't need boundaries
+		if ((i + 1) % 4 != 0) {
+			const auto direction = normalize(m_widget_lines.at(i).b - m_widget_lines.at(i).a);
+			const auto ortho_direction = cgv::math::ortho(direction);
+
+			const auto boundary_left = m_widget_lines.at(i).interpolate(0.1f);
+			const auto boundary_right = m_widget_lines.at(i).interpolate(0.9f);
+
+			m_widget_lines.push_back(
+				line({boundary_left - 5.0f * ortho_direction, boundary_left + 3.0f * ortho_direction}));
+			m_widget_lines.push_back(
+				  line({boundary_right - 5.0f * ortho_direction, boundary_right + 3.0f * ortho_direction}));
+		}
+	}
+
+}
 
 void pcp_overlay::addWidgets() {
 	m_line_geometry_widgets.clear();
