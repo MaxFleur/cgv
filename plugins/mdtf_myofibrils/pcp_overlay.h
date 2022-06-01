@@ -49,13 +49,15 @@ protected:
 	cgv::glutil::generic_renderer m_line_renderer;
 	/// define a geometry class holding only 2d position values
 	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
+	// The lines for the relations between the widgets
 	line_geometry m_line_geometry_relations;
+	// widget boundaries
 	line_geometry m_line_geometry_widgets;
 
 	cgv::glutil::msdf_font font;
 	cgv::glutil::msdf_gl_font_renderer font_renderer;
 	cgv::glutil::msdf_text_geometry labels;
-	float font_size = 18.0f;
+	const float font_size = 18.0f;
 
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
@@ -94,7 +96,7 @@ private:
 		vec2 a;
 		vec2 b;
 
-		vec2 interpolate(float value) {
+		vec2 interpolate(float value) const {
 			return cgv::math::lerp(a, b, value);
 		}
 	};

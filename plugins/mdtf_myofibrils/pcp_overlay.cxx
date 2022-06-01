@@ -68,6 +68,7 @@ void pcp_overlay::on_set(void* member_ptr) {
 			init_styles(*ctx_ptr);
 	}
 
+	// change the labels if the GUI index is updated
 	if (member_ptr == &m_id_left) {
 		m_id_left = cgv::math::clamp(m_id_left, 0, 3);
 		if (m_protein_names.size() > 3 && labels.size() > 1) 
