@@ -197,6 +197,16 @@ vec3 safe_normalize(vec3 v) {
 	return len > 0.000001 ? v/len : vec3(0.0);
 }
 
+vec4 gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, float sigma) {
+	mat4 diagonal_matrix;
+	diagonal_matrix[0] = vec4(sigma, 0.0, 0.0, 0.0);
+	diagonal_matrix[1] = vec4(0.0, sigma, 0.0, 0.0);
+	diagonal_matrix[2] = vec4(0.0, 0.0, sigma, 0.0);
+	diagonal_matrix[3] = vec4(0.0, 0.0, 0.0, sigma);
+
+	return exp(-(density - gaussian_centroid) * diagonal_matrix * diagonal_matrix * (density - gaussian_centroid));
+}
+
 bool intersect_box(vec3 origin, vec3 direction, out float t_min, out float t_max) {
 
 	vec3 inv_dir = 1.0 / direction;
@@ -336,11 +346,14 @@ void main()
 #else
 		vec4 density = textureCubic(volume_tex, uvw);
 #endif
+		const vec4 alpha_values = gaussian_transfer_function(density, gaussian_centroid, 0.5f);
+		const float final_alpha = alpha_values[0] + alpha_values[1] + alpha_values[2] + alpha_values[3];
+
 		const float texel_size = 1.0/4.0;
-		vec4 color_in0 = texture(transfer_function_tex, vec2(density[0], 0*texel_size + 0.5*texel_size));
-		vec4 color_in1 = texture(transfer_function_tex, vec2(density[1], 1*texel_size + 0.5*texel_size));
-		vec4 color_in2 = texture(transfer_function_tex, vec2(density[2], 2*texel_size + 0.5*texel_size));
-		vec4 color_in3 = texture(transfer_function_tex, vec2(density[3], 3*texel_size + 0.5*texel_size));
+		vec4 color_in0 = alpha_values[0] * texture(transfer_function_tex, vec2(density[0], 0*texel_size + 0.5*texel_size));
+		vec4 color_in1 = alpha_values[1] * texture(transfer_function_tex, vec2(density[1], 1*texel_size + 0.5*texel_size));
+		vec4 color_in2 = alpha_values[2] * texture(transfer_function_tex, vec2(density[2], 2*texel_size + 0.5*texel_size));
+		vec4 color_in3 = alpha_values[3] * texture(transfer_function_tex, vec2(density[3], 3*texel_size + 0.5*texel_size));
 		
 #if ENABLE_LIGHTING == 1
 		// get the normal from a precomputed texture as the average gradient over all 4 channels
