@@ -99,6 +99,11 @@ namespace cgv { // @<
 			/// sets the transfer function used for classification; must be 1D or 2D (as loaded from an image)
 			bool set_transfer_function_texture(texture* tex);
 
+			void setCentroid(vec4 centroid)
+			{
+				m_centroid = centroid;
+			};
+
 
 
 			bool set_gradient_texture(texture* tex);
@@ -116,6 +121,9 @@ namespace cgv { // @<
 			///
 			void draw(context& ctx, size_t start, size_t count,
 				bool use_strips = false, bool use_adjacency = false, uint32_t strip_restart_index = -1);
+
+		private:
+			vec4 m_centroid;
 		};
 	}
 }

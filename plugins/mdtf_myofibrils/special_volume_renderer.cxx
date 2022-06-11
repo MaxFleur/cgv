@@ -199,6 +199,8 @@ namespace cgv {
 			ref_prog().set_uniform(ctx, "combined_transform", inv(vrs.volume_transform) * vrs.clip_box_transform);
 			ref_prog().set_uniform(ctx, "combined_transform_inverse", inv(vrs.clip_box_transform) * vrs.volume_transform);
 
+			ref_prog().set_uniform(ctx, "gaussian_centroid", m_centroid);
+
 			glDisable(GL_DEPTH_TEST);
 
 			glEnable(GL_BLEND);

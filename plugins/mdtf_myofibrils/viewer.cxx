@@ -578,6 +578,7 @@ void viewer::draw(cgv::render::context& ctx) {
 		vr.set_transfer_function_texture(&tf_tex);
 		vr.set_gradient_texture(&dataset.gradient_tex);
 		vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
+		vr.setCentroid(vec4(m_centr_myosin, m_centr_actin, m_centr_obscurin, m_centr_sallimus));
 
 		vr.render(ctx, 0, 0);
 
@@ -700,6 +701,16 @@ void viewer::create_gui() {
 
 	// add a view for the sarcomere count that gets updated after loading a data set
 	add_view("Sarcomere Count", dataset.sarcomere_count);
+
+	add_decorator("Centroid parameters:", "heading", "level=3");
+	add_member_control(this, "Centroid myosin", m_centr_myosin, "value_slider",
+					   "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "Centroid actin", m_centr_actin, "value_slider",
+					   "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "Centroid obscurin", m_centr_obscurin, "value_slider",
+					   "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "Centroid sallimus", m_centr_sallimus, "value_slider",
+					   "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	
 	if(begin_tree_node("Histogram", length_histogram_po_ptr, false)) {
 		align("\a");

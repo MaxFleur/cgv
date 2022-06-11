@@ -43,6 +43,8 @@ uniform float size_scale;
 uniform vec3 clip_box_min;
 uniform vec3 clip_box_max;
 
+uniform vec4 gaussian_centroid;
+
 uniform mat4 clip_box_transform;
 uniform mat4 clip_box_transform_inverse;
 uniform mat4 volume_transform;
