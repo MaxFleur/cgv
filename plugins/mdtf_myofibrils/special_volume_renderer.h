@@ -104,6 +104,11 @@ namespace cgv { // @<
 				m_centroid = centroid;
 			};
 
+			void setGaussianWidth(float width)
+			{
+				m_gaussian_width = width;
+			};
+
 
 
 			bool set_gradient_texture(texture* tex);
@@ -124,6 +129,7 @@ namespace cgv { // @<
 
 		private:
 			vec4 m_centroid;
+			float m_gaussian_width;
 		};
 	}
 }

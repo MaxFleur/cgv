@@ -579,6 +579,7 @@ void viewer::draw(cgv::render::context& ctx) {
 		vr.set_gradient_texture(&dataset.gradient_tex);
 		vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
 		vr.setCentroid(vec4(m_centr_myosin, m_centr_actin, m_centr_obscurin, m_centr_sallimus));
+		vr.setGaussianWidth(m_gaussian_width);
 
 		vr.render(ctx, 0, 0);
 
@@ -704,13 +705,15 @@ void viewer::create_gui() {
 
 	add_decorator("Centroid parameters:", "heading", "level=3");
 	add_member_control(this, "Centroid myosin", m_centr_myosin, "value_slider",
-					   "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+					   "min=0.0;max=1.0;step=0.0001;ticks=true");
 	add_member_control(this, "Centroid actin", m_centr_actin, "value_slider",
-					   "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+					   "min=0.0;max=1.0;step=0.0001;ticks=true");
 	add_member_control(this, "Centroid obscurin", m_centr_obscurin, "value_slider",
-					   "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+					   "min=0.0;max=1.0;step=0.0001;ticks=true");
 	add_member_control(this, "Centroid sallimus", m_centr_sallimus, "value_slider",
-					   "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+					   "min=0.0;max=1.0;step=0.0001;ticks=true");
+	add_member_control(this, "Gaussian width", m_gaussian_width, "value_slider",
+					   "min=0.0;max=1.0;step=0.0001;ticks=true");
 	
 	if(begin_tree_node("Histogram", length_histogram_po_ptr, false)) {
 		align("\a");

@@ -22,8 +22,8 @@ bool msdf_font::is_initialized() const
 
 bool msdf_font::init(cgv::render::context& ctx) {
 	bool success = true;
-	success &= load_atlas_texture(ctx, "res://segoeui_atlas.png");
-	success &= load_atlas_metadata("res://segoeui_meta.png");
+	success &= load_atlas_texture(ctx, "C:/Uni/Masterarbeit/cgv/plugins/mdtf_myofibrils/res/segoeui_atlas.png");
+	success &= load_atlas_metadata("C:/Uni/Masterarbeit/cgv/plugins/mdtf_myofibrils/res/segoeui_meta.png");
 	return success;
 }
 

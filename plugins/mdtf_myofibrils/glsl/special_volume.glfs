@@ -44,6 +44,7 @@ uniform vec3 clip_box_min;
 uniform vec3 clip_box_max;
 
 uniform vec4 gaussian_centroid;
+uniform float gaussian_width;
 
 uniform mat4 clip_box_transform;
 uniform mat4 clip_box_transform_inverse;
@@ -346,7 +347,7 @@ void main()
 #else
 		vec4 density = textureCubic(volume_tex, uvw);
 #endif
-		const vec4 alpha_values = gaussian_transfer_function(density, gaussian_centroid, 0.5f);
+		const vec4 alpha_values = gaussian_transfer_function(density, gaussian_centroid, gaussian_width);
 		const float final_alpha = alpha_values[0] + alpha_values[1] + alpha_values[2] + alpha_values[3];
 
 		const float texel_size = 1.0/4.0;

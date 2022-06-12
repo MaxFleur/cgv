@@ -298,4 +298,5 @@ private:
 		float m_centr_obscurin = 0.5f;
 		float m_centr_sallimus = 0.5f;
 
+		float m_gaussian_width = 0.5f;
 };
