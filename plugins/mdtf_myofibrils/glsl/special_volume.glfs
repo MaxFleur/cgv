@@ -198,12 +198,12 @@ vec3 safe_normalize(vec3 v) {
 	return len > 0.000001 ? v/len : vec3(0.0);
 }
 
-vec4 gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, float sigma) {
+vec4 gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, float gaussian_width) {
 	mat4 diagonal_matrix;
-	diagonal_matrix[0] = vec4(sigma, 0.0, 0.0, 0.0);
-	diagonal_matrix[1] = vec4(0.0, sigma, 0.0, 0.0);
-	diagonal_matrix[2] = vec4(0.0, 0.0, sigma, 0.0);
-	diagonal_matrix[3] = vec4(0.0, 0.0, 0.0, sigma);
+	diagonal_matrix[0] = vec4(gaussian_width, 0.0, 0.0, 0.0);
+	diagonal_matrix[1] = vec4(0.0, gaussian_width, 0.0, 0.0);
+	diagonal_matrix[2] = vec4(0.0, 0.0, gaussian_width, 0.0);
+	diagonal_matrix[3] = vec4(0.0, 0.0, 0.0, gaussian_width);
 
 	return exp(-(density - gaussian_centroid) * diagonal_matrix * diagonal_matrix * (density - gaussian_centroid));
 }
