@@ -208,6 +208,23 @@ vec4 gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, float gaus
 	return exp(-(density - gaussian_centroid) * diagonal_matrix * diagonal_matrix * (density - gaussian_centroid));
 }
 
+float gaussian_transfer_function2(vec4 density, vec4 gaussian_centroid, float gaussian_width) {
+	// construct a matrix with diagonal components set to the given value
+	mat4 K = mat4(1.0/gaussian_width); // gaussian is scaled by dividing the exponent, so our matrix must contain the inverse scaling factor
+	
+	// calculate difference with centroid
+	vec4 diff = density - gaussian_centroid;
+	
+	// calculate "squared" matrix; since K is a diagonal matrix in our case, transpose is not necessary
+	mat4 K2 = K*K; // transpose(K)*K;
+
+	// calculate exponent; use dot product to multiply two vectors with the intention of receiving a single floating point result
+	float exponent = dot(diff, K2*diff);
+
+	// put in e function to receive final single-component alpha value
+	return exp(-exponent);
+}
+
 bool intersect_box(vec3 origin, vec3 direction, out float t_min, out float t_max) {
 
 	vec3 inv_dir = 1.0 / direction;
@@ -356,6 +373,13 @@ void main()
 		vec4 color_in2 = alpha_values[2] * texture(transfer_function_tex, vec2(density[2], 2*texel_size + 0.5*texel_size));
 		vec4 color_in3 = alpha_values[3] * texture(transfer_function_tex, vec2(density[3], 3*texel_size + 0.5*texel_size));
 		
+		// get the alpha value according to one gaussian transfer function
+		float gtf_alpha = gaussian_transfer_function2(density, gaussian_centroid, gaussian_width);
+		// choose green as the color (because it is easily visible) and set the alpha channel to the result from the GTF
+		vec4 color_in = vec4(0.0, 1.0, 0.0, gtf_alpha);
+		// scale by opacity scale
+		color_in.a *= opacity_scale;
+
 #if ENABLE_LIGHTING == 1
 		// get the normal from a precomputed texture as the average gradient over all 4 channels
 		vec3 normal = -safe_normalize(texture(gradient_tex, uvw).xyz);
@@ -400,6 +424,8 @@ void main()
 		color_in2.rgb *= color_in2.a;
 		color_in3.rgb *= color_in3.a;
 
+		// disable other blending modes temporarily
+/*
 #if BLEND_MODE == 0
 		// blend channels in RGBA order treating them as seperate layers
 		// blend overall samples back to front
@@ -422,6 +448,11 @@ void main()
 		// blend back to front
 		color = color_in + (1.0 - color_in.a)*color;
 #endif
+*/
+		
+		// blend one color as usual
+		color = color_in + (1.0 - color_in.a)*color;
+
 		//if(color.a > 1.0f)
         //    break;
 	}
