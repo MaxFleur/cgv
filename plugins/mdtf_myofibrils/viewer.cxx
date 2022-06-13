@@ -712,7 +712,9 @@ void viewer::create_gui() {
 					   "min=0.0;max=1.0;step=0.0001;ticks=true");
 	add_member_control(this, "Centroid sallimus", m_centr_sallimus, "value_slider",
 					   "min=0.0;max=1.0;step=0.0001;ticks=true");
-	add_member_control(this, "Gaussian width", m_gaussian_width, "value_slider",
+
+	add_decorator("Gaussian width:", "heading", "level=3");
+	add_member_control(this, "", m_gaussian_width, "value_slider",
 					   "min=0.0;max=1.0;step=0.0001;ticks=true");
 	
 	if(begin_tree_node("Histogram", length_histogram_po_ptr, false)) {
