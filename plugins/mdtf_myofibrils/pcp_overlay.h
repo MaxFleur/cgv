@@ -61,10 +61,10 @@ protected:
 	cgv::glutil::generic_renderer m_point_renderer;
 	cgv::glutil::shape2d_style m_draggable_style;
 
-	cgv::glutil::msdf_font font;
-	cgv::glutil::msdf_gl_font_renderer font_renderer;
-	cgv::glutil::msdf_text_geometry labels;
-	const float font_size = 18.0f;
+	cgv::glutil::msdf_font m_font;
+	cgv::glutil::msdf_gl_font_renderer m_font_renderer;
+	cgv::glutil::msdf_text_geometry m_labels;
+	const float m_font_size = 18.0f;
 
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
@@ -94,6 +94,10 @@ public:
 	void set_names(std::vector<std::string>& names) { m_protein_names = names; }
 
 private:
+
+	void init_widgets();
+
+	void add_widgets();
 
 	void add_centroids();
 
@@ -171,12 +175,6 @@ private:
 	int m_id_right = 1;
 	int m_id_bottom = 2;
 	int m_id_center = 3;
-
-	cgv::glutil::canvas m_canvas;
-
-	void initWidgets();
-	void addWidgets();
-
 };
 
 typedef cgv::data::ref_ptr<pcp_overlay> pcp_overlay_ptr;

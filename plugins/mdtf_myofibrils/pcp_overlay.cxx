@@ -46,8 +46,8 @@ void pcp_overlay::clear(cgv::render::context& ctx) {
 	m_line_geometry_relations.destruct(ctx);
 	m_line_geometry_widgets.destruct(ctx);
 
-	font.destruct(ctx);
-	font_renderer.destruct(ctx);
+	m_font.destruct(ctx);
+	m_font_renderer.destruct(ctx);
 }
 
 bool pcp_overlay::self_reflect(cgv::reflect::reflection_handler& _rh) {
@@ -72,23 +72,23 @@ void pcp_overlay::on_set(void* member_ptr) {
 	// change the labels if the GUI index is updated
 	if (member_ptr == &m_id_left) {
 		m_id_left = cgv::math::clamp(m_id_left, 0, 3);
-		if (m_protein_names.size() > 3 && labels.size() > 1) 
-			labels.set_text(0, m_protein_names[m_id_left]);
+		if (m_protein_names.size() > 3 && m_labels.size() > 1) 
+			m_labels.set_text(0, m_protein_names[m_id_left]);
 	}
 	if (member_ptr == &m_id_right) {
 		m_id_right = cgv::math::clamp(m_id_right, 0, 3);
-		if (m_protein_names.size() > 3 && labels.size() > 1)
-			labels.set_text(1, m_protein_names[m_id_right]);
+		if (m_protein_names.size() > 3 && m_labels.size() > 1)
+			m_labels.set_text(1, m_protein_names[m_id_right]);
 	}
 	if (member_ptr == &m_id_bottom) {
 		m_id_bottom = cgv::math::clamp(m_id_bottom, 0, 3);
-		if (m_protein_names.size() > 3 && labels.size() > 1)
-			labels.set_text(2, m_protein_names[m_id_bottom]);
+		if (m_protein_names.size() > 3 && m_labels.size() > 1)
+			m_labels.set_text(2, m_protein_names[m_id_bottom]);
 	}
 	if (member_ptr == &m_id_center) {
 		m_id_center = cgv::math::clamp(m_id_center, 0, 3);
-		if (m_protein_names.size() > 3 && labels.size() > 1)
-			labels.set_text(3, m_protein_names[m_id_center]);
+		if (m_protein_names.size() > 3 && m_labels.size() > 1)
+			m_labels.set_text(3, m_protein_names[m_id_center]);
 	}
 
 	update_member(member_ptr);
@@ -104,7 +104,7 @@ bool pcp_overlay::init(cgv::render::context& ctx) {
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
 	success &= m_line_renderer.init(ctx);
-	success &= font_renderer.init(ctx);
+	success &= m_font_renderer.init(ctx);
 	success &= m_point_renderer.init(ctx);
 
 	set_draggable_styles();
@@ -114,9 +114,9 @@ bool pcp_overlay::init(cgv::render::context& ctx) {
 		init_styles(ctx);
 
 	// setup the font type and size to use for the label geometry
-	if (font.init(ctx)) {
-		labels.set_msdf_font(&font);
-		labels.set_font_size(font_size);
+	if (m_font.init(ctx)) {
+		m_labels.set_msdf_font(&m_font);
+		m_labels.set_font_size(m_font_size);
 	}
 
 	return success;
@@ -140,15 +140,15 @@ void pcp_overlay::init_frame(cgv::render::context& ctx) {
 		content_canvas.set_resolution(ctx, overlay_size);
 		viewport_canvas.set_resolution(ctx, get_viewport_size());
 
-		initWidgets();
+		init_widgets();
 
-		if (font.is_initialized()) {
-			labels.clear();
+		if (m_font.is_initialized()) {
+			m_labels.clear();
 
-			labels.add_text("0", ivec2(domain.size().x() * 0.27f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
-			labels.add_text("1", ivec2(domain.size().x() * 0.73f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
-			labels.add_text("2", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.18f), cgv::render::TA_NONE);
-			labels.add_text("3", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.48f), cgv::render::TA_NONE);
+			m_labels.add_text("0", ivec2(domain.size().x() * 0.27f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
+			m_labels.add_text("1", ivec2(domain.size().x() * 0.73f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
+			m_labels.add_text("2", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.18f), cgv::render::TA_NONE);
+			m_labels.add_text("3", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.48f), cgv::render::TA_NONE);
 
 			on_set(&m_id_left);
 			on_set(&m_id_right);
@@ -203,12 +203,12 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 		glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		auto& font_prog = font_renderer.ref_prog();
+		auto& font_prog = m_font_renderer.ref_prog();
 		font_prog.enable(ctx);
 		content_canvas.set_view(ctx, font_prog);
 		font_prog.disable(ctx);
-		for (int i = 0; i < labels.size(); i++) {
-			font_renderer.render(ctx, get_overlay_size(), labels, i, 1);
+		for (int i = 0; i < m_labels.size(); i++) {
+			m_font_renderer.render(ctx, get_overlay_size(), m_labels, i, 1);
 		}
 
 		line_prog.enable(ctx);
@@ -218,10 +218,10 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
 	}
 
+	draw_draggables(ctx);
+
 	// the amount of lines that will be drawn in each step
 	int count = 100000;
-
-	draw_draggables(ctx);
 
 	// make sure to not draw more lines than available
 	if (total_count + count > m_line_geometry_relations.get_vertex_count())
@@ -311,7 +311,7 @@ void pcp_overlay::init_styles(cgv::render::context& ctx) {
 	text_style.use_blending = true;
 	text_style.apply_gamma = false;
 
-	auto& font_prog = font_renderer.ref_prog();
+	auto& font_prog = m_font_renderer.ref_prog();
 	font_prog.enable(ctx);
 	text_style.apply(ctx, font_prog);
 	font_prog.disable(ctx);
@@ -341,7 +341,7 @@ void pcp_overlay::update_content() {
 	m_line_geometry_relations.clear();
 	m_line_geometry_widgets.clear();
 
-	addWidgets();
+	add_widgets();
 
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
@@ -380,7 +380,7 @@ void pcp_overlay::update_content() {
 	post_redraw();
 }
 
-void pcp_overlay::initWidgets() {
+void pcp_overlay::init_widgets() {
 	m_widget_lines.clear();
 
 	const auto sizeX = domain.size().x();
@@ -443,7 +443,7 @@ void pcp_overlay::initWidgets() {
 
 }
 
-void pcp_overlay::addWidgets()
+void pcp_overlay::add_widgets()
 {
 	m_line_geometry_widgets.clear();
 
