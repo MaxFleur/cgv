@@ -260,6 +260,27 @@ void pcp_overlay::create_gui() {
 	add_member_control(this, "Protein right:", m_id_right, "value", "min=0;max=3;step=1");
 	add_member_control(this, "Protein bottom:", m_id_bottom, "value", "min=0;max=3;step=1");
 	add_member_control(this, "Protein center:", m_id_center, "value", "min=0;max=3;step=1");
+
+	auto const add_centroid_button = add_button("Add centroid");
+	connect_copy(add_centroid_button->click, rebind(this, &pcp_overlay::addCentroid));
+
+	for (int i = 0; i < m_centroids.size(); i++ ) {
+		const auto header_string = "Centroid " + std::to_string(i) + " parameters:";
+		add_decorator(header_string, "heading", "level=3");
+
+		add_member_control(this, "Centroid myosin", m_centroids.at(i).centr_myosin, "value_slider",
+						   "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Centroid actin", m_centroids.at(i).centr_actin, "value_slider",
+						   "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Centroid obscurin", m_centroids.at(i).centr_obscurin, "value_slider",
+						   "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Centroid sallimus", m_centroids.at(i).centr_sallimus, "value_slider",
+						   "min=0.0;max=1.0;step=0.0001;ticks=true");
+
+		const auto width_string = "Gaussian width centroid " + std::to_string(i);
+		add_decorator(width_string, "heading", "level=3");
+		add_member_control(this, "", m_centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+	}
 }
 
 void pcp_overlay::init_styles(cgv::render::context& ctx) {

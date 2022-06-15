@@ -87,6 +87,15 @@ public:
 	void set_names(std::vector<std::string>& names) { m_protein_names = names; }
 
 private:
+	void addCentroid()
+	{
+		centroid centr;
+		m_centroids.push_back(centr);
+
+		post_recreate_gui();
+	}
+
+private:
 
 	cgv::glutil::line2d_style m_line_style_relations;
 	cgv::glutil::line2d_style m_line_style_widgets;
@@ -101,10 +110,25 @@ private:
 		}
 	};
 
+	struct centroid
+	{
+		vec4 color{0.0f, 0.0f, 0.0f, 0.0f};
+
+		float centr_myosin = 0.0f;
+		float centr_actin = 0.0f;
+		float centr_obscurin = 0.0f;
+		float centr_sallimus = 0.0f;
+
+		float gaussian_width = 0.0f;
+	};
+
 	std::vector<line> m_widget_lines;
 
 	std::vector<std::string> m_protein_names;
 
+	std::vector<centroid> m_centroids;
+
+	// ids used for the texts inside the widgets
 	int m_id_left = 0;
 	int m_id_right = 1;
 	int m_id_bottom = 2;
