@@ -4,6 +4,7 @@
 #include <cgv_glutil/generic_renderer.h>
 #include <cgv_glutil/msdf_gl_font_renderer.h>
 #include <cgv_glutil/overlay.h>
+#include <cgv_glutil/2d/draggable.h>
 #include <cgv_glutil/2d/canvas.h>
 #include <cgv_glutil/2d/shape2d_styles.h>
 #include <plot/plot2d.h>
@@ -54,6 +55,12 @@ protected:
 	// widget boundaries
 	line_geometry m_line_geometry_widgets;
 
+	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 1, vec2, position);
+	point_geometry m_draggable_points;
+
+	cgv::glutil::generic_renderer m_point_renderer;
+	cgv::glutil::shape2d_style m_draggable_style;
+
 	cgv::glutil::msdf_font font;
 	cgv::glutil::msdf_gl_font_renderer font_renderer;
 	cgv::glutil::msdf_text_geometry labels;
@@ -87,13 +94,14 @@ public:
 	void set_names(std::vector<std::string>& names) { m_protein_names = names; }
 
 private:
-	void addCentroid()
-	{
-		centroid centr;
-		m_centroids.push_back(centr);
 
-		post_recreate_gui();
-	}
+	void add_centroids();
+
+	void add_centroid_draggables();
+
+	void draw_draggables(cgv::render::context& ctx);
+
+	void set_draggable_styles();
 
 private:
 
@@ -122,17 +130,49 @@ private:
 		float gaussian_width = 0.0f;
 	};
 
+	struct point : public cgv::glutil::draggable
+	{
+		point(const ivec2& pos)
+		{
+			this->pos = pos;
+			size = vec2(8.0f);
+			position_is_center = true;
+			constraint_reference = CR_FULL_SIZE;
+		}
+
+		bool is_inside(const vec2& mp) const
+		{
+
+			float dist = length(mp - center());
+			return dist <= size.x();
+		}
+
+		ivec2 get_render_position() const
+		{
+			return ivec2(pos + 0.5f);
+		}
+
+		ivec2 get_render_size() const
+		{
+			return 2 * ivec2(size);
+		}
+	};
+
 	std::vector<line> m_widget_lines;
 
 	std::vector<std::string> m_protein_names;
 
 	std::vector<centroid> m_centroids;
 
+	std::vector<std::vector<point>> m_points;
+
 	// ids used for the texts inside the widgets
 	int m_id_left = 0;
 	int m_id_right = 1;
 	int m_id_bottom = 2;
 	int m_id_center = 3;
+
+	cgv::glutil::canvas m_canvas;
 
 	void initWidgets();
 	void addWidgets();

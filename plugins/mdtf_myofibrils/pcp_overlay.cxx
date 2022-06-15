@@ -32,6 +32,7 @@ pcp_overlay::pcp_overlay() {
 
 	// initialize the line renderer with a shader program capable of drawing 2d lines
 	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
+	m_point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 }
 
 void pcp_overlay::clear(cgv::render::context& ctx) {
@@ -104,6 +105,9 @@ bool pcp_overlay::init(cgv::render::context& ctx) {
 	success &= viewport_canvas.init(ctx);
 	success &= m_line_renderer.init(ctx);
 	success &= font_renderer.init(ctx);
+	success &= m_point_renderer.init(ctx);
+
+	set_draggable_styles();
 
 	// when successful, initialize the styles used for the individual shapes
 	if (success)
@@ -217,6 +221,8 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 	// the amount of lines that will be drawn in each step
 	int count = 100000;
 
+	draw_draggables(ctx);
+
 	// make sure to not draw more lines than available
 	if (total_count + count > m_line_geometry_relations.get_vertex_count())
 		count = m_line_geometry_relations.get_vertex_count() - total_count;
@@ -262,7 +268,7 @@ void pcp_overlay::create_gui() {
 	add_member_control(this, "Protein center:", m_id_center, "value", "min=0;max=3;step=1");
 
 	auto const add_centroid_button = add_button("Add centroid");
-	connect_copy(add_centroid_button->click, rebind(this, &pcp_overlay::addCentroid));
+	connect_copy(add_centroid_button->click, rebind(this, &pcp_overlay::add_centroids));
 
 	for (int i = 0; i < m_centroids.size(); i++ ) {
 		const auto header_string = "Centroid " + std::to_string(i) + " parameters:";
@@ -437,11 +443,80 @@ void pcp_overlay::initWidgets() {
 
 }
 
-void pcp_overlay::addWidgets() {
+void pcp_overlay::addWidgets()
+{
 	m_line_geometry_widgets.clear();
 
 	for (const auto l : m_widget_lines) {
 		m_line_geometry_widgets.add(l.a);
 		m_line_geometry_widgets.add(l.b);
 	}
+}
+
+void pcp_overlay::add_centroids()
+{
+	centroid centr;
+	m_centroids.push_back(centr);
+	add_centroid_draggables();
+
+	post_recreate_gui();
+	post_redraw();
+}
+
+void pcp_overlay::add_centroid_draggables()
+{
+	std::vector<point> points;
+	// Add the new centroid points to the widget lines, start with the left side
+	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
+	points.push_back(point(vec2(m_widget_lines.at(0).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(1).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(2).interpolate(0.1f))));
+	// Ignore the outer widget lines
+	points.push_back(point(vec2(m_widget_lines.at(4).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(5).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(6).interpolate(0.1f))));
+
+	points.push_back(point(vec2(m_widget_lines.at(8).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(9).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(10).interpolate(0.1f))));
+
+	points.push_back(point(vec2(m_widget_lines.at(12).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(13).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(14).interpolate(0.1f))));
+
+	m_points.push_back(points);
+}
+
+void pcp_overlay::draw_draggables(cgv::render::context& ctx)
+{
+	// TODO: move creation of render data to own function and call only when necessary
+	m_draggable_points.clear();
+	ivec2 render_size;
+
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			const point& p = m_points[i][j];
+			m_draggable_points.add(p.get_render_position());
+			render_size = p.get_render_size();
+		}
+	}
+
+	m_draggable_points.set_out_of_date();
+
+	shader_program& point_prog = m_point_renderer.ref_prog();
+	point_prog.enable(ctx);
+	content_canvas.set_view(ctx, point_prog);
+	m_draggable_style.apply(ctx, point_prog);
+	point_prog.set_attribute(ctx, "size", vec2(render_size));
+	point_prog.disable(ctx);
+	m_point_renderer.render(ctx, PT_POINTS, m_draggable_points);
+}
+
+void pcp_overlay::set_draggable_styles() {
+	// set draggable point style
+	m_draggable_style.position_is_center = true;
+	m_draggable_style.fill_color = rgba(0.9f, 0.9f, 0.9f, 1.0f);
+	m_draggable_style.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
+	m_draggable_style.border_width = 1.5f;
+	m_draggable_style.use_blending = true;
 }
