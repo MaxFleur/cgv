@@ -123,6 +123,29 @@ private:
 		vec2 interpolate(float value) const {
 			return cgv::math::lerp(a, b, value);
 		}
+
+		vec2 getIntersection(vec2 point) const {
+			const auto ortho_direction = cgv::math::ortho(normalize(b - a));
+
+			const auto a1 = b.y() - a.y();
+			const auto b1 = a.x() - b.x();
+			
+			const auto a2 = ortho_direction.y() - point.y();
+			const auto b2 = point.x() - ortho_direction.x();
+
+			double determinant = a1 * b2 - a2 * b1;
+
+			if (determinant == 0) {
+				return point;
+			}
+
+			const auto c1 = a1 * (a.x()) + b1 * (a.y());
+			const auto c2 = a2 * (point.x()) + b2 * (point.y());
+
+			const auto x = (b2 * c1 - b1 * c2) / determinant;
+			const auto y = (a1 * c2 - a2 * c1) / determinant;
+			return vec2(x, y);
+		}
 	};
 
 	struct centroid
@@ -139,17 +162,23 @@ private:
 
 	struct point : public cgv::glutil::draggable
 	{
-		point(const ivec2& pos)
+		line* m_parent_line;
+
+		point(const ivec2& pos, line* line)
 		{
+			m_parent_line = line;
 			this->pos = pos;
 			size = vec2(8.0f);
 			position_is_center = true;
 			constraint_reference = CR_FULL_SIZE;
 		}
 
+		void update_val() {
+			pos = m_parent_line->getIntersection(pos);
+		}
+
 		bool is_inside(const vec2& mp) const
 		{
-
 			float dist = length(mp - center());
 			return dist <= size.x();
 		}

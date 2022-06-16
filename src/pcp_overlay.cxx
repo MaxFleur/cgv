@@ -90,9 +90,7 @@ bool pcp_overlay::handle_event(cgv::gui::event& e) {
 		}
 		return false;
 	}
-	else {
-		return false;
-	}
+	return false;
 }
 
 void pcp_overlay::on_set(void* member_ptr) {
@@ -543,21 +541,21 @@ void pcp_overlay::add_centroid_draggables()
 	std::vector<point> points;
 	// Add the new centroid points to the widget lines, start with the left side
 	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
-	points.push_back(point(vec2(m_widget_lines.at(0).interpolate(0.1f))));
-	points.push_back(point(vec2(m_widget_lines.at(1).interpolate(0.1f))));
-	points.push_back(point(vec2(m_widget_lines.at(2).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(0).interpolate(0.1f)), &m_widget_lines.at(0)));
+	points.push_back(point(vec2(m_widget_lines.at(1).interpolate(0.1f)), &m_widget_lines.at(1)));
+	points.push_back(point(vec2(m_widget_lines.at(2).interpolate(0.1f)), &m_widget_lines.at(2)));
 	// Ignore the outer widget lines
-	points.push_back(point(vec2(m_widget_lines.at(4).interpolate(0.1f))));
-	points.push_back(point(vec2(m_widget_lines.at(5).interpolate(0.1f))));
-	points.push_back(point(vec2(m_widget_lines.at(6).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(4).interpolate(0.1f)), &m_widget_lines.at(4)));
+	points.push_back(point(vec2(m_widget_lines.at(5).interpolate(0.1f)), &m_widget_lines.at(5)));
+	points.push_back(point(vec2(m_widget_lines.at(6).interpolate(0.1f)), &m_widget_lines.at(6)));
 
-	points.push_back(point(vec2(m_widget_lines.at(8).interpolate(0.1f))));
-	points.push_back(point(vec2(m_widget_lines.at(9).interpolate(0.1f))));
-	points.push_back(point(vec2(m_widget_lines.at(10).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(8).interpolate(0.1f)), &m_widget_lines.at(8)));
+	points.push_back(point(vec2(m_widget_lines.at(9).interpolate(0.1f)), &m_widget_lines.at(9)));
+	points.push_back(point(vec2(m_widget_lines.at(10).interpolate(0.1f)), &m_widget_lines.at(10)));
 
-	points.push_back(point(vec2(m_widget_lines.at(12).interpolate(0.1f))));
-	points.push_back(point(vec2(m_widget_lines.at(13).interpolate(0.1f))));
-	points.push_back(point(vec2(m_widget_lines.at(14).interpolate(0.1f))));
+	points.push_back(point(vec2(m_widget_lines.at(12).interpolate(0.1f)), &m_widget_lines.at(12)));
+	points.push_back(point(vec2(m_widget_lines.at(13).interpolate(0.1f)), &m_widget_lines.at(13)));
+	points.push_back(point(vec2(m_widget_lines.at(14).interpolate(0.1f)), &m_widget_lines.at(14)));
 
 	m_points.push_back(points);
 }
@@ -597,7 +595,7 @@ void pcp_overlay::set_draggable_styles() {
 }
 
 void pcp_overlay::set_point_positions() {
-	// m_points.get_dragged()->update_val(layout);
+	m_point_handles.get_dragged()->update_val();
 	has_damage = true;
 	post_redraw();
 }
