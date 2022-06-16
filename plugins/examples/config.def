@@ -1,2 +1,0 @@
-type(grid):show_axes=false
-type(render_config):version_major=1;version_minor=0

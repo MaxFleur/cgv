@@ -1,4 +1,0 @@
-files:pbr_surface
-vertex_file:view.glsl
-fragment_file:view.glsl
-fragment_file:fragment.glfs

@@ -1,3 +1,0 @@
-vertex_file:cubemap_gen.glvs
-geometry_file:cubemap_gen.glgs
-fragment_file:prefiltered_specular_map_gen.glfs

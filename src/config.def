@@ -1,0 +1,4 @@
+#show all
+name(Main):W=1280;H=720
+
+name(Viewer):input_path="../data/48hr_A.meta"
