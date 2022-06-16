@@ -101,28 +101,61 @@ void pcp_overlay::on_set(void* member_ptr) {
 	if(member_ptr == &line_alpha) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
-	}
-
 	// change the labels if the GUI index is updated
-	if (member_ptr == &m_id_left) {
+	} else if (member_ptr == &m_id_left) {
 		m_id_left = cgv::math::clamp(m_id_left, 0, 3);
 		if (m_protein_names.size() > 3 && m_labels.size() > 1) 
 			m_labels.set_text(0, m_protein_names[m_id_left]);
-	}
-	if (member_ptr == &m_id_right) {
+	} else if (member_ptr == &m_id_right) {
 		m_id_right = cgv::math::clamp(m_id_right, 0, 3);
 		if (m_protein_names.size() > 3 && m_labels.size() > 1)
 			m_labels.set_text(1, m_protein_names[m_id_right]);
-	}
-	if (member_ptr == &m_id_bottom) {
+	} else if (member_ptr == &m_id_bottom) {
 		m_id_bottom = cgv::math::clamp(m_id_bottom, 0, 3);
 		if (m_protein_names.size() > 3 && m_labels.size() > 1)
 			m_labels.set_text(2, m_protein_names[m_id_bottom]);
-	}
-	if (member_ptr == &m_id_center) {
+	} else if (member_ptr == &m_id_center) {
 		m_id_center = cgv::math::clamp(m_id_center, 0, 3);
 		if (m_protein_names.size() > 3 && m_labels.size() > 1)
 			m_labels.set_text(3, m_protein_names[m_id_center]);
+	}
+	else {
+		for (int i = 0; i < m_centroids.size(); ++i) {
+			if (member_ptr == &m_centroids.at(i).centr_myosin) {
+				const auto val_myosin = m_centroids.at(i).centr_myosin;
+
+				m_points[i][0].pos = m_widget_lines.at(0).interpolate((val_myosin * 0.8f) + 0.1f);
+				m_points[i][1].pos = m_widget_lines.at(1).interpolate((val_myosin * 0.8f) + 0.1f);
+				m_points[i][2].pos = m_widget_lines.at(2).interpolate((val_myosin * 0.8f) + 0.1f);
+
+			}
+			else if (member_ptr == &m_centroids.at(i).centr_actin) {
+				const auto val_actin = m_centroids.at(i).centr_actin;
+
+				m_points[i][3].pos = m_widget_lines.at(4).interpolate((val_actin * 0.8f) + 0.1f);
+				m_points[i][4].pos = m_widget_lines.at(5).interpolate((val_actin * 0.8f) + 0.1f);
+				m_points[i][5].pos = m_widget_lines.at(6).interpolate((val_actin * 0.8f) + 0.1f);
+
+			}
+			else if (member_ptr == &m_centroids.at(i).centr_obscurin) {
+				const auto val_obscurin = m_centroids.at(i).centr_obscurin;
+
+				m_points[i][6].pos = m_widget_lines.at(8).interpolate((val_obscurin * 0.8f) + 0.1f);
+				m_points[i][7].pos = m_widget_lines.at(9).interpolate((val_obscurin * 0.8f) + 0.1f);
+				m_points[i][8].pos = m_widget_lines.at(10).interpolate((val_obscurin * 0.8f) + 0.1f);
+
+			}
+			else if (member_ptr == &m_centroids.at(i).centr_sallimus) {
+				const auto val_sallimus = m_centroids.at(i).centr_sallimus;
+
+				m_points[i][9].pos = m_widget_lines.at(12).interpolate((val_sallimus * 0.8f) + 0.1f);
+				m_points[i][10].pos = m_widget_lines.at(13).interpolate((val_sallimus * 0.8f) + 0.1f);
+				m_points[i][11].pos = m_widget_lines.at(14).interpolate((val_sallimus * 0.8f) + 0.1f);
+			}
+			else if (member_ptr == &m_centroids.at(i).gaussian_width) {
+				// Dummy implementation, will need this later
+			}
+		}
 	}
 
 	update_member(member_ptr);
@@ -253,7 +286,6 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 		line_prog.disable(ctx);
 		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
 	}
-
 	draw_draggables(ctx);
 
 	// the amount of lines that will be drawn in each step
