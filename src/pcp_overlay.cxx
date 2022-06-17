@@ -340,6 +340,8 @@ void pcp_overlay::create_gui() {
 		const auto header_string = "Centroid " + std::to_string(i) + " parameters:";
 		add_decorator(header_string, "heading", "level=3");
 
+		add_member_control(this, "Color centroid", m_centroids.at(i).color, "", "");
+
 		add_member_control(this, "Centroid myosin", m_centroids.at(i).centr_myosin, "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
 		add_member_control(this, "Centroid actin", m_centroids.at(i).centr_actin, "value_slider",

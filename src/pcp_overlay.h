@@ -138,7 +138,7 @@ private:
 
 	struct centroid
 	{
-		vec4 color{0.0f, 0.0f, 0.0f, 0.0f};
+		rgba color{0.0f, 0.0f, 0.0f, 0.0f};
 
 		float centr_myosin = 0.0f;
 		float centr_actin = 0.0f;
