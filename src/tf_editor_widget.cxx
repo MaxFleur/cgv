@@ -93,7 +93,6 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 }
 
 void tf_editor_widget::on_set(void* member_ptr) {
-
 	// react to changes of the line alpha parameter and update the styles
 	if(member_ptr == &line_alpha) {
 		if(auto ctx_ptr = get_context())
@@ -352,7 +351,7 @@ void tf_editor_widget::create_gui() {
 		add_member_control(this, "Centroid sallimus", m_centroids.at(i).centr_sallimus, "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
 		// Gaussian width
-		add_member_control(this, "", m_centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Gaussian width", m_centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 	}
 }
 
@@ -617,6 +616,23 @@ void tf_editor_widget::set_point_positions() {
 				else if (j % 3 == 2) {
 					m_points[i][j - 1].move_along_line(m_points[i][j].get_relative_line_position());
 					m_points[i][j - 2].move_along_line(m_points[i][j].get_relative_line_position());
+				}
+
+				if (j <= 2) {
+					m_centroids.at(i).centr_myosin = m_points[i][j].get_relative_line_position();
+					update_member(&m_centroids.at(i).centr_myosin);
+				}
+				else if (j >= 3 && j <= 5) {
+					m_centroids.at(i).centr_actin = m_points[i][j].get_relative_line_position();
+					update_member(&m_centroids.at(i).centr_actin);
+				}
+				else if (j >= 6 && j <= 8) {
+					m_centroids.at(i).centr_obscurin = m_points[i][j].get_relative_line_position();
+					update_member(&m_centroids.at(i).centr_obscurin);
+				}
+				else {
+					m_centroids.at(i).centr_sallimus = m_points[i][j].get_relative_line_position();
+					update_member(&m_centroids.at(i).centr_sallimus);
 				}
 			}
 		}
