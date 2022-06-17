@@ -125,26 +125,14 @@ private:
 		}
 
 		vec2 getIntersection(vec2 point) const {
-			const auto ortho_direction = cgv::math::ortho(normalize(b - a));
+			const auto direction = b - a;
+			const auto cd = a - point; 
+			auto boundary = -dot(cd, direction) / dot(direction, direction);
 
-			const auto a1 = b.y() - a.y();
-			const auto b1 = a.x() - b.x();
+			// Keep point on boundaries
+			boundary = cgv::math::clamp(boundary, 0.1f, 0.9f);
 			
-			const auto a2 = ortho_direction.y() - point.y();
-			const auto b2 = point.x() - ortho_direction.x();
-
-			double determinant = a1 * b2 - a2 * b1;
-
-			if (determinant == 0) {
-				return point;
-			}
-
-			const auto c1 = a1 * (a.x()) + b1 * (a.y());
-			const auto c2 = a2 * (point.x()) + b2 * (point.y());
-
-			const auto x = (b2 * c1 - b1 * c2) / determinant;
-			const auto y = (a1 * c2 - a2 * c1) / determinant;
-			return vec2(x, y);
+			return a + boundary * direction;
 		}
 	};
 
