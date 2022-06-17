@@ -597,7 +597,32 @@ void pcp_overlay::set_draggable_styles() {
 }
 
 void pcp_overlay::set_point_positions() {
+	// Update original value
 	m_point_handles.get_dragged()->update_val();
+
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			// Now the relating centroid points in the widget have to be updated
+			if (&m_points[i][j] == m_point_handles.get_dragged()) {
+				// Left widget point was moved, update center and right
+				if (j % 3 == 0) {
+					m_points[i][j + 1].move_along_line(m_points[i][j].get_relative_line_position());
+					m_points[i][j + 2].move_along_line(m_points[i][j].get_relative_line_position());
+				}
+				// Center widget point was moved, update left and right
+				else if (j % 3 == 1) {
+					m_points[i][j - 1].move_along_line(m_points[i][j].get_relative_line_position());
+					m_points[i][j + 1].move_along_line(m_points[i][j].get_relative_line_position());
+				}
+				// Right widget point was moved, update left and center
+				else if (j % 3 == 2) {
+					m_points[i][j - 1].move_along_line(m_points[i][j].get_relative_line_position());
+					m_points[i][j - 2].move_along_line(m_points[i][j].get_relative_line_position());
+				}
+			}
+		}
+	}
+
 	has_damage = true;
 	post_redraw();
 }

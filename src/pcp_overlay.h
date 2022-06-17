@@ -124,7 +124,7 @@ private:
 			return cgv::math::lerp(a, b, value);
 		}
 
-		vec2 getIntersection(vec2 point) const {
+		vec2 get_intersection(vec2 point) const {
 			const auto direction = b - a;
 			const auto cd = a - point; 
 			auto boundary = -dot(cd, direction) / dot(direction, direction);
@@ -133,6 +133,10 @@ private:
 			boundary = cgv::math::clamp(boundary, 0.1f, 0.9f);
 			
 			return a + boundary * direction;
+		}
+
+		float get_length() {
+			return cgv::math::sqr_length(b - a);
 		}
 	};
 
@@ -162,13 +166,24 @@ private:
 		}
 
 		void update_val() {
-			pos = m_parent_line->getIntersection(pos);
+			pos = m_parent_line->get_intersection(pos);
+		}
+
+		// Move the point according to a relative position along the line
+		void move_along_line(float value) {
+			pos = m_parent_line->interpolate(value);
 		}
 
 		bool is_inside(const vec2& mp) const
 		{
 			float dist = length(mp - center());
 			return dist <= size.x();
+		}
+
+		// Gets the relative position of the point along the line
+		// Upmost left value would be 0.0f, while upmost right would be 1.0f
+		float get_relative_line_position() {
+			return ( cgv::math::sqr_length(pos - m_parent_line->a) / m_parent_line->get_length()) + 0.1f;
 		}
 
 		ivec2 get_render_position() const
