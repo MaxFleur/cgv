@@ -1,4 +1,4 @@
-#include "pcp_overlay.h"
+#include "tf_editor_widget.h"
 
 #include <cgv/gui/animate.h>
 #include <cgv/gui/key_event.h>
@@ -6,7 +6,7 @@
 #include <cgv/math/ftransform.h>
 #include <cgv_gl/gl/gl.h>
 
-pcp_overlay::pcp_overlay() {
+tf_editor_widget::tf_editor_widget() {
 	
 	set_name("PCP Overlay");
 	// prevent the mouse events from reaching throug this overlay to the underlying elements
@@ -34,10 +34,10 @@ pcp_overlay::pcp_overlay() {
 	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 	m_point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 
-	m_point_handles.set_drag_callback(std::bind(&pcp_overlay::set_point_positions, this));
+	m_point_handles.set_drag_callback(std::bind(&tf_editor_widget::set_point_positions, this));
 }
 
-void pcp_overlay::clear(cgv::render::context& ctx) {
+void tf_editor_widget::clear(cgv::render::context& ctx) {
 
 	// destruct all previously initialized members
 	content_canvas.destruct(ctx);
@@ -52,12 +52,11 @@ void pcp_overlay::clear(cgv::render::context& ctx) {
 	m_font_renderer.destruct(ctx);
 }
 
-bool pcp_overlay::self_reflect(cgv::reflect::reflection_handler& _rh) {
-
+bool tf_editor_widget::self_reflect(cgv::reflect::reflection_handler& _rh) {
 	return true;
 }
 
-bool pcp_overlay::handle_event(cgv::gui::event& e) {
+bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 
 	// return true if the event gets handled and stopped here or false if you want to pass it to the next plugin
 	unsigned et = e.get_kind();
@@ -93,7 +92,7 @@ bool pcp_overlay::handle_event(cgv::gui::event& e) {
 	return false;
 }
 
-void pcp_overlay::on_set(void* member_ptr) {
+void tf_editor_widget::on_set(void* member_ptr) {
 
 	// react to changes of the line alpha parameter and update the styles
 	if(member_ptr == &line_alpha) {
@@ -160,7 +159,7 @@ void pcp_overlay::on_set(void* member_ptr) {
 	post_redraw();
 }
 
-bool pcp_overlay::init(cgv::render::context& ctx) {
+bool tf_editor_widget::init(cgv::render::context& ctx) {
 
 	bool success = true;
 
@@ -187,7 +186,7 @@ bool pcp_overlay::init(cgv::render::context& ctx) {
 	return success;
 }
 
-void pcp_overlay::init_frame(cgv::render::context& ctx) {
+void tf_editor_widget::init_frame(cgv::render::context& ctx) {
 
 	// react to changes in the overlay size
 	if(ensure_overlay_layout(ctx)) {
@@ -225,7 +224,7 @@ void pcp_overlay::init_frame(cgv::render::context& ctx) {
 	}
 }
 
-void pcp_overlay::draw(cgv::render::context& ctx) {
+void tf_editor_widget::draw(cgv::render::context& ctx) {
 
 	if(!show)
 		return;
@@ -253,7 +252,7 @@ void pcp_overlay::draw(cgv::render::context& ctx) {
 	glEnable(GL_DEPTH_TEST);
 }
 
-void pcp_overlay::draw_content(cgv::render::context& ctx) {
+void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 
 	// enable the OpenGL blend functionalities
 	glEnable(GL_BLEND);
@@ -319,12 +318,12 @@ void pcp_overlay::draw_content(cgv::render::context& ctx) {
 	has_damage = run;
 }
 
-void pcp_overlay::create_gui() {
+void tf_editor_widget::create_gui() {
 
 	create_overlay_gui();
 
 	// add a button to trigger a content update by redrawing
-	connect_copy(add_button("Update")->click, rebind(this, &pcp_overlay::update_content));
+	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_widget::update_content));
 	// add controls for parameters
 	add_member_control(this, "Threshold", threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "Line Alpha", line_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
@@ -333,15 +332,17 @@ void pcp_overlay::create_gui() {
 	add_member_control(this, "Protein bottom:", m_id_bottom, "value", "min=0;max=3;step=1");
 	add_member_control(this, "Protein center:", m_id_center, "value", "min=0;max=3;step=1");
 
+	// Create new centroids
 	auto const add_centroid_button = add_button("Add centroid");
-	connect_copy(add_centroid_button->click, rebind(this, &pcp_overlay::add_centroids));
+	connect_copy(add_centroid_button->click, rebind(this, &tf_editor_widget::add_centroids));
 
+	// Add GUI controls for the centroid
 	for (int i = 0; i < m_centroids.size(); i++ ) {
 		const auto header_string = "Centroid " + std::to_string(i) + " parameters:";
 		add_decorator(header_string, "heading", "level=3");
-
+		// Color widget
 		add_member_control(this, "Color centroid", m_centroids.at(i).color, "", "");
-
+		// Centroid parameters themselves
 		add_member_control(this, "Centroid myosin", m_centroids.at(i).centr_myosin, "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
 		add_member_control(this, "Centroid actin", m_centroids.at(i).centr_actin, "value_slider",
@@ -350,14 +351,12 @@ void pcp_overlay::create_gui() {
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
 		add_member_control(this, "Centroid sallimus", m_centroids.at(i).centr_sallimus, "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-
-		const auto width_string = "Gaussian width centroid " + std::to_string(i);
-		add_decorator(width_string, "heading", "level=3");
+		// Gaussian width
 		add_member_control(this, "", m_centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 	}
 }
 
-void pcp_overlay::init_styles(cgv::render::context& ctx) {
+void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 
 	m_line_style_relations.use_blending = true;
 	m_line_style_relations.use_fill_color = true;
@@ -399,7 +398,7 @@ void pcp_overlay::init_styles(cgv::render::context& ctx) {
 	viewport_canvas.disable_current_shader(ctx);
 }
 
-void pcp_overlay::update_content() {
+void tf_editor_widget::update_content() {
 	
 	if(data.empty())
 		return;
@@ -448,7 +447,7 @@ void pcp_overlay::update_content() {
 	post_redraw();
 }
 
-void pcp_overlay::init_widgets() {
+void tf_editor_widget::init_widgets() {
 	m_widget_lines.clear();
 
 	const auto sizeX = domain.size().x();
@@ -511,7 +510,7 @@ void pcp_overlay::init_widgets() {
 
 }
 
-void pcp_overlay::add_widgets()
+void tf_editor_widget::add_widgets()
 {
 	m_line_geometry_widgets.clear();
 
@@ -521,7 +520,7 @@ void pcp_overlay::add_widgets()
 	}
 }
 
-void pcp_overlay::add_centroids()
+void tf_editor_widget::add_centroids()
 {
 	centroid centr;
 	m_centroids.push_back(centr);
@@ -538,7 +537,7 @@ void pcp_overlay::add_centroids()
 	post_redraw();
 }
 
-void pcp_overlay::add_centroid_draggables()
+void tf_editor_widget::add_centroid_draggables()
 {
 	std::vector<point> points;
 	// Add the new centroid points to the widget lines, start with the left side
@@ -562,7 +561,7 @@ void pcp_overlay::add_centroid_draggables()
 	m_points.push_back(points);
 }
 
-void pcp_overlay::draw_draggables(cgv::render::context& ctx)
+void tf_editor_widget::draw_draggables(cgv::render::context& ctx)
 {
 	// TODO: move creation of render data to own function and call only when necessary
 	m_draggable_points.clear();
@@ -587,7 +586,7 @@ void pcp_overlay::draw_draggables(cgv::render::context& ctx)
 	m_point_renderer.render(ctx, PT_POINTS, m_draggable_points);
 }
 
-void pcp_overlay::set_draggable_styles() {
+void tf_editor_widget::set_draggable_styles() {
 	// set draggable point style
 	m_draggable_style.position_is_center = true;
 	m_draggable_style.fill_color = rgba(0.9f, 0.9f, 0.9f, 1.0f);
@@ -596,7 +595,7 @@ void pcp_overlay::set_draggable_styles() {
 	m_draggable_style.use_blending = true;
 }
 
-void pcp_overlay::set_point_positions() {
+void tf_editor_widget::set_point_positions() {
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
 

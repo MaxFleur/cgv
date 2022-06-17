@@ -10,17 +10,8 @@
 #include <cgv_glutil/2d/shape2d_styles.h>
 #include <plot/plot2d.h>
 
-/*
-This class provides an example to render a parallel coordinates plot (PCP) for 4 dimensional data.
-Parallel coordinates are represented by pair-wise connections of the dimension axes using lines.
-Due to the large amount of input data, lines are drawn in batches to prevent program stalls during rendering.
-Press the "Update" button in the GUi to force the plot to redraw its contents.
-
-Lines are drawn transparent, using the standard over blending operator, to achieve an accumulative effect
-in the final image, emphasizing regions of many overlapping lines.
-To filter the data before drawing, lines whose average sample values are lower than a given threshold are removed.
-*/
-class pcp_overlay : public cgv::glutil::overlay {
+/* This class provides the editor of the transfer function. The values are synchronized with the GUI */
+class tf_editor_widget : public cgv::glutil::overlay {
 protected:
 	/// whether we need to redraw the contents of this overlay
 	bool has_damage = true;
@@ -73,7 +64,7 @@ protected:
 	void update_content();
 
 public:
-	pcp_overlay();
+	tf_editor_widget();
 	std::string get_type_name() const { return "pcp_overlay"; }
 
 	void clear(cgv::render::context& ctx);
@@ -174,12 +165,6 @@ private:
 			pos = m_parent_line->interpolate(value);
 		}
 
-		bool is_inside(const vec2& mp) const
-		{
-			float dist = length(mp - center());
-			return dist <= size.x();
-		}
-
 		// Gets the relative position of the point along the line
 		// Upmost left value would be 0.0f, while upmost right would be 1.0f
 		float get_relative_line_position() {
@@ -213,4 +198,4 @@ private:
 	int m_id_center = 3;
 };
 
-typedef cgv::data::ref_ptr<pcp_overlay> pcp_overlay_ptr;
+typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;

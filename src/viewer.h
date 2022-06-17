@@ -20,7 +20,7 @@
 
 #include "plot_overlay.h"
 
-#include "pcp_overlay.h"
+#include "tf_editor_widget.h"
 #include "pcp2_overlay.h"
 #include "sp_overlay.h"
 
@@ -162,7 +162,7 @@ protected:
 	cone_render_style sarcomere_style;
 	cgv::glutil::cone_render_data<> sarcomeres_rd;
 
-	pcp_overlay_ptr pcp_ptr = nullptr;
+	tf_editor_widget_ptr tf_editor_w_ptr = nullptr;
 	pcp2_overlay_ptr pcp2_ptr = nullptr;
 	sp_overlay_ptr sp_ptr = nullptr;
 

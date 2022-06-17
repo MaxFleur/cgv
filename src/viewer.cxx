@@ -70,7 +70,7 @@ viewer::viewer() : application_plugin("Viewer") {
 
 	sstyle.radius = 0.0003f;
 
-	pcp_ptr = register_overlay<pcp_overlay>("PCP Overlay");
+	tf_editor_w_ptr = register_overlay<tf_editor_widget>("PCP Overlay");
 	
 	// pcp2_ptr = register_overlay<pcp2_overlay>("PCP 2 Overlay");
 	// pcp2_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_END, cgv::glutil::overlay::AO_END);
@@ -664,11 +664,11 @@ void viewer::create_gui() {
 		end_tree_node(sarcomere_style);
 	}
 
-	if (begin_tree_node("PCP", pcp_ptr, false)) {
+	if (begin_tree_node("PCP", tf_editor_w_ptr, false)) {
 		align("\a");
-		inline_object_gui(pcp_ptr);
+		inline_object_gui(tf_editor_w_ptr);
 		align("\b");
-		end_tree_node(pcp_ptr);
+		end_tree_node(tf_editor_w_ptr);
 	}
 
 	if (begin_tree_node("PCP 2", pcp2_ptr, false)) {
@@ -746,9 +746,9 @@ void viewer::create_pcp()
 		}
 	}
 
-	if (pcp_ptr)
-		pcp_ptr->set_data(data);
-		pcp_ptr->set_names(dataset.stain_names);
+	if (tf_editor_w_ptr)
+		tf_editor_w_ptr->set_data(data);
+		tf_editor_w_ptr->set_names(dataset.stain_names);
 
 	if (pcp2_ptr)
 		pcp2_ptr->set_data(data);
