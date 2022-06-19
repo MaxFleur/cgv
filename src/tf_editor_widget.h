@@ -102,13 +102,11 @@ private:
 
 	void create_centroid_lines();
 
-	void set_draggable_styles();
-
 	void set_point_positions();
 
 	float search_nearest_boundary_value(float relative_position, 
 										float boundary_value,
-										int protein,
+										int protein_id,
 										bool is_left);
 
 private:
