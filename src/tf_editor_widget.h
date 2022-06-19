@@ -90,7 +90,7 @@ private:
 
 	void init_widgets();
 
-	void add_widgets();
+	void add_widget_lines();
 
 	void add_centroids();
 
@@ -99,6 +99,8 @@ private:
 	void draw_draggables(cgv::render::context& ctx);
 
 	void draw_centroid_lines(cgv::render::context& ctx, cgv::render::shader_program& prog);
+
+	void draw_arrows(cgv::render::context& ctx);
 
 	void create_centroid_lines();
 
@@ -188,8 +190,9 @@ private:
 
 	cgv::glutil::line2d_style m_line_style_relations;
 	cgv::glutil::line2d_style m_line_style_widgets;
-
 	cgv::glutil::line2d_style m_line_style_centroid_lines;
+
+	cgv::glutil::arrow2d_style m_arrow_style;
 
 	std::vector<line> m_widget_lines;
 	std::vector<std::vector<line>> m_centroid_lines;
@@ -200,6 +203,8 @@ private:
 
 	std::vector<std::vector<point>> m_points;
 	cgv::glutil::draggables_collection<point*> m_point_handles;
+
+	rgba color_red{ 1.0f, 0.0f, 0.0f, 1.0f };
 
 	// ids used for the texts inside the widgets
 	int m_id_left = 0;

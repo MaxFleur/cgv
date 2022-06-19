@@ -25,6 +25,7 @@ tf_editor_widget::tf_editor_widget() {
 
 	// register a rectangle shader for the content canvas, to draw a frame around the plot
 	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
+	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
 
 	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main
 	// frame buffer
@@ -274,6 +275,10 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 		m_line_style_widgets.apply(ctx, line_prog);
 		line_prog.disable(ctx);
 		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
+
+		draw_arrows(ctx);
+		
+		content_canvas.disable_current_shader(ctx);
 	}
 	draw_draggables(ctx);
 
@@ -378,6 +383,11 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_draggable_style.border_width = 1.5f;
 	m_draggable_style.use_blending = true;
 
+	m_arrow_style.head_width = 7.0f;
+	m_arrow_style.stem_width = 2.5f;
+	m_arrow_style.fill_color = rgba(1.0f, 0.0f, 0.0f, 1.0f);
+	m_arrow_style.use_fill_color = true;
+
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;
 	text_style.fill_color = rgba(rgb(0.0f), 1.0f);
@@ -416,7 +426,7 @@ void tf_editor_widget::update_content() {
 	m_line_geometry_relations.clear();
 	m_line_geometry_widgets.clear();
 
-	add_widgets();
+	add_widget_lines();
 
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
@@ -518,8 +528,7 @@ void tf_editor_widget::init_widgets() {
 
 }
 
-void tf_editor_widget::add_widgets()
-{
+void tf_editor_widget::add_widget_lines() {
 	m_line_geometry_widgets.clear();
 
 	for (const auto l : m_widget_lines) {
@@ -528,8 +537,7 @@ void tf_editor_widget::add_widgets()
 	}
 }
 
-void tf_editor_widget::add_centroids()
-{
+void tf_editor_widget::add_centroids() {
 	centroid centr;
 	m_centroids.push_back(centr);
 	add_centroid_draggables();
@@ -545,8 +553,7 @@ void tf_editor_widget::add_centroids()
 	post_redraw();
 }
 
-void tf_editor_widget::add_centroid_draggables()
-{
+void tf_editor_widget::add_centroid_draggables() {
 	std::vector<point> points;
 	// Add the new centroid points to the widget lines, start with the left side
 	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
@@ -569,8 +576,7 @@ void tf_editor_widget::add_centroid_draggables()
 	m_points.push_back(points);
 }
 
-void tf_editor_widget::draw_draggables(cgv::render::context& ctx)
-{
+void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
 	// TODO: move creation of render data to own function and call only when necessary
 	m_draggable_points.clear();
 	ivec2 render_size;
@@ -600,20 +606,33 @@ void tf_editor_widget::draw_centroid_lines(cgv::render::context& ctx, cgv::rende
 		create_centroid_lines();
 	}
 
+	m_line_geometry_centroid_lines.clear();
+
 	for (int i = 0; i < m_centroid_lines.size(); i++) {
 		m_line_style_centroid_lines.fill_color = m_centroids.at(i).color;
 
-		m_line_geometry_centroid_lines.clear();
 		for (const auto line : m_centroid_lines.at(i)) {
 			m_line_geometry_centroid_lines.add(line.a);
 			m_line_geometry_centroid_lines.add(line.b);
 		}
-
 		prog.enable(ctx);
 		content_canvas.set_view(ctx, prog);
 		m_line_style_centroid_lines.apply(ctx, prog);
 		prog.disable(ctx);
 		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_centroid_lines);
+	}
+}
+
+void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
+	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
+	m_arrow_style.apply(ctx, arrow_prog);
+
+	// draw arrows on the right widget sides
+	for (int i = 0; i < 15; i++) {
+		// ignore the "back" lines of the widgets, they don't need boundaries
+		if ((i + 1) % 4 != 0) {
+			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, color_red, color_red);
+		}
 	}
 }
 
