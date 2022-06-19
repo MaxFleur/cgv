@@ -132,7 +132,7 @@ private:
 		}
 
 		float get_length() {
-			return cgv::math::sqr_length(b - a);
+			return cgv::math::length(b - a);
 		}
 	};
 
@@ -170,7 +170,7 @@ private:
 		// Gets the relative position of the point along the line
 		// Upmost left value would be 0.0f, while upmost right would be 1.0f
 		float get_relative_line_position() {
-			return ( cgv::math::sqr_length(pos - m_parent_line->a) / m_parent_line->get_length()) + 0.1f;
+			return ( ( cgv::math::length(pos - m_parent_line->a) / m_parent_line->get_length()));
 		}
 
 		ivec2 get_render_position() const

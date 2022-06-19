@@ -714,7 +714,9 @@ void tf_editor_widget::set_point_positions() {
 				}
 
 				int protein_index = j / 3;
-				m_centroids.at(i).centroids[protein_index] = m_points[i][j].get_relative_line_position();
+				// Remap to correct GUI vals
+				const auto GUI_value = (m_points[i][j].get_relative_line_position() - 0.1f) / 0.8f;
+				m_centroids.at(i).centroids[protein_index] = GUI_value;
 				update_member(&m_centroids.at(i).centroids[protein_index]);
 			}
 		}
