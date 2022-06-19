@@ -47,6 +47,7 @@ void tf_editor_widget::clear(cgv::render::context& ctx) {
 	m_line_renderer.destruct(ctx);
 	m_line_geometry_relations.destruct(ctx);
 	m_line_geometry_widgets.destruct(ctx);
+	m_line_geometry_centroid_lines.destruct(ctx);
 
 	m_font.destruct(ctx);
 	m_font_renderer.destruct(ctx);
@@ -117,32 +118,32 @@ void tf_editor_widget::on_set(void* member_ptr) {
 	}
 	else {
 		for (int i = 0; i < m_centroids.size(); ++i) {
-			if (member_ptr == &m_centroids.at(i).centr_myosin) {
-				const auto val_myosin = m_centroids.at(i).centr_myosin;
+			if (member_ptr == &m_centroids.at(i).centroids[0]) {
+				const auto val_myosin = m_centroids.at(i).centroids[0];
 
 				m_points[i][0].pos = m_widget_lines.at(0).interpolate((val_myosin * 0.8f) + 0.1f);
 				m_points[i][1].pos = m_widget_lines.at(1).interpolate((val_myosin * 0.8f) + 0.1f);
 				m_points[i][2].pos = m_widget_lines.at(2).interpolate((val_myosin * 0.8f) + 0.1f);
 
 			}
-			else if (member_ptr == &m_centroids.at(i).centr_actin) {
-				const auto val_actin = m_centroids.at(i).centr_actin;
+			else if (member_ptr == &m_centroids.at(i).centroids[1]) {
+				const auto val_actin = m_centroids.at(i).centroids[1];
 
 				m_points[i][3].pos = m_widget_lines.at(4).interpolate((val_actin * 0.8f) + 0.1f);
 				m_points[i][4].pos = m_widget_lines.at(5).interpolate((val_actin * 0.8f) + 0.1f);
 				m_points[i][5].pos = m_widget_lines.at(6).interpolate((val_actin * 0.8f) + 0.1f);
 
 			}
-			else if (member_ptr == &m_centroids.at(i).centr_obscurin) {
-				const auto val_obscurin = m_centroids.at(i).centr_obscurin;
+			else if (member_ptr == &m_centroids.at(i).centroids[2]) {
+				const auto val_obscurin = m_centroids.at(i).centroids[2];
 
 				m_points[i][6].pos = m_widget_lines.at(8).interpolate((val_obscurin * 0.8f) + 0.1f);
 				m_points[i][7].pos = m_widget_lines.at(9).interpolate((val_obscurin * 0.8f) + 0.1f);
 				m_points[i][8].pos = m_widget_lines.at(10).interpolate((val_obscurin * 0.8f) + 0.1f);
 
 			}
-			else if (member_ptr == &m_centroids.at(i).centr_sallimus) {
-				const auto val_sallimus = m_centroids.at(i).centr_sallimus;
+			else if (member_ptr == &m_centroids.at(i).centroids[3]) {
+				const auto val_sallimus = m_centroids.at(i).centroids[3];
 
 				m_points[i][9].pos = m_widget_lines.at(12).interpolate((val_sallimus * 0.8f) + 0.1f);
 				m_points[i][10].pos = m_widget_lines.at(13).interpolate((val_sallimus * 0.8f) + 0.1f);
@@ -283,6 +284,7 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
 	}
 	draw_draggables(ctx);
+	
 
 	// the amount of lines that will be drawn in each step
 	int count = 100000;
@@ -297,6 +299,8 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	line_prog.disable(ctx);
 	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_relations, total_count, count);
 
+	draw_centroid_lines(ctx, line_prog);
+
 	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
 	fbc.disable(ctx);
 
@@ -309,10 +313,13 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	// Stop the process if we have drawn all available lines,
 	// otherwise request drawing of another frame.
 	bool run = total_count < m_line_geometry_relations.get_render_count();
-	if(run)
+	if (run) {
 		post_redraw();
-	else
+	}
+	else {
 		std::cout << "done" << std::endl;
+		m_are_centroid_lines_created = true;
+	}	
 
 	has_damage = run;
 }
@@ -342,13 +349,13 @@ void tf_editor_widget::create_gui() {
 		// Color widget
 		add_member_control(this, "Color centroid", m_centroids.at(i).color, "", "");
 		// Centroid parameters themselves
-		add_member_control(this, "Centroid myosin", m_centroids.at(i).centr_myosin, "value_slider",
+		add_member_control(this, "Centroid myosin", m_centroids.at(i).centroids[0], "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid actin", m_centroids.at(i).centr_actin, "value_slider",
+		add_member_control(this, "Centroid actin", m_centroids.at(i).centroids[1], "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid obscurin", m_centroids.at(i).centr_obscurin, "value_slider",
+		add_member_control(this, "Centroid obscurin", m_centroids.at(i).centroids[2], "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid sallimus", m_centroids.at(i).centr_sallimus, "value_slider",
+		add_member_control(this, "Centroid sallimus", m_centroids.at(i).centroids[3], "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
 		// Gaussian width
 		add_member_control(this, "Gaussian width", m_centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
@@ -368,6 +375,11 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_line_style_widgets.apply_gamma = false;
 	m_line_style_widgets.fill_color = rgba(1.0f, 0.0f, 0.0f, 1.0f);
 	m_line_style_widgets.width = 3.0f;
+
+	m_line_style_centroid_lines.use_blending = true;
+	m_line_style_centroid_lines.use_fill_color = true;
+	m_line_style_centroid_lines.apply_gamma = false;
+	m_line_style_centroid_lines.width = 2.0f;
 
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;
@@ -585,6 +597,100 @@ void tf_editor_widget::draw_draggables(cgv::render::context& ctx)
 	m_point_renderer.render(ctx, PT_POINTS, m_draggable_points);
 }
 
+void tf_editor_widget::draw_centroid_lines(cgv::render::context& ctx, cgv::render::shader_program& prog) {
+	if (m_are_centroid_lines_created) {
+		m_are_centroid_lines_created = false;
+		create_centroid_lines();
+	}
+
+	for (int i = 0; i < m_centroid_lines.size(); i++) {
+		m_line_style_centroid_lines.fill_color = m_centroids.at(i).color;
+
+		m_line_geometry_centroid_lines.clear();
+		for (const auto line : m_centroid_lines.at(i)) {
+			m_line_geometry_centroid_lines.add(line.a);
+			m_line_geometry_centroid_lines.add(line.b);
+		}
+
+		prog.enable(ctx);
+		content_canvas.set_view(ctx, prog);
+		m_line_style_centroid_lines.apply(ctx, prog);
+		prog.disable(ctx);
+		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_centroid_lines);
+	}
+}
+
+void tf_editor_widget::create_centroid_lines() {
+	m_centroid_lines.clear();
+
+	for (int i = 0; i < m_centroids.size(); i++) {
+		// For each centroid, we want to create the lines of the boundaries
+		std::vector<float> centroid_boundary_values;
+		// Each widget has three centroids which will always generate the same values, 
+		// so skip and do only every 4th point
+		for (int j = 0; j < m_points.at(i).size(); j += 3) {
+			// Get the correct protein
+			const int protein_index = j / 3;
+
+			// Get the relative position of the centroid and it's left and right boundary
+			const auto relative_line_position = m_centroids.at(i).centroids[protein_index];
+			auto left_boundary = relative_line_position - (m_centroids.at(i).gaussian_width / 2.0f);
+			auto right_boundary = relative_line_position + (m_centroids.at(i).gaussian_width / 2.0f);
+			// Keep boundaries within distance
+			if (left_boundary < 0.0f) {
+				left_boundary = 0.0f;
+			}
+			if (right_boundary > 1.0f) {
+				right_boundary = 1.0f;
+			}
+			
+			// search the proteins for the nearest value to the boundary without exceeding it
+			const auto nearest_left = search_nearest_boundary_value(
+										relative_line_position, left_boundary, protein_index, true);
+			const auto nearest_right = search_nearest_boundary_value(
+										relative_line_position, right_boundary, protein_index, false);
+			// Store the values
+			centroid_boundary_values.push_back(nearest_left);
+			centroid_boundary_values.push_back(nearest_right);
+		}
+
+		// Now generate lines out of the stored points
+		std::vector<line> lines;
+		// Left widget to right
+		lines.push_back(line({ m_widget_lines.at(0).interpolate(centroid_boundary_values.at(0)),
+										m_widget_lines.at(6).interpolate(centroid_boundary_values.at(3)) }));
+		lines.push_back(line({ m_widget_lines.at(0).interpolate(centroid_boundary_values.at(1)),
+										m_widget_lines.at(6).interpolate(centroid_boundary_values.at(2)) }));
+		// Left to center
+		lines.push_back(line({ m_widget_lines.at(1).interpolate(centroid_boundary_values.at(0)),
+										m_widget_lines.at(12).interpolate(centroid_boundary_values.at(7)) }));
+		lines.push_back(line({ m_widget_lines.at(1).interpolate(centroid_boundary_values.at(1)),
+										m_widget_lines.at(12).interpolate(centroid_boundary_values.at(6)) }));
+		// Left to bottom
+		lines.push_back(line({ m_widget_lines.at(2).interpolate(centroid_boundary_values.at(0)),
+										m_widget_lines.at(8).interpolate(centroid_boundary_values.at(5)) }));
+		lines.push_back(line({ m_widget_lines.at(2).interpolate(centroid_boundary_values.at(1)),
+										m_widget_lines.at(8).interpolate(centroid_boundary_values.at(4)) }));
+		// Right to bottom
+		lines.push_back(line({ m_widget_lines.at(4).interpolate(centroid_boundary_values.at(2)),
+										m_widget_lines.at(10).interpolate(centroid_boundary_values.at(5)) }));
+		lines.push_back(line({ m_widget_lines.at(4).interpolate(centroid_boundary_values.at(3)),
+										m_widget_lines.at(10).interpolate(centroid_boundary_values.at(4)) }));
+		// Right to center
+		lines.push_back(line({ m_widget_lines.at(5).interpolate(centroid_boundary_values.at(2)),
+										m_widget_lines.at(13).interpolate(centroid_boundary_values.at(7)) }));
+		lines.push_back(line({ m_widget_lines.at(5).interpolate(centroid_boundary_values.at(3)),
+										m_widget_lines.at(13).interpolate(centroid_boundary_values.at(6)) }));
+		// Bottom to center
+		lines.push_back(line({ m_widget_lines.at(9).interpolate(centroid_boundary_values.at(4)),
+										m_widget_lines.at(14).interpolate(centroid_boundary_values.at(7)) }));
+		lines.push_back(line({ m_widget_lines.at(9).interpolate(centroid_boundary_values.at(5)),
+										m_widget_lines.at(14).interpolate(centroid_boundary_values.at(6)) }));
+
+		m_centroid_lines.push_back(lines);
+	}
+}
+
 void tf_editor_widget::set_draggable_styles() {
 	// set draggable point style
 	m_draggable_style.position_is_center = true;
@@ -619,20 +725,20 @@ void tf_editor_widget::set_point_positions() {
 				}
 
 				if (j <= 2) {
-					m_centroids.at(i).centr_myosin = m_points[i][j].get_relative_line_position();
-					update_member(&m_centroids.at(i).centr_myosin);
+					m_centroids.at(i).centroids[0] = m_points[i][j].get_relative_line_position();
+					update_member(&m_centroids.at(i).centroids[0]);
 				}
 				else if (j >= 3 && j <= 5) {
-					m_centroids.at(i).centr_actin = m_points[i][j].get_relative_line_position();
-					update_member(&m_centroids.at(i).centr_actin);
+					m_centroids.at(i).centroids[1] = m_points[i][j].get_relative_line_position();
+					update_member(&m_centroids.at(i).centroids[1]);
 				}
 				else if (j >= 6 && j <= 8) {
-					m_centroids.at(i).centr_obscurin = m_points[i][j].get_relative_line_position();
-					update_member(&m_centroids.at(i).centr_obscurin);
+					m_centroids.at(i).centroids[2] = m_points[i][j].get_relative_line_position();
+					update_member(&m_centroids.at(i).centroids[2]);
 				}
 				else {
-					m_centroids.at(i).centr_sallimus = m_points[i][j].get_relative_line_position();
-					update_member(&m_centroids.at(i).centr_sallimus);
+					m_centroids.at(i).centroids[3] = m_points[i][j].get_relative_line_position();
+					update_member(&m_centroids.at(i).centroids[3]);
 				}
 			}
 		}
@@ -640,4 +746,37 @@ void tf_editor_widget::set_point_positions() {
 
 	has_damage = true;
 	post_redraw();
+}
+
+// get the nearest data position to a certain boundary value of a centroid point
+float tf_editor_widget::search_nearest_boundary_value(float relative_position, 
+													  float boundary_value, 
+													  int protein,
+													  bool is_left) {
+	// start with the centroid's relative position
+	auto nearest_position = relative_position;
+	// do we want to know the left or right nearest position?
+	if (is_left) {
+		for (const auto vec : data) {
+			// if a certain protein value is smaller than our current value, but above the boundary, apply it
+			if (vec[protein] < nearest_position && vec[protein] >= boundary_value) {
+				nearest_position = vec[protein];
+				// abort if the boundary is reached
+				if (nearest_position == boundary_value) {
+					break;
+				}
+			}
+		}
+		return nearest_position;
+	} 
+	for (const auto vec : data) {
+		// same for the right position, but reversed
+		if (vec[protein] > nearest_position && vec[protein] <= boundary_value) {
+			nearest_position = vec[protein];
+			if (nearest_position == boundary_value) {
+				break;
+			}
+		}
+	}
+	return nearest_position;
 }

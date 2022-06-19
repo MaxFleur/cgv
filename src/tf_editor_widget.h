@@ -46,6 +46,7 @@ protected:
 	line_geometry m_line_geometry_relations;
 	// widget boundaries
 	line_geometry m_line_geometry_widgets;
+	line_geometry m_line_geometry_centroid_lines;
 
 	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 1, vec2, position);
 	point_geometry m_draggable_points;
@@ -97,14 +98,20 @@ private:
 
 	void draw_draggables(cgv::render::context& ctx);
 
+	void draw_centroid_lines(cgv::render::context& ctx, cgv::render::shader_program& prog);
+
+	void create_centroid_lines();
+
 	void set_draggable_styles();
 
 	void set_point_positions();
 
-private:
+	float search_nearest_boundary_value(float relative_position, 
+										float boundary_value,
+										int protein,
+										bool is_left);
 
-	cgv::glutil::line2d_style m_line_style_relations;
-	cgv::glutil::line2d_style m_line_style_widgets;
+private:
 
 	struct line
 	{
@@ -135,10 +142,7 @@ private:
 	{
 		rgba color{0.0f, 0.0f, 0.0f, 0.0f};
 
-		float centr_myosin = 0.0f;
-		float centr_actin = 0.0f;
-		float centr_obscurin = 0.0f;
-		float centr_sallimus = 0.0f;
+		vec4 centroids{ 0.0f, 0.0f, 0.0f, 0.0f };
 
 		float gaussian_width = 0.0f;
 	};
@@ -182,7 +186,15 @@ private:
 		}
 	};
 
+private:
+
+	cgv::glutil::line2d_style m_line_style_relations;
+	cgv::glutil::line2d_style m_line_style_widgets;
+
+	cgv::glutil::line2d_style m_line_style_centroid_lines;
+
 	std::vector<line> m_widget_lines;
+	std::vector<std::vector<line>> m_centroid_lines;
 
 	std::vector<std::string> m_protein_names;
 
@@ -196,6 +208,8 @@ private:
 	int m_id_right = 1;
 	int m_id_bottom = 2;
 	int m_id_center = 3;
+
+	bool m_are_centroid_lines_created = true;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;
