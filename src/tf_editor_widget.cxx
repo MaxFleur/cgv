@@ -270,6 +270,8 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 			m_font_renderer.render(ctx, get_overlay_size(), m_labels, i, 1);
 		}
 
+		add_widget_lines();
+
 		line_prog.enable(ctx);
 		content_canvas.set_view(ctx, line_prog);
 		m_line_style_widgets.apply(ctx, line_prog);
@@ -424,9 +426,6 @@ void tf_editor_widget::update_content() {
 	// reset previous total count and line geometry
 	total_count = 0;
 	m_line_geometry_relations.clear();
-	m_line_geometry_widgets.clear();
-
-	add_widget_lines();
 
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
@@ -557,21 +556,12 @@ void tf_editor_widget::add_centroid_draggables() {
 	std::vector<point> points;
 	// Add the new centroid points to the widget lines, start with the left side
 	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
-	points.push_back(point(vec2(m_widget_lines.at(0).interpolate(0.1f)), &m_widget_lines.at(0)));
-	points.push_back(point(vec2(m_widget_lines.at(1).interpolate(0.1f)), &m_widget_lines.at(1)));
-	points.push_back(point(vec2(m_widget_lines.at(2).interpolate(0.1f)), &m_widget_lines.at(2)));
-	// Ignore the outer widget lines
-	points.push_back(point(vec2(m_widget_lines.at(4).interpolate(0.1f)), &m_widget_lines.at(4)));
-	points.push_back(point(vec2(m_widget_lines.at(5).interpolate(0.1f)), &m_widget_lines.at(5)));
-	points.push_back(point(vec2(m_widget_lines.at(6).interpolate(0.1f)), &m_widget_lines.at(6)));
-
-	points.push_back(point(vec2(m_widget_lines.at(8).interpolate(0.1f)), &m_widget_lines.at(8)));
-	points.push_back(point(vec2(m_widget_lines.at(9).interpolate(0.1f)), &m_widget_lines.at(9)));
-	points.push_back(point(vec2(m_widget_lines.at(10).interpolate(0.1f)), &m_widget_lines.at(10)));
-
-	points.push_back(point(vec2(m_widget_lines.at(12).interpolate(0.1f)), &m_widget_lines.at(12)));
-	points.push_back(point(vec2(m_widget_lines.at(13).interpolate(0.1f)), &m_widget_lines.at(13)));
-	points.push_back(point(vec2(m_widget_lines.at(14).interpolate(0.1f)), &m_widget_lines.at(14)));
+	for (int i = 0; i < 15; i++) {
+		// ignore the "back" lines of the widgets
+		if ((i + 1) % 4 != 0) {
+			points.push_back(point(vec2(m_widget_lines.at(i).interpolate(0.1f)), &m_widget_lines.at(i)));
+		}
+	}
 
 	m_points.push_back(points);
 }
@@ -629,7 +619,7 @@ void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
 
 	// draw arrows on the right widget sides
 	for (int i = 0; i < 15; i++) {
-		// ignore the "back" lines of the widgets, they don't need boundaries
+		// ignore the "back" lines of the widgets, they don't need arrows
 		if ((i + 1) % 4 != 0) {
 			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, color_red, color_red);
 		}
