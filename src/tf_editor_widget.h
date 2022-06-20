@@ -19,6 +19,9 @@ protected:
 	/// a frame buffer container, storing the offline frame buffer of this overlay content
 	cgv::glutil::frame_buffer_container fbc;
 
+	/// a frame buffer container, storing the offline frame buffer of the plot lines
+	cgv::glutil::frame_buffer_container fbc_plot;
+
 	/// canvas to draw content into (same size as overlay)
 	cgv::glutil::canvas content_canvas;
 	/// canvas to draw overlay into (same size as viewport/main framebuffer)
@@ -95,6 +98,8 @@ private:
 	void add_centroids();
 
 	void add_centroid_draggables();
+
+	bool draw_plot(cgv::render::context& ctx);
 
 	void draw_draggables(cgv::render::context& ctx);
 
@@ -183,6 +188,13 @@ private:
 		ivec2 get_render_size() const
 		{
 			return 2 * ivec2(size);
+		}
+
+		// we need to override this method to test if the position is inside the circle (and not a rectangle as is supplied by draggable)
+		bool is_inside(const vec2& mp) const {
+
+			float dist = length(mp - center());
+			return dist <= size.x();
 		}
 	};
 

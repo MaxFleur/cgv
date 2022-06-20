@@ -23,6 +23,9 @@ tf_editor_widget::tf_editor_widget() {
 	// change its size to be the same as the overlay
 	fbc.set_size(get_overlay_size());
 
+	fbc_plot.add_attachment("color", "flt32[R,G,B,A]");
+	fbc_plot.set_size(get_overlay_size());
+
 	// register a rectangle shader for the content canvas, to draw a frame around the plot
 	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
@@ -44,6 +47,7 @@ void tf_editor_widget::clear(cgv::render::context& ctx) {
 	content_canvas.destruct(ctx);
 	viewport_canvas.destruct(ctx);
 	fbc.clear(ctx);
+	fbc_plot.clear(ctx);
 
 	m_line_renderer.destruct(ctx);
 	m_line_geometry_relations.destruct(ctx);
@@ -160,6 +164,7 @@ bool tf_editor_widget::init(cgv::render::context& ctx) {
 
 	// initialize the offline frame buffer, canvases and line renderer
 	success &= fbc.ensure(ctx);
+	success &= fbc_plot.ensure(ctx);
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
 	success &= m_line_renderer.init(ctx);
@@ -192,6 +197,10 @@ void tf_editor_widget::init_frame(cgv::render::context& ctx) {
 		// udpate the offline frame buffer to the new size
 		fbc.set_size(overlay_size);
 		fbc.ensure(ctx);
+
+		// udpate the offline plot frame buffer to the domain size
+		fbc_plot.set_size(overlay_size);
+		fbc_plot.ensure(ctx);
 
 		// set resolutions of the canvases
 		content_canvas.set_resolution(ctx, overlay_size);
@@ -252,74 +261,58 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	// setup a suitable blend function for color and alpha values (following the over-operator)
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	
-	// enable the offline frame buffer, so all things are drawn into its attached textures
+	// first draw the plot (the method will check internally if it needs an update
+	bool done = draw_plot(ctx);
+
+	// enable the offline framebuffer
 	fbc.enable(ctx);
+	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 
+	// draw the plot content from its own framebuffer texture
+	fbc_plot.enable_attachment(ctx, "color", 0);
+	auto& rectangle_prog = content_canvas.enable_shader(ctx, "rectangle");
+	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
+	content_canvas.disable_current_shader(ctx);
+	fbc_plot.disable_attachment(ctx, "color");
+
+	// now draw the non-plot visuals
+	// TODO: no need to call this every frame
+	add_widget_lines();
+
+	// draw lines first
 	auto& line_prog = m_line_renderer.ref_prog();
-
-	// make sure to reset the color buffer if we update the content from scratch
-	if(total_count == 0) {
-		glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		auto& font_prog = m_font_renderer.ref_prog();
-		font_prog.enable(ctx);
-		content_canvas.set_view(ctx, font_prog);
-		font_prog.disable(ctx);
-		for (int i = 0; i < m_labels.size(); i++) {
-			m_font_renderer.render(ctx, get_overlay_size(), m_labels, i, 1);
-		}
-
-		add_widget_lines();
-
-		line_prog.enable(ctx);
-		content_canvas.set_view(ctx, line_prog);
-		m_line_style_widgets.apply(ctx, line_prog);
-		line_prog.disable(ctx);
-		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
-
-		draw_arrows(ctx);
-		
-		content_canvas.disable_current_shader(ctx);
-	}
-	draw_draggables(ctx);
-
-	// the amount of lines that will be drawn in each step
-	int count = 100000;
-
-	// make sure to not draw more lines than available
-	if (total_count + count > m_line_geometry_relations.get_render_count())
-		count = m_line_geometry_relations.get_render_count() - total_count;
-
 	line_prog.enable(ctx);
 	content_canvas.set_view(ctx, line_prog);
-	m_line_style_relations.apply(ctx, line_prog);
+	m_line_style_widgets.apply(ctx, line_prog);
 	line_prog.disable(ctx);
-	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_relations, total_count, count);
+	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
 
-	draw_centroid_lines(ctx, line_prog);
+	// then arrows on top
+	draw_arrows(ctx);
+	
+	// then labels
+	auto& font_prog = m_font_renderer.ref_prog();
+	font_prog.enable(ctx);
+	content_canvas.set_view(ctx, font_prog);
+	font_prog.disable(ctx);
+	// TODO: no need to draw every label on its own
+	/*for(int i = 0; i < m_labels.size(); i++) {
+		m_font_renderer.render(ctx, get_overlay_size(), m_labels, i, 1);
+	}*/
+	m_font_renderer.render(ctx, get_overlay_size(), m_labels);
 
-	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
+	//draw_centroid_lines(ctx, line_prog);
+
+	// draggables are the last thing to be drawn
+	draw_draggables(ctx);
+
 	fbc.disable(ctx);
 
 	// don't forget to disable blending
 	glDisable(GL_BLEND);
 
-	// accumulate the total amount of so-far drawn lines
-	total_count += count;
-
-	// Stop the process if we have drawn all available lines,
-	// otherwise request drawing of another frame.
-	bool run = total_count < m_line_geometry_relations.get_render_count();
-	if (run) {
-		post_redraw();
-	}
-	else {
-		std::cout << "done" << std::endl;
-		m_are_centroid_lines_created = true;
-	}	
-
-	has_damage = run;
+	has_damage = !done;
 }
 
 void tf_editor_widget::create_gui() {
@@ -389,6 +382,12 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_arrow_style.stem_width = 2.5f;
 	m_arrow_style.fill_color = rgba(1.0f, 0.0f, 0.0f, 1.0f);
 	m_arrow_style.use_fill_color = true;
+
+	cgv::glutil::shape2d_style plot_rect_style;
+	plot_rect_style.use_texture = true;
+	auto& rectangle_prog = content_canvas.enable_shader(ctx, "rectangle");
+	plot_rect_style.apply(ctx, rectangle_prog);
+	viewport_canvas.disable_current_shader(ctx);
 
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;
@@ -548,6 +547,7 @@ void tf_editor_widget::add_centroids() {
 		}
 	}
 
+	has_damage = true;
 	post_recreate_gui();
 	post_redraw();
 }
@@ -564,6 +564,52 @@ void tf_editor_widget::add_centroid_draggables() {
 	}
 
 	m_points.push_back(points);
+}
+
+bool tf_editor_widget::draw_plot(cgv::render::context& ctx) {
+
+	// enable the offline plot frame buffer, so all things are drawn into its attached textures
+	fbc_plot.enable(ctx);
+
+	// make sure to reset the color buffer if we update the content from scratch
+	if(total_count == 0) {
+		glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
+
+	// the amount of lines that will be drawn in each step
+	int count = 100000;
+
+	// make sure to not draw more lines than available
+	if(total_count + count > m_line_geometry_relations.get_render_count())
+		count = m_line_geometry_relations.get_render_count() - total_count;
+
+	if(count > 0) {
+		auto& line_prog = m_line_renderer.ref_prog();
+		line_prog.enable(ctx);
+		content_canvas.set_view(ctx, line_prog);
+		m_line_style_relations.apply(ctx, line_prog);
+		line_prog.disable(ctx);
+		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_relations, total_count, count);
+	}
+
+	// accumulate the total amount of so-far drawn lines
+	total_count += count;
+
+	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
+	fbc_plot.disable(ctx);
+
+	// Stop the process if we have drawn all available lines,
+	// otherwise request drawing of another frame.
+	bool run = total_count < m_line_geometry_relations.get_render_count();
+	if(run) {
+		post_redraw();
+	} else {
+		//std::cout << "done" << std::endl;
+		m_are_centroid_lines_created = true;
+	}
+
+	return !run;
 }
 
 void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
@@ -616,7 +662,7 @@ void tf_editor_widget::draw_centroid_lines(cgv::render::context& ctx, cgv::rende
 void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
 	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
 	m_arrow_style.apply(ctx, arrow_prog);
-
+	
 	// draw arrows on the right widget sides
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets, they don't need arrows
@@ -624,6 +670,8 @@ void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
 			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, color_red, color_red);
 		}
 	}
+	// dont forget to disable the curent shader when we don't need it anymore
+	content_canvas.disable_current_shader(ctx);
 }
 
 void tf_editor_widget::create_centroid_lines() {
