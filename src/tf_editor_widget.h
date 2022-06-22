@@ -45,8 +45,14 @@ protected:
 
 	/// renderer for the 2d plot lines
 	cgv::glutil::generic_renderer m_line_renderer;
+	// strips renderer
+	cgv::glutil::generic_renderer m_polygon_renderer;
+
 	/// define a geometry class holding only 2d position values
 	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
+	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 2, vec2, position, rgba, color);
+	polygon_geometry m_strips;
+
 	// The lines for the relations between the widgets
 	line_geometry m_line_geometry_relations;
 	// widget boundaries
@@ -105,11 +111,11 @@ private:
 
 	void draw_draggables(cgv::render::context& ctx);
 
-	void draw_centroid_lines(cgv::render::context& ctx, cgv::render::shader_program& prog);
-
 	void draw_arrows(cgv::render::context& ctx);
 
 	void create_centroid_boundaries();
+
+	void create_centroid_strips();
 
 	void set_point_positions();
 
@@ -117,7 +123,7 @@ private:
 
 	cgv::glutil::line2d_style m_line_style_relations;
 	cgv::glutil::line2d_style m_line_style_widgets;
-	cgv::glutil::line2d_style m_line_style_centroid_lines;
+	cgv::glutil::line2d_style m_line_style_polygons;
 
 	cgv::glutil::arrow2d_style m_arrow_style;
 
@@ -136,7 +142,7 @@ private:
 	// ids used for the texts inside the widgets
 	int m_text_ids[4] = { 0, 1, 2, 3 };
 
-	bool m_are_centroid_lines_created = true;
+	bool m_centroid_strips_created = true;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;

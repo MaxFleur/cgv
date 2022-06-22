@@ -37,6 +37,7 @@ tf_editor_widget::tf_editor_widget() {
 	// initialize the line renderer with a shader program capable of drawing 2d lines
 	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 	m_point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
+	m_polygon_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::polygon);
 
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_widget::set_point_positions, this));
 }
@@ -56,6 +57,8 @@ void tf_editor_widget::clear(cgv::render::context& ctx) {
 
 	m_font.destruct(ctx);
 	m_font_renderer.destruct(ctx);
+
+	m_polygon_renderer.destruct(ctx);
 }
 
 bool tf_editor_widget::self_reflect(cgv::reflect::reflection_handler& _rh) {
@@ -108,7 +111,6 @@ void tf_editor_widget::on_set(void* member_ptr) {
 	for (int i = 0; i < 4; i++) {
 		if (member_ptr == &m_text_ids[i]) {
 			m_text_ids[i] = cgv::math::clamp(m_text_ids[i], 0, 3);
-			std::cout << "Nameand index: " << i << " " << m_protein_names[m_text_ids[i]] << std::endl;
 			if (m_protein_names.size() > 3 && m_labels.size() > 1)
 				m_labels.set_text(i, m_protein_names[m_text_ids[i]]);
 			break;
@@ -151,6 +153,7 @@ bool tf_editor_widget::init(cgv::render::context& ctx) {
 	success &= m_line_renderer.init(ctx);
 	success &= m_font_renderer.init(ctx);
 	success &= m_point_renderer.init(ctx);
+	success &= m_polygon_renderer.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
 	if (success)
@@ -268,6 +271,18 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	line_prog.disable(ctx);
 	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
 
+	create_centroid_strips();
+
+	auto& line_prog_polygon = m_polygon_renderer.ref_prog();
+	line_prog_polygon.enable(ctx);
+	content_canvas.set_view(ctx, line_prog_polygon);
+	line_prog_polygon.disable(ctx);
+	// draw the lines from the given geometry with offset and count
+	glEnable(GL_PRIMITIVE_RESTART);
+	glPrimitiveRestartIndex(0xFFFFFFFF);
+	m_polygon_renderer.render(ctx, PT_TRIANGLE_STRIP, m_strips);
+	glDisable(GL_PRIMITIVE_RESTART);
+
 	// then arrows on top
 	draw_arrows(ctx);
 	
@@ -277,8 +292,6 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	content_canvas.set_view(ctx, font_prog);
 	font_prog.disable(ctx);
 	m_font_renderer.render(ctx, get_overlay_size(), m_labels);
-
-	//draw_centroid_lines(ctx, line_prog);
 
 	// draggables are the last thing to be drawn
 	draw_draggables(ctx);
@@ -343,10 +356,15 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_line_style_widgets.fill_color = color_gray;
 	m_line_style_widgets.width = 3.0f;
 
-	m_line_style_centroid_lines.use_blending = true;
-	m_line_style_centroid_lines.use_fill_color = true;
-	m_line_style_centroid_lines.apply_gamma = false;
-	m_line_style_centroid_lines.width = 2.0f;
+	m_line_style_polygons.use_blending = true;
+	m_line_style_polygons.use_fill_color = false;
+	m_line_style_polygons.apply_gamma = false;
+	m_line_style_polygons.fill_color = rgba(1.0f, 0.0f, 0.0f, line_alpha);
+
+	auto& line_prog = m_polygon_renderer.ref_prog();
+	line_prog.enable(ctx);
+	m_line_style_polygons.apply(ctx, line_prog);
+	line_prog.disable(ctx);
 
 	m_draggable_style.position_is_center = true;
 	m_draggable_style.fill_color = rgba(0.9f, 0.9f, 0.9f, 1.0f);
@@ -585,7 +603,7 @@ bool tf_editor_widget::draw_plot(cgv::render::context& ctx) {
 		post_redraw();
 	} else {
 		//std::cout << "done" << std::endl;
-		m_are_centroid_lines_created = true;
+		m_centroid_strips_created = false;
 	}
 
 	return !run;
@@ -613,30 +631,6 @@ void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
 	point_prog.set_attribute(ctx, "size", vec2(render_size));
 	point_prog.disable(ctx);
 	m_point_renderer.render(ctx, PT_POINTS, m_draggable_points);
-}
-
-void tf_editor_widget::draw_centroid_lines(cgv::render::context& ctx, cgv::render::shader_program& prog) {
-	if (m_are_centroid_lines_created) {
-		m_are_centroid_lines_created = false;
-		create_centroid_boundaries();
-	}
-	/*
-	m_line_geometry_centroid_lines.clear();
-
-	for (int i = 0; i < m_centroid_boundaries.size(); i++) {
-		m_line_style_centroid_lines.fill_color = m_centroids.at(i).color;
-
-		for (const auto line : m_centroid_boundaries.at(i)) {
-			m_line_geometry_centroid_lines.add(line.a);
-			m_line_geometry_centroid_lines.add(line.b);
-		}
-
-		prog.enable(ctx);
-		content_canvas.set_view(ctx, prog);
-		m_line_style_centroid_lines.apply(ctx, prog);
-		prog.disable(ctx);
-		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_centroid_lines);
-	}*/
 }
 
 void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
@@ -685,8 +679,10 @@ void tf_editor_widget::create_centroid_boundaries() {
 
 		std::vector<vec2> points;
 		int boundary_index = 0;
-		for (int i = 0; i < 12; i += 3) {
+		// Iterate over widgets, ignore the back widget
+		for (int i = 0; i < 15; i += 4) {
 			for (int j = 0; j < 3; j++) {
+				// Push back a point for each widget
 				points.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index)));
 				points.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1)));
 			}
@@ -694,6 +690,31 @@ void tf_editor_widget::create_centroid_boundaries() {
 		}
 
 		m_centroid_boundaries.push_back(points);
+	}
+}
+
+void tf_editor_widget::create_centroid_strips() {
+	if (!m_centroid_strips_created) {
+		create_centroid_boundaries();
+		m_centroid_strips_created = true;
+
+		m_strips.clear();
+
+		for (int i = 0; i < m_centroids.size(); i++) {
+			const auto color = m_centroids.at(i).color;
+
+			m_strips.add(m_centroid_boundaries.at(i).at(0), color);
+			m_strips.add(m_centroid_boundaries.at(i).at(1), color);
+			m_strips.add(m_centroid_boundaries.at(i).at(11), color);
+			m_strips.add(m_centroid_boundaries.at(i).at(10), color);
+
+			m_strips.add_idx(0);
+			m_strips.add_idx(1);
+			m_strips.add_idx(11);
+			m_strips.add_idx(10);
+
+			m_strips.add_idx(0xFFFFFFFF);
+		}
 	}
 }
 
