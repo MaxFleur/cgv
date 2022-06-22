@@ -467,38 +467,38 @@ void tf_editor_widget::init_widgets() {
 	const vec2 x_left_1 {sizeX * 0.35f, sizeY * 0.75f};
 	const vec2 x_left_2 {sizeX * 0.23f, sizeY * 0.45f};
 	const vec2 x_left_3 {sizeX * 0.1f, sizeY * 0.45f};
-	m_widget_lines.push_back(line({x_left_0, x_left_1}));
-	m_widget_lines.push_back(line({x_left_1, x_left_2}));
-	m_widget_lines.push_back(line({x_left_2, x_left_3}));
-	m_widget_lines.push_back(line({x_left_3, x_left_0}));
+	m_widget_lines.push_back(data_types::line({x_left_0, x_left_1}));
+	m_widget_lines.push_back(data_types::line({x_left_1, x_left_2}));
+	m_widget_lines.push_back(data_types::line({x_left_2, x_left_3}));
+	m_widget_lines.push_back(data_types::line({x_left_3, x_left_0}));
 
 	// Right widget
 	const vec2 x_right_0{sizeX * 0.9f, sizeY * 0.45f};
 	const vec2 x_right_1{sizeX * 0.77f, sizeY * 0.45f};
 	const vec2 x_right_2{sizeX * 0.65f, sizeY * 0.75f};
 	const vec2 x_right_3{sizeX * 0.7f, sizeY * 0.95f};
-	m_widget_lines.push_back(line({x_right_0, x_right_1}));
-	m_widget_lines.push_back(line({x_right_1, x_right_2}));
-	m_widget_lines.push_back(line({x_right_2, x_right_3}));
-	m_widget_lines.push_back(line({x_right_3, x_right_0}));
+	m_widget_lines.push_back(data_types::line({x_right_0, x_right_1}));
+	m_widget_lines.push_back(data_types::line({x_right_1, x_right_2}));
+	m_widget_lines.push_back(data_types::line({x_right_2, x_right_3}));
+	m_widget_lines.push_back(data_types::line({x_right_3, x_right_0}));
 
 	// Bottom widget
 	const vec2 x_bottom_0{sizeX * 0.23f, sizeY * 0.05f};
 	const vec2 x_bottom_1{sizeX * 0.33f, sizeY * 0.25f};
 	const vec2 x_bottom_2{sizeX * 0.67f, sizeY * 0.25f};
 	const vec2 x_bottom_3{sizeX * 0.77f, sizeY * 0.05f};
-	m_widget_lines.push_back(line({x_bottom_0, x_bottom_1}));
-	m_widget_lines.push_back(line({x_bottom_1, x_bottom_2}));
-	m_widget_lines.push_back(line({x_bottom_2, x_bottom_3}));
-	m_widget_lines.push_back(line({x_bottom_3, x_bottom_0}));
+	m_widget_lines.push_back(data_types::line({x_bottom_0, x_bottom_1}));
+	m_widget_lines.push_back(data_types::line({x_bottom_1, x_bottom_2}));
+	m_widget_lines.push_back(data_types::line({x_bottom_2, x_bottom_3}));
+	m_widget_lines.push_back(data_types::line({x_bottom_3, x_bottom_0}));
 
 	// Center widget, order: Left, right, bottom
 	const vec2 x_center_0{sizeX * 0.4f, sizeY * 0.4f};
 	const vec2 x_center_1{sizeX * 0.5f, sizeY * 0.6f};
 	const vec2 x_center_2{sizeX * 0.6f, sizeY * 0.4f};
-	m_widget_lines.push_back(line({x_center_0, x_center_1}));
-	m_widget_lines.push_back(line({x_center_1, x_center_2}));
-	m_widget_lines.push_back(line({x_center_2, x_center_0}));
+	m_widget_lines.push_back(data_types::line({x_center_0, x_center_1}));
+	m_widget_lines.push_back(data_types::line({x_center_1, x_center_2}));
+	m_widget_lines.push_back(data_types::line({x_center_2, x_center_0}));
 
 	// draw smaller boundaries on the relations borders
 	for (int i = 0; i < 15; i++) {
@@ -511,9 +511,9 @@ void tf_editor_widget::init_widgets() {
 			const auto boundary_right = m_widget_lines.at(i).interpolate(0.9f);
 
 			m_widget_lines.push_back(
-				line({boundary_left - 5.0f * ortho_direction, boundary_left + 3.0f * ortho_direction}));
+				data_types::line({boundary_left - 5.0f * ortho_direction, boundary_left + 3.0f * ortho_direction}));
 			m_widget_lines.push_back(
-				  line({boundary_right - 5.0f * ortho_direction, boundary_right + 3.0f * ortho_direction}));
+				data_types::line({boundary_right - 5.0f * ortho_direction, boundary_right + 3.0f * ortho_direction}));
 		}
 	}
 
@@ -529,7 +529,7 @@ void tf_editor_widget::add_widget_lines() {
 }
 
 void tf_editor_widget::add_centroids() {
-	centroid centr;
+	data_types::centroid centr;
 	m_centroids.push_back(centr);
 	add_centroid_draggables();
 
@@ -546,13 +546,13 @@ void tf_editor_widget::add_centroids() {
 }
 
 void tf_editor_widget::add_centroid_draggables() {
-	std::vector<point> points;
+	std::vector<data_types::point> points;
 	// Add the new centroid points to the widget lines, start with the left side
 	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets
 		if ((i + 1) % 4 != 0) {
-			points.push_back(point(vec2(m_widget_lines.at(i).interpolate(0.1f)), &m_widget_lines.at(i)));
+			points.push_back(data_types::point(vec2(m_widget_lines.at(i).interpolate(0.1f)), &m_widget_lines.at(i)));
 		}
 	}
 
@@ -612,7 +612,7 @@ void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
 
 	for (unsigned i = 0; i < m_points.size(); ++i) {
 		for (int j = 0; j < m_points[i].size(); j++) {
-			const point& p = m_points[i][j];
+			const data_types::point& p = m_points[i][j];
 			m_draggable_points.add(p.get_render_position());
 			render_size = p.get_render_size();
 		}
@@ -704,6 +704,7 @@ void tf_editor_widget::create_centroid_lines() {
 		}
 
 		// Now generate lines out of the stored points
+		/*
 		std::vector<line> lines;
 		// Left widget to right
 		lines.push_back(line({ m_widget_lines.at(0).interpolate(centroid_boundary_values.at(0)),
@@ -736,7 +737,7 @@ void tf_editor_widget::create_centroid_lines() {
 		lines.push_back(line({ m_widget_lines.at(9).interpolate(centroid_boundary_values.at(5)),
 							   m_widget_lines.at(14).interpolate(centroid_boundary_values.at(6)) }));
 
-		m_centroid_lines.push_back(lines);
+		m_centroid_lines.push_back(lines);*/
 	}
 }
 

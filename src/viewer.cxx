@@ -18,6 +18,8 @@
 #include <cgv_glutil/color_map_writer.h>
 #include <cgv/gui/theme_info.h>
 
+#include "utils_data_types.h"
+
 #include <omp.h>
 
 /* NOTES
