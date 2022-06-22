@@ -123,34 +123,27 @@ void tf_editor_widget::on_set(void* member_ptr) {
 	}
 	else {
 		for (int i = 0; i < m_centroids.size(); ++i) {
-			if (member_ptr == &m_centroids.at(i).centroids[0]) {
-				const auto val_myosin = m_centroids.at(i).centroids[0];
+			auto value = 0.0f;
+			auto index = 0;
 
-				m_points[i][0].pos = m_widget_lines.at(0).interpolate((val_myosin * 0.8f) + 0.1f);
-				m_points[i][1].pos = m_widget_lines.at(1).interpolate((val_myosin * 0.8f) + 0.1f);
-				m_points[i][2].pos = m_widget_lines.at(2).interpolate((val_myosin * 0.8f) + 0.1f);
+			if (member_ptr == &m_centroids.at(i).centroids[0]) {
+				value = m_centroids.at(i).centroids[0];
 			}
 			else if (member_ptr == &m_centroids.at(i).centroids[1]) {
-				const auto val_actin = m_centroids.at(i).centroids[1];
-
-				m_points[i][3].pos = m_widget_lines.at(4).interpolate((val_actin * 0.8f) + 0.1f);
-				m_points[i][4].pos = m_widget_lines.at(5).interpolate((val_actin * 0.8f) + 0.1f);
-				m_points[i][5].pos = m_widget_lines.at(6).interpolate((val_actin * 0.8f) + 0.1f);
+				value = m_centroids.at(i).centroids[1];
+				index = 3;
 			}
 			else if (member_ptr == &m_centroids.at(i).centroids[2]) {
-				const auto val_obscurin = m_centroids.at(i).centroids[2];
-
-				m_points[i][6].pos = m_widget_lines.at(8).interpolate((val_obscurin * 0.8f) + 0.1f);
-				m_points[i][7].pos = m_widget_lines.at(9).interpolate((val_obscurin * 0.8f) + 0.1f);
-				m_points[i][8].pos = m_widget_lines.at(10).interpolate((val_obscurin * 0.8f) + 0.1f);
+				value = m_centroids.at(i).centroids[2];
+				index = 6;
 			}
 			else if (member_ptr == &m_centroids.at(i).centroids[3]) {
-				const auto val_sallimus = m_centroids.at(i).centroids[3];
-
-				m_points[i][9].pos = m_widget_lines.at(12).interpolate((val_sallimus * 0.8f) + 0.1f);
-				m_points[i][10].pos = m_widget_lines.at(13).interpolate((val_sallimus * 0.8f) + 0.1f);
-				m_points[i][11].pos = m_widget_lines.at(14).interpolate((val_sallimus * 0.8f) + 0.1f);
+				value = m_centroids.at(i).centroids[3];
+				index = 9;
 			}
+			m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+			m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+			m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 		}
 	}
 
@@ -297,10 +290,6 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	font_prog.enable(ctx);
 	content_canvas.set_view(ctx, font_prog);
 	font_prog.disable(ctx);
-	// TODO: no need to draw every label on its own
-	/*for(int i = 0; i < m_labels.size(); i++) {
-		m_font_renderer.render(ctx, get_overlay_size(), m_labels, i, 1);
-	}*/
 	m_font_renderer.render(ctx, get_overlay_size(), m_labels);
 
 	//draw_centroid_lines(ctx, line_prog);
