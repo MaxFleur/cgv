@@ -16,13 +16,16 @@
 #include <cgv_glutil/sphere_render_data.h>
 #include <plot/plot2d.h>
 
+#include "sliced_volume_data_set.h"
 #include "special_volume_renderer.h"
+#include "gridtree.h"
 
 #include "plot_overlay.h"
 
 #include "tf_editor_widget.h"
 #include "pcp2_overlay.h"
 #include "sp_overlay.h"
+#include "bpcp_overlay.h"
 
 using namespace cgv::render;
 
@@ -63,72 +66,7 @@ protected:
 	bool clip_sarcomeres;
 	int seg_idx = -1;
 
-	struct sarcomere_segment {
-		vec3 a;
-		vec3 b;
-		float length;
-		box3 box;
-
-		void generate_box(const vec3 na, const vec3 nb, float size) {
-
-			vec3 r(size, size, 4.0f*size);
-
-			box.add_point(na - r);
-			box.add_point(na + r);
-			box.add_point(nb - r);
-			box.add_point(nb + r);
-
-			vec3& pmin = box.ref_min_pnt();
-			vec3& pmax = box.ref_max_pnt();
-		}
-	};
-
-	struct {
-		bool loaded = false;
-		bool prepared = false;
-
-		std::string meta_fn = "";
-		std::string slices_fn = "";
-		std::string sallimus_dots_fn = "";
-		std::string sarcomeres_fn = "";
-		std::string transfer_function_fn = "";
-
-		std::vector<std::string> stain_names;
-		cgv::data::data_format raw_image_format;
-		std::vector<cgv::data::data_view> raw_image_slices;
-		cgv::data::data_view raw_data;
-		texture volume_tex;
-		texture gradient_tex;
-		
-		size_t num_slices = 0;
-		float slice_width = 1.0f;
-		float slice_height = 1.0f;
-		float stack_height = 1.0f;
-		float volume_scaling = 1.0f;
-		vec3 scaled_size = vec3(1.0f);
-		
-		std::vector<sarcomere_segment> sarcomere_segments;
-		size_t sarcomere_count = 0;
-
-		// transforms a point given in micrometers to the local size of the volume data given by scale
-		vec3 to_local_frame(const vec3& p) {
-			// flip y-z to account for OpenGL coordinate system
-			vec3 s = p;
-
-			// account for height offset
-			s.z() -= 0.5f*slice_height + 0.5f*stack_height;
-
-			// scale to fit volume
-			s *= volume_scaling;
-
-			// offset to center at origin
-			s.x() -= 0.5f;
-			s.y() -= 0.5f;
-
-			return s;
-		}
-
-	} dataset;
+	sliced_volume_data_set dataset;
 	special_volume_render_style vstyle;
 
 	struct {
@@ -165,6 +103,66 @@ protected:
 	tf_editor_widget_ptr tf_editor_w_ptr = nullptr;
 	pcp2_overlay_ptr pcp2_ptr = nullptr;
 	sp_overlay_ptr sp_ptr = nullptr;
+	bpcp_overlay_ptr bpcp_ptr = nullptr;
+
+	gridtree gtree;
+	float gridtree_error_threshold = 0.08f;
+
+	void generate_tree_boxes() {
+
+		//tree_boxes_rd.clear();
+
+		if(gtree.levels.size() > 0) {
+			//const auto& nodes = oct.levels.back();
+
+			std::cout << "Extracting octree leaf nodes... ";
+			cgv::utils::stopwatch s(true);
+
+			const auto& nodes = gtree.extract_leafs(gridtree_error_threshold);
+
+			std::cout << "done (" << s.get_elapsed_time() << "s)" << std::endl;
+
+			std::cout << "Extracted " << nodes.size() << " leaf nodes." << std::endl;
+			//for(const auto& n : nodes) {
+			//	create_box(n.a, n.b);
+			//}
+
+			float total_volume = static_cast<float>(dataset.resolution.x() * dataset.resolution.y() * dataset.resolution.z());
+
+			std::vector<float> mm_data;
+			std::vector<float> volume_data;
+			for(const auto& n : nodes) {
+				vec4 avg = n.stats.get_average();
+				vec4 var = n.stats.get_variance();
+				vec4 dev = n.stats.get_standard_deviation();
+
+				//vec4 mi = n.stats.get_minimum();
+				//vec4 ma = n.stats.get_maximum();
+				vec4 mi = avg - dev;
+				vec4 ma = avg + dev;
+
+				mm_data.push_back(ma[0]);
+				mm_data.push_back(mi[0]);
+				mm_data.push_back(ma[1]);
+				mm_data.push_back(mi[1]);
+				mm_data.push_back(ma[2]);
+				mm_data.push_back(mi[2]);
+				mm_data.push_back(ma[3]);
+				mm_data.push_back(mi[3]);
+
+				ivec3 ext = n.b - n.a;
+				float volume = static_cast<float>(ext.x() * ext.y() * ext.z()) / total_volume;
+
+				volume_data.push_back(volume);
+				volume_data.push_back(0.25f * (avg[0] + avg[1] + avg[2] + avg[3]));
+			}
+
+			if(bpcp_ptr)
+				bpcp_ptr->set_data(mm_data, volume_data);
+		}
+
+		post_redraw();
+	}
 
 	void create_pcp();
 

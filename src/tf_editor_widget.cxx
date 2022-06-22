@@ -154,6 +154,7 @@ void tf_editor_widget::on_set(void* member_ptr) {
 		}
 	}
 
+	has_damage = true;
 	update_member(member_ptr);
 	post_redraw();
 }
@@ -651,6 +652,7 @@ void tf_editor_widget::draw_centroid_lines(cgv::render::context& ctx, cgv::rende
 			m_line_geometry_centroid_lines.add(line.a);
 			m_line_geometry_centroid_lines.add(line.b);
 		}
+
 		prog.enable(ctx);
 		content_canvas.set_view(ctx, prog);
 		m_line_style_centroid_lines.apply(ctx, prog);

@@ -1,4 +1,8 @@
 #show all
+
+// The UI theme: light, mid, dark, darkest
+type(fltk_viewer_window):theme=dark
+
 name(Main):W=1280;H=720
 
 name(Viewer):input_path="../data/48hr_A.meta"
