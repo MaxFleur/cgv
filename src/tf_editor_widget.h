@@ -216,7 +216,7 @@ private:
 	std::vector<std::vector<point>> m_points;
 	cgv::glutil::draggables_collection<point*> m_point_handles;
 
-	rgba color_red{ 1.0f, 0.0f, 0.0f, 1.0f };
+	rgba color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
 	// ids used for the texts inside the widgets
 	int m_id_left = 0;
