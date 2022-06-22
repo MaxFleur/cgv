@@ -632,15 +632,15 @@ void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
 void tf_editor_widget::draw_centroid_lines(cgv::render::context& ctx, cgv::render::shader_program& prog) {
 	if (m_are_centroid_lines_created) {
 		m_are_centroid_lines_created = false;
-		create_centroid_lines();
+		create_centroid_boundaries();
 	}
-
+	/*
 	m_line_geometry_centroid_lines.clear();
 
-	for (int i = 0; i < m_centroid_lines.size(); i++) {
+	for (int i = 0; i < m_centroid_boundaries.size(); i++) {
 		m_line_style_centroid_lines.fill_color = m_centroids.at(i).color;
 
-		for (const auto line : m_centroid_lines.at(i)) {
+		for (const auto line : m_centroid_boundaries.at(i)) {
 			m_line_geometry_centroid_lines.add(line.a);
 			m_line_geometry_centroid_lines.add(line.b);
 		}
@@ -650,7 +650,7 @@ void tf_editor_widget::draw_centroid_lines(cgv::render::context& ctx, cgv::rende
 		m_line_style_centroid_lines.apply(ctx, prog);
 		prog.disable(ctx);
 		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_centroid_lines);
-	}
+	}*/
 }
 
 void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
@@ -668,8 +668,8 @@ void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
 	content_canvas.disable_current_shader(ctx);
 }
 
-void tf_editor_widget::create_centroid_lines() {
-	m_centroid_lines.clear();
+void tf_editor_widget::create_centroid_boundaries() {
+	m_centroid_boundaries.clear();
 
 	for (int i = 0; i < m_centroids.size(); i++) {
 		// For each centroid, we want to create the lines of the boundaries
@@ -691,53 +691,23 @@ void tf_editor_widget::create_centroid_lines() {
 			if (right_boundary > 1.0f) {
 				right_boundary = 1.0f;
 			}
-			
-			// search the proteins for the nearest value to the boundary without exceeding it
-			const auto nearest_left = search_nearest_boundary_value(
-										relative_line_position, left_boundary, protein_index, true);
-			const auto nearest_right = search_nearest_boundary_value(
-				relative_line_position, right_boundary, protein_index, false);
 
 			// Store the values
-			centroid_boundary_values.push_back(nearest_left);
-			centroid_boundary_values.push_back(nearest_right);
+			centroid_boundary_values.push_back(left_boundary);
+			centroid_boundary_values.push_back(right_boundary);
 		}
 
-		// Now generate lines out of the stored points
-		/*
-		std::vector<line> lines;
-		// Left widget to right
-		lines.push_back(line({ m_widget_lines.at(0).interpolate(centroid_boundary_values.at(0)),
-							   m_widget_lines.at(6).interpolate(centroid_boundary_values.at(3)) }));
-		lines.push_back(line({ m_widget_lines.at(0).interpolate(centroid_boundary_values.at(1)),
-							   m_widget_lines.at(6).interpolate(centroid_boundary_values.at(2)) }));
-		// Left to center
-		lines.push_back(line({ m_widget_lines.at(1).interpolate(centroid_boundary_values.at(0)),
-							   m_widget_lines.at(12).interpolate(centroid_boundary_values.at(7)) }));
-		lines.push_back(line({ m_widget_lines.at(1).interpolate(centroid_boundary_values.at(1)),
-							   m_widget_lines.at(12).interpolate(centroid_boundary_values.at(6)) }));
-		// Left to bottom
-		lines.push_back(line({ m_widget_lines.at(2).interpolate(centroid_boundary_values.at(0)),
-							   m_widget_lines.at(8).interpolate(centroid_boundary_values.at(5)) }));
-		lines.push_back(line({ m_widget_lines.at(2).interpolate(centroid_boundary_values.at(1)),
-							   m_widget_lines.at(8).interpolate(centroid_boundary_values.at(4)) }));
-		// Right to bottom
-		lines.push_back(line({ m_widget_lines.at(4).interpolate(centroid_boundary_values.at(2)),
-							   m_widget_lines.at(10).interpolate(centroid_boundary_values.at(5)) }));
-		lines.push_back(line({ m_widget_lines.at(4).interpolate(centroid_boundary_values.at(3)),
-							   m_widget_lines.at(10).interpolate(centroid_boundary_values.at(4)) }));
-		// Right to center
-		lines.push_back(line({ m_widget_lines.at(5).interpolate(centroid_boundary_values.at(2)),
-							   m_widget_lines.at(13).interpolate(centroid_boundary_values.at(7)) }));
-		lines.push_back(line({ m_widget_lines.at(5).interpolate(centroid_boundary_values.at(3)),
-							   m_widget_lines.at(13).interpolate(centroid_boundary_values.at(6)) }));
-		// Bottom to center
-		lines.push_back(line({ m_widget_lines.at(9).interpolate(centroid_boundary_values.at(4)),
-							   m_widget_lines.at(14).interpolate(centroid_boundary_values.at(7)) }));
-		lines.push_back(line({ m_widget_lines.at(9).interpolate(centroid_boundary_values.at(5)),
-							   m_widget_lines.at(14).interpolate(centroid_boundary_values.at(6)) }));
+		std::vector<vec2> points;
+		int boundary_index = 0;
+		for (int i = 0; i < 12; i += 3) {
+			for (int j = 0; j < 3; j++) {
+				points.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index)));
+				points.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1)));
+			}
+			boundary_index += 2;
+		}
 
-		m_centroid_lines.push_back(lines);*/
+		m_centroid_boundaries.push_back(points);
 	}
 }
 

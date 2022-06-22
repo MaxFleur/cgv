@@ -109,7 +109,7 @@ private:
 
 	void draw_arrows(cgv::render::context& ctx);
 
-	void create_centroid_lines();
+	void create_centroid_boundaries();
 
 	void set_point_positions();
 
@@ -127,7 +127,7 @@ private:
 	cgv::glutil::arrow2d_style m_arrow_style;
 
 	std::vector<data_types::line> m_widget_lines;
-	std::vector<std::vector<data_types::line>> m_centroid_lines;
+	std::vector<std::vector<vec2>> m_centroid_boundaries;
 
 	std::vector<std::string> m_protein_names;
 
