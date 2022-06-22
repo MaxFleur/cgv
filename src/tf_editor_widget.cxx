@@ -126,28 +126,21 @@ void tf_editor_widget::on_set(void* member_ptr) {
 			auto value = 0.0f;
 			auto index = 0;
 
-			if (member_ptr == &m_centroids.at(i).centroids[0]) {
-				value = m_centroids.at(i).centroids[0];
+			for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
+				if (member_ptr == &m_centroids.at(i).centroids[c_protein_i]) {
+					value = m_centroids.at(i).centroids[c_protein_i];
+					index = c_protein_i * 3;
+					has_damage = true;
+				}
 			}
-			else if (member_ptr == &m_centroids.at(i).centroids[1]) {
-				value = m_centroids.at(i).centroids[1];
-				index = 3;
+			if (has_damage) {
+				m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+				m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+				m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 			}
-			else if (member_ptr == &m_centroids.at(i).centroids[2]) {
-				value = m_centroids.at(i).centroids[2];
-				index = 6;
-			}
-			else if (member_ptr == &m_centroids.at(i).centroids[3]) {
-				value = m_centroids.at(i).centroids[3];
-				index = 9;
-			}
-			m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate((value * 0.8f) + 0.1f);
-			m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
-			m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 		}
 	}
 
-	has_damage = true;
 	update_member(member_ptr);
 	post_redraw();
 }
