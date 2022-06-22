@@ -6,7 +6,7 @@ typedef cgv::glutil::overlay::vec2 vec2;
 typedef cgv::glutil::overlay::vec4 vec4;
 typedef cgv::render::render_types::rgba rgba;
 
-namespace data_types
+namespace utils_data_types
 {
 
 struct line

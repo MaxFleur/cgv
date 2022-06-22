@@ -113,11 +113,6 @@ private:
 
 	void set_point_positions();
 
-	float search_nearest_boundary_value(float relative_position, 
-										float boundary_value,
-										int protein_id,
-										bool is_left);
-
 private:
 
 	cgv::glutil::line2d_style m_line_style_relations;
@@ -126,15 +121,15 @@ private:
 
 	cgv::glutil::arrow2d_style m_arrow_style;
 
-	std::vector<data_types::line> m_widget_lines;
+	std::vector<utils_data_types::line> m_widget_lines;
 	std::vector<std::vector<vec2>> m_centroid_boundaries;
 
 	std::vector<std::string> m_protein_names;
 
-	std::vector<data_types::centroid> m_centroids;
+	std::vector<utils_data_types::centroid> m_centroids;
 
-	std::vector<std::vector<data_types::point>> m_points;
-	cgv::glutil::draggables_collection<data_types::point*> m_point_handles;
+	std::vector<std::vector<utils_data_types::point>> m_points;
+	cgv::glutil::draggables_collection<utils_data_types::point*> m_point_handles;
 
 	rgba color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
