@@ -134,10 +134,7 @@ private:
 	rgba color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
 	// ids used for the texts inside the widgets
-	int m_id_left = 0;
-	int m_id_right = 1;
-	int m_id_bottom = 2;
-	int m_id_center = 3;
+	int m_text_ids[4] = { 0, 1, 2, 3 };
 
 	bool m_are_centroid_lines_created = true;
 };

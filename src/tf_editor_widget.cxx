@@ -104,41 +104,35 @@ void tf_editor_widget::on_set(void* member_ptr) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
 	// change the labels if the GUI index is updated
-	} else if (member_ptr == &m_id_left) {
-		m_id_left = cgv::math::clamp(m_id_left, 0, 3);
-		if (m_protein_names.size() > 3 && m_labels.size() > 1) 
-			m_labels.set_text(0, m_protein_names[m_id_left]);
-	} else if (member_ptr == &m_id_right) {
-		m_id_right = cgv::math::clamp(m_id_right, 0, 3);
-		if (m_protein_names.size() > 3 && m_labels.size() > 1)
-			m_labels.set_text(1, m_protein_names[m_id_right]);
-	} else if (member_ptr == &m_id_bottom) {
-		m_id_bottom = cgv::math::clamp(m_id_bottom, 0, 3);
-		if (m_protein_names.size() > 3 && m_labels.size() > 1)
-			m_labels.set_text(2, m_protein_names[m_id_bottom]);
-	} else if (member_ptr == &m_id_center) {
-		m_id_center = cgv::math::clamp(m_id_center, 0, 3);
-		if (m_protein_names.size() > 3 && m_labels.size() > 1)
-			m_labels.set_text(3, m_protein_names[m_id_center]);
 	}
-	else {
-		for (int i = 0; i < m_centroids.size(); ++i) {
-			auto value = 0.0f;
-			auto index = 0;
+	for (int i = 0; i < 4; i++) {
+		if (member_ptr == &m_text_ids[i]) {
+			m_text_ids[i] = cgv::math::clamp(m_text_ids[i], 0, 3);
+			std::cout << "Nameand index: " << i << " " << m_protein_names[m_text_ids[i]] << std::endl;
+			if (m_protein_names.size() > 3 && m_labels.size() > 1)
+				m_labels.set_text(i, m_protein_names[m_text_ids[i]]);
+			break;
+		}
+	}
+	
+	for (int i = 0; i < m_centroids.size(); ++i) {
+		auto value = 0.0f;
+		auto index = 0;
 
-			for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
-				if (member_ptr == &m_centroids.at(i).centroids[c_protein_i]) {
-					value = m_centroids.at(i).centroids[c_protein_i];
-					index = c_protein_i * 3;
-					has_damage = true;
-				}
-			}
-			if (has_damage) {
-				m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate((value * 0.8f) + 0.1f);
-				m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
-				m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+		for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
+			if (member_ptr == &m_centroids.at(i).centroids[c_protein_i]) {
+				value = m_centroids.at(i).centroids[c_protein_i];
+				index = c_protein_i * 3;
+				has_damage = true;
+				break;
 			}
 		}
+		if (has_damage) {
+			m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+			m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+			m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+		}
+		break;
 	}
 
 	update_member(member_ptr);
@@ -205,10 +199,9 @@ void tf_editor_widget::init_frame(cgv::render::context& ctx) {
 			m_labels.add_text("2", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.18f), cgv::render::TA_NONE);
 			m_labels.add_text("3", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.48f), cgv::render::TA_NONE);
 
-			on_set(&m_id_left);
-			on_set(&m_id_right);
-			on_set(&m_id_bottom);
-			on_set(&m_id_center);
+			for (int i = 0; i < 4; i++) {
+				on_set(&m_text_ids[i]);
+			}
 		}
 	}
 }
@@ -307,10 +300,10 @@ void tf_editor_widget::create_gui() {
 	// add controls for parameters
 	add_member_control(this, "Threshold", threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "Line Alpha", line_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "Protein left:", m_id_left, "value", "min=0;max=3;step=1");
-	add_member_control(this, "Protein right:", m_id_right, "value", "min=0;max=3;step=1");
-	add_member_control(this, "Protein bottom:", m_id_bottom, "value", "min=0;max=3;step=1");
-	add_member_control(this, "Protein center:", m_id_center, "value", "min=0;max=3;step=1");
+	add_member_control(this, "Protein left:", m_text_ids[0], "value", "min=0;max=3;step=1");
+	add_member_control(this, "Protein right:", m_text_ids[1], "value", "min=0;max=3;step=1");
+	add_member_control(this, "Protein bottom:", m_text_ids[2], "value", "min=0;max=3;step=1");
+	add_member_control(this, "Protein center:", m_text_ids[3], "value", "min=0;max=3;step=1");
 
 	// Create new centroids
 	auto const add_centroid_button = add_button("Add centroid");
@@ -423,23 +416,23 @@ void tf_editor_widget::update_content() {
 
 		if(avg > threshold) {
 			// Left to right
-			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_id_left]));
-			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_id_right]));
+			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]));
+			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_text_ids[1]]));
 			// Left to center
-			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_id_left]));
-			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_id_center]));
+			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_text_ids[0]]));
+			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_text_ids[3]]));
 			// Left to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_id_left]));
-			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_id_bottom]));
+			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_text_ids[0]]));
+			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_text_ids[2]]));
 			// Right to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_id_right]));
-			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_id_bottom]));
+			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_text_ids[1]]));
+			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_text_ids[2]]));
 			// Right to center
-			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_id_right]));
-			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_id_center]));
+			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_text_ids[1]]));
+			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_text_ids[3]]));
 			// Bottom to center
-			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_id_bottom]));
-			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_id_center]));
+			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_text_ids[2]]));
+			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_text_ids[3]]));
 		}
 	}
 
@@ -734,6 +727,7 @@ void tf_editor_widget::set_point_positions() {
 				m_centroids.at(i).centroids[protein_index] = GUI_value;
 				update_member(&m_centroids.at(i).centroids[protein_index]);
 			}
+			break;
 		}
 	}
 
