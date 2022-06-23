@@ -133,8 +133,8 @@ void tf_editor_widget::on_set(void* member_ptr) {
 			m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 			m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 			m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+			break;
 		}
-		break;
 	}
 
 	update_member(member_ptr);
@@ -621,7 +621,6 @@ void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
 			render_size = p.get_render_size();
 		}
 	}
-
 	m_draggable_points.set_out_of_date();
 
 	shader_program& point_prog = m_point_renderer.ref_prog();
@@ -665,11 +664,11 @@ void tf_editor_widget::create_centroid_boundaries() {
 			auto left_boundary = relative_line_position - (m_centroids.at(i).gaussian_width / 2.0f);
 			auto right_boundary = relative_line_position + (m_centroids.at(i).gaussian_width / 2.0f);
 			// Keep boundaries within distance
-			if (left_boundary < 0.0f) {
-				left_boundary = 0.0f;
+			if (left_boundary < 0.1f) {
+				left_boundary = 0.1f;
 			}
-			if (right_boundary > 1.0f) {
-				right_boundary = 1.0f;
+			if (right_boundary > 0.9f) {
+				right_boundary = 0.9f;
 			}
 
 			// Store the values
@@ -700,20 +699,46 @@ void tf_editor_widget::create_centroid_strips() {
 
 		m_strips.clear();
 
+		int strip_index = 0;
+
+		// Construct to add four points to the strip, because every strip is between two widgets with two points each
+		const auto addPointsToStrips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
+			m_strips.add(m_centroid_boundaries.at(i).at(strip_id_1), color);
+			m_strips.add(m_centroid_boundaries.at(i).at(strip_id_2), color);
+			m_strips.add(m_centroid_boundaries.at(i).at(strip_id_3), color);
+			m_strips.add(m_centroid_boundaries.at(i).at(strip_id_4), color);
+		};
+		// Add indices for the strips
+		const auto addIndicesToStrips = [&](int offset_start, int offset_end) {
+			for (int i = offset_start; i < offset_end; i++) {
+				m_strips.add_idx(strip_index + i);
+			}
+			// If done, end this strip
+			m_strips.add_idx(0xFFFFFFFF);
+		};
+		// Now strips themselves
 		for (int i = 0; i < m_centroids.size(); i++) {
 			const auto color = m_centroids.at(i).color;
 
-			m_strips.add(m_centroid_boundaries.at(i).at(0), color);
-			m_strips.add(m_centroid_boundaries.at(i).at(1), color);
-			m_strips.add(m_centroid_boundaries.at(i).at(11), color);
-			m_strips.add(m_centroid_boundaries.at(i).at(10), color);
+			addPointsToStrips(0, 1, 11, 10, i, color);
+			addIndicesToStrips(0, 4);
 
-			m_strips.add_idx(0);
-			m_strips.add_idx(1);
-			m_strips.add_idx(11);
-			m_strips.add_idx(10);
+			addPointsToStrips(2, 3, 19, 18, i, color);
+			addIndicesToStrips(4, 8);
 
-			m_strips.add_idx(0xFFFFFFFF);
+			addPointsToStrips(4, 5, 13, 12, i, color);
+			addIndicesToStrips(8, 12);
+
+			addPointsToStrips(6, 7, 17, 16, i, color);
+			addIndicesToStrips(12, 16);
+
+			addPointsToStrips(8, 9, 21, 20, i, color);
+			addIndicesToStrips(16, 20);
+
+			addPointsToStrips(14, 15, 23, 22, i, color);
+			addIndicesToStrips(20, 24);
+
+			strip_index += 24;
 		}
 	}
 }
@@ -748,7 +773,6 @@ void tf_editor_widget::set_point_positions() {
 				m_centroids.at(i).centroids[protein_index] = GUI_value;
 				update_member(&m_centroids.at(i).centroids[protein_index]);
 			}
-			break;
 		}
 	}
 
