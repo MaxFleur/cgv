@@ -42,6 +42,7 @@ tf_editor_widget::tf_editor_widget() {
 	m_polygon_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::polygon);
 
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_widget::set_point_positions, this));
+	m_point_handles.set_drag_end_callback(std::bind(&tf_editor_widget::end_drag, this));
 }
 
 void tf_editor_widget::clear(cgv::render::context& ctx) {
@@ -390,6 +391,12 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_draggable_style.border_width = 1.5f;
 	m_draggable_style.use_blending = true;
 
+	m_draggable_style_dragged.position_is_center = true;
+	m_draggable_style_dragged.fill_color = rgba(0.9f, 0.9f, 0.9f, 1.0f);
+	m_draggable_style_dragged.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
+	m_draggable_style_dragged.border_width = 1.5f;
+	m_draggable_style_dragged.use_blending = true;
+
 	m_arrow_style.head_width = 10.0f;
 	m_arrow_style.absolute_head_length = 8.0f;
 	m_arrow_style.stem_width = 0.0f;
@@ -629,26 +636,37 @@ bool tf_editor_widget::draw_plot(cgv::render::context& ctx) {
 }
 
 void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
-	// TODO: move creation of render data to own function and call only when necessary
-	m_draggable_points.clear();
-	ivec2 render_size;
+	m_point_geometry.clear();
+	m_point_geometry_dragged.clear();
 
 	for (unsigned i = 0; i < m_points.size(); ++i) {
 		for (int j = 0; j < m_points[i].size(); j++) {
-			const utils_data_types::point& p = m_points[i][j];
-			m_draggable_points.add(p.get_render_position());
-			render_size = p.get_render_size();
+			if (m_dragged_point_ptr) {
+				&m_points[i][j] == m_dragged_point_ptr ? m_point_geometry_dragged.add(m_points[i][j].get_render_position())
+					: m_point_geometry.add(m_points[i][j].get_render_position());
+			}
+			else {
+				m_point_geometry.add(m_points[i][j].get_render_position());
+			}
 		}
 	}
-	m_draggable_points.set_out_of_date();
+	m_point_geometry.set_out_of_date();
 
 	shader_program& point_prog = m_point_renderer.ref_prog();
 	point_prog.enable(ctx);
 	content_canvas.set_view(ctx, point_prog);
 	m_draggable_style.apply(ctx, point_prog);
-	point_prog.set_attribute(ctx, "size", vec2(render_size));
+	point_prog.set_attribute(ctx, "size", m_dragged_point_ptr ? vec2(10.0f) : vec2(16.0f));
 	point_prog.disable(ctx);
-	m_point_renderer.render(ctx, PT_POINTS, m_draggable_points);
+	m_point_renderer.render(ctx, PT_POINTS, m_point_geometry);
+
+	if (m_dragged_point_ptr) {
+		point_prog.enable(ctx);
+		m_draggable_style_dragged.apply(ctx, point_prog);
+		point_prog.set_attribute(ctx, "size", vec2(16.0f));
+		point_prog.disable(ctx);
+		m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_dragged);
+	}
 }
 
 void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
@@ -798,6 +816,8 @@ void tf_editor_widget::set_point_positions() {
 		for (int j = 0; j < m_points[i].size(); j++) {
 			// Now the relating centroid points in the widget have to be updated
 			if (&m_points[i][j] == m_point_handles.get_dragged()) {
+				m_dragged_point_ptr = &m_points[i][j];
+
 				// Left widget point was moved, update center and right
 				if (j % 3 == 0) {
 					m_points[i][j + 1].move_along_line(m_points[i][j].get_relative_line_position());

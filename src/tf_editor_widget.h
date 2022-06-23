@@ -60,10 +60,12 @@ protected:
 	line_geometry m_line_geometry_nearest_values;
 
 	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 1, vec2, position);
-	point_geometry m_draggable_points;
+	point_geometry m_point_geometry_dragged;
+	point_geometry m_point_geometry;
 
 	cgv::glutil::generic_renderer m_point_renderer;
 	cgv::glutil::shape2d_style m_draggable_style;
+	cgv::glutil::shape2d_style m_draggable_style_dragged;
 
 	cgv::glutil::msdf_font m_font;
 	cgv::glutil::msdf_gl_font_renderer m_font_renderer;
@@ -121,6 +123,12 @@ private:
 
 	void set_point_positions();
 
+	void end_drag() {
+		m_dragged_point_ptr = nullptr;
+		has_damage = true;
+		post_redraw();
+	}
+
 private:
 
 	cgv::glutil::line2d_style m_line_style_relations;
@@ -147,6 +155,8 @@ private:
 
 	// ids used for the texts inside the widgets
 	int m_text_ids[4] = { 0, 1, 2, 3 };
+
+	utils_data_types::point* m_dragged_point_ptr;
 
 	bool m_centroid_strips_created = true;
 };
