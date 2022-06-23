@@ -6,6 +6,8 @@
 #include <cgv/math/ftransform.h>
 #include <cgv_gl/gl/gl.h>
 
+#include "utils_functions.h"
+
 tf_editor_widget::tf_editor_widget() {
 	
 	set_name("PCP Overlay");
@@ -53,7 +55,7 @@ void tf_editor_widget::clear(cgv::render::context& ctx) {
 	m_line_renderer.destruct(ctx);
 	m_line_geometry_relations.destruct(ctx);
 	m_line_geometry_widgets.destruct(ctx);
-	m_line_geometry_centroid_lines.destruct(ctx);
+	m_line_geometry_nearest_values.destruct(ctx);
 
 	m_font.destruct(ctx);
 	m_font_renderer.destruct(ctx);
@@ -285,6 +287,17 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 
 	// then arrows on top
 	draw_arrows(ctx);
+
+	
+	for (int i = 0; i < m_centroids.size(); i++) {
+		m_line_style_nearest_values.fill_color = utils_functions::get_complementary_color(m_centroids.at(i).color);
+		create_nearest_value_lines(i);
+		line_prog.enable(ctx);
+		content_canvas.set_view(ctx, line_prog);
+		m_line_style_nearest_values.apply(ctx, line_prog);
+		line_prog.disable(ctx);
+		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_nearest_values);
+	}
 	
 	// then labels
 	auto& font_prog = m_font_renderer.ref_prog();
@@ -360,6 +373,11 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_line_style_polygons.use_fill_color = false;
 	m_line_style_polygons.apply_gamma = false;
 	m_line_style_polygons.fill_color = rgba(1.0f, 0.0f, 0.0f, line_alpha);
+
+	m_line_style_nearest_values.use_blending = true;
+	m_line_style_nearest_values.use_fill_color = true;
+	m_line_style_nearest_values.apply_gamma = false;
+	m_line_style_nearest_values.width = 2.0f;
 
 	auto& line_prog = m_polygon_renderer.ref_prog();
 	line_prog.enable(ctx);
@@ -650,10 +668,13 @@ void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
 
 void tf_editor_widget::create_centroid_boundaries() {
 	m_centroid_boundaries.clear();
+	m_nearest_boundary_values.clear();
 
 	for (int i = 0; i < m_centroids.size(); i++) {
 		// For each centroid, we want to create the lines of the boundaries
 		std::vector<float> centroid_boundary_values;
+		std::vector<float> centroid_nearest_values;
+
 		// Each widget has three centroids which will always generate the same values, 
 		// so skip and do only every 4th point
 		for (int j = 0; j < m_points.at(i).size(); j += 3) {
@@ -675,21 +696,36 @@ void tf_editor_widget::create_centroid_boundaries() {
 			// Store the values
 			centroid_boundary_values.push_back(left_boundary);
 			centroid_boundary_values.push_back(right_boundary);
+
+			// Now calculate the positions of the nearest values to the boundaries
+			const auto nearest_val_left = utils_functions::search_nearest_boundary_value(relative_line_position, left_boundary, protein_index, true, data);
+			const auto nearest_val_right = utils_functions::search_nearest_boundary_value(relative_line_position, right_boundary, protein_index, false, data);
+			centroid_nearest_values.push_back(nearest_val_left);
+			centroid_nearest_values.push_back(nearest_val_right);
 		}
 
-		std::vector<vec2> points;
+		std::vector<vec2> strip_coordinates;
+		std::vector<utils_data_types::point> nearest_boundary_coordinates;
 		int boundary_index = 0;
 		// Iterate over widgets, ignore the back widget
 		for (int i = 0; i < 15; i += 4) {
 			for (int j = 0; j < 3; j++) {
 				// Push back a point for each widget
-				points.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index)));
-				points.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1)));
+				strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index)));
+				strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1)));
+
+				const auto point_boundary_left = utils_data_types::point({ m_widget_lines.at(i + j).interpolate(centroid_nearest_values.at(boundary_index)),
+																		   &m_widget_lines.at(i + j) });
+				const auto point_boundary_right = utils_data_types::point({ m_widget_lines.at(i + j).interpolate(centroid_nearest_values.at(boundary_index + 1)),
+																		    &m_widget_lines.at(i + j) });
+				nearest_boundary_coordinates.push_back(point_boundary_left);
+				nearest_boundary_coordinates.push_back(point_boundary_right);
 			}
 			boundary_index += 2;
 		}
 
-		m_centroid_boundaries.push_back(points);
+		m_centroid_boundaries.push_back(strip_coordinates);
+		m_nearest_boundary_values.push_back(nearest_boundary_coordinates);
 	}
 }
 
@@ -741,6 +777,16 @@ void tf_editor_widget::create_centroid_strips() {
 
 			strip_index += 24;
 		}
+	}
+}
+
+void tf_editor_widget::create_nearest_value_lines(int index) {
+	m_line_geometry_nearest_values.clear();
+
+	for (int i = 0; i < m_nearest_boundary_values.at(index).size(); i++) {
+		const auto line = utils_functions::create_nearest_boundary_line(m_nearest_boundary_values.at(index).at(i));
+		m_line_geometry_nearest_values.add(line.a);
+		m_line_geometry_nearest_values.add(line.b);
 	}
 }
 

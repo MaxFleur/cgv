@@ -2,6 +2,8 @@
 
 #include <cgv_glutil/overlay.h>
 
+#include "utils_data_types.h"
+
 namespace utils_functions
 {
 	// get the nearest data position to a certain boundary value of a centroid point
@@ -25,5 +27,16 @@ namespace utils_functions
 			}
 		}
 		return nearest_position;
+	}
+
+	rgba get_complementary_color(const rgba& color) {
+		return {1.0f - color.R(), 1.0f - color.G(), 1.0f - color.B(), 1.0f};
+	}
+
+	utils_data_types::line create_nearest_boundary_line(utils_data_types::point point) {
+		const auto direction = normalize(point.pos - point.m_parent_line->a);
+		const auto ortho_direction = cgv::math::ortho(direction);
+
+		return utils_data_types::line({ point.pos - 4.0f * ortho_direction, point.pos + 2.5f * ortho_direction });
 	}
 }
