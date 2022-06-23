@@ -386,13 +386,11 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	line_prog.disable(ctx);
 
 	m_draggable_style.position_is_center = true;
-	m_draggable_style.fill_color = rgba(0.9f, 0.9f, 0.9f, 1.0f);
 	m_draggable_style.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
 	m_draggable_style.border_width = 1.5f;
 	m_draggable_style.use_blending = true;
 
 	m_draggable_style_dragged.position_is_center = true;
-	m_draggable_style_dragged.fill_color = rgba(0.9f, 0.9f, 0.9f, 1.0f);
 	m_draggable_style_dragged.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
 	m_draggable_style_dragged.border_width = 1.5f;
 	m_draggable_style_dragged.use_blending = true;
@@ -631,15 +629,17 @@ bool tf_editor_widget::draw_plot(cgv::render::context& ctx) {
 		//std::cout << "done" << std::endl;
 		m_centroid_strips_created = false;
 	}
-
 	return !run;
 }
 
 void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
-	m_point_geometry.clear();
-	m_point_geometry_dragged.clear();
+	for (int i = 0; i < m_centroids.size(); ++i) {
+		m_point_geometry.clear();
+		m_point_geometry_dragged.clear();
 
-	for (unsigned i = 0; i < m_points.size(); ++i) {
+		m_draggable_style.fill_color = m_centroids.at(i).color;
+		m_draggable_style_dragged.fill_color = m_centroids.at(i).color;
+
 		for (int j = 0; j < m_points[i].size(); j++) {
 			if (m_dragged_point_ptr) {
 				&m_points[i][j] == m_dragged_point_ptr ? m_point_geometry_dragged.add(m_points[i][j].get_render_position())
@@ -649,23 +649,24 @@ void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
 				m_point_geometry.add(m_points[i][j].get_render_position());
 			}
 		}
-	}
-	m_point_geometry.set_out_of_date();
 
-	shader_program& point_prog = m_point_renderer.ref_prog();
-	point_prog.enable(ctx);
-	content_canvas.set_view(ctx, point_prog);
-	m_draggable_style.apply(ctx, point_prog);
-	point_prog.set_attribute(ctx, "size", m_dragged_point_ptr ? vec2(10.0f) : vec2(16.0f));
-	point_prog.disable(ctx);
-	m_point_renderer.render(ctx, PT_POINTS, m_point_geometry);
+		m_point_geometry.set_out_of_date();
 
-	if (m_dragged_point_ptr) {
+		shader_program& point_prog = m_point_renderer.ref_prog();
 		point_prog.enable(ctx);
-		m_draggable_style_dragged.apply(ctx, point_prog);
-		point_prog.set_attribute(ctx, "size", vec2(16.0f));
+		content_canvas.set_view(ctx, point_prog);
+		m_draggable_style.apply(ctx, point_prog);
+		point_prog.set_attribute(ctx, "size", m_dragged_point_ptr ? vec2(10.0f) : vec2(16.0f));
 		point_prog.disable(ctx);
-		m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_dragged);
+		m_point_renderer.render(ctx, PT_POINTS, m_point_geometry);
+
+		if (m_dragged_point_ptr) {
+			point_prog.enable(ctx);
+			m_draggable_style_dragged.apply(ctx, point_prog);
+			point_prog.set_attribute(ctx, "size", vec2(16.0f));
+			point_prog.disable(ctx);
+			m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_dragged);
+		}
 	}
 }
 
