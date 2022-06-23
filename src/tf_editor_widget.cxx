@@ -463,6 +463,18 @@ void tf_editor_widget::update_content() {
 void tf_editor_widget::init_widgets() {
 	m_widget_lines.clear();
 
+	const auto add_lines = [&](vec2 p0, vec2 p1, vec2 p2, bool add_back_line, vec2 p3 = { 0.0f, 0.0f }) {
+		m_widget_lines.push_back(utils_data_types::line({ p0, p1 }));
+		m_widget_lines.push_back(utils_data_types::line({ p1, p2 }));
+		if (add_back_line) {
+			m_widget_lines.push_back(utils_data_types::line({ p2, p3 }));
+			m_widget_lines.push_back(utils_data_types::line({ p3, p0 }));
+		}
+		else {
+			m_widget_lines.push_back(utils_data_types::line({ p2, p0 }));
+		}
+	};
+
 	const auto sizeX = domain.size().x();
 	const auto sizeY = domain.size().y();
 	/// General line generation order: Left, center, right relations line, then a last line for closing
@@ -471,38 +483,27 @@ void tf_editor_widget::init_widgets() {
 	const vec2 x_left_1 {sizeX * 0.35f, sizeY * 0.75f};
 	const vec2 x_left_2 {sizeX * 0.23f, sizeY * 0.45f};
 	const vec2 x_left_3 {sizeX * 0.1f, sizeY * 0.45f};
-	m_widget_lines.push_back(utils_data_types::line({x_left_0, x_left_1}));
-	m_widget_lines.push_back(utils_data_types::line({x_left_1, x_left_2}));
-	m_widget_lines.push_back(utils_data_types::line({x_left_2, x_left_3}));
-	m_widget_lines.push_back(utils_data_types::line({x_left_3, x_left_0}));
+	add_lines(x_left_0, x_left_1, x_left_2, true, x_left_3);
 
 	// Right widget
 	const vec2 x_right_0{sizeX * 0.9f, sizeY * 0.45f};
 	const vec2 x_right_1{sizeX * 0.77f, sizeY * 0.45f};
 	const vec2 x_right_2{sizeX * 0.65f, sizeY * 0.75f};
 	const vec2 x_right_3{sizeX * 0.7f, sizeY * 0.95f};
-	m_widget_lines.push_back(utils_data_types::line({x_right_0, x_right_1}));
-	m_widget_lines.push_back(utils_data_types::line({x_right_1, x_right_2}));
-	m_widget_lines.push_back(utils_data_types::line({x_right_2, x_right_3}));
-	m_widget_lines.push_back(utils_data_types::line({x_right_3, x_right_0}));
+	add_lines(x_right_0, x_right_1, x_right_2, true, x_right_3);
 
 	// Bottom widget
 	const vec2 x_bottom_0{sizeX * 0.23f, sizeY * 0.05f};
 	const vec2 x_bottom_1{sizeX * 0.33f, sizeY * 0.25f};
 	const vec2 x_bottom_2{sizeX * 0.67f, sizeY * 0.25f};
 	const vec2 x_bottom_3{sizeX * 0.77f, sizeY * 0.05f};
-	m_widget_lines.push_back(utils_data_types::line({x_bottom_0, x_bottom_1}));
-	m_widget_lines.push_back(utils_data_types::line({x_bottom_1, x_bottom_2}));
-	m_widget_lines.push_back(utils_data_types::line({x_bottom_2, x_bottom_3}));
-	m_widget_lines.push_back(utils_data_types::line({x_bottom_3, x_bottom_0}));
+	add_lines(x_bottom_0, x_bottom_1, x_bottom_2, true, x_bottom_3);
 
 	// Center widget, order: Left, right, bottom
 	const vec2 x_center_0{sizeX * 0.4f, sizeY * 0.4f};
 	const vec2 x_center_1{sizeX * 0.5f, sizeY * 0.6f};
 	const vec2 x_center_2{sizeX * 0.6f, sizeY * 0.4f};
-	m_widget_lines.push_back(utils_data_types::line({x_center_0, x_center_1}));
-	m_widget_lines.push_back(utils_data_types::line({x_center_1, x_center_2}));
-	m_widget_lines.push_back(utils_data_types::line({x_center_2, x_center_0}));
+	add_lines(x_center_0, x_center_1, x_center_2, false);
 
 	// draw smaller boundaries on the relations borders
 	for (int i = 0; i < 15; i++) {
