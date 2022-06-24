@@ -115,7 +115,7 @@ private:
 
 	void draw_arrows(cgv::render::context& ctx);
 
-	void create_centroid_boundaries();
+	bool create_centroid_boundaries();
 
 	void create_centroid_strips();
 
@@ -156,9 +156,15 @@ private:
 	// ids used for the texts inside the widgets
 	int m_text_ids[4] = { 0, 1, 2, 3 };
 
+	int m_dragged_centroid_ids[4];
+
 	utils_data_types::point* m_dragged_point_ptr;
 
 	bool m_centroid_strips_created = true;
+
+	bool create_all_nearest_values = true;
+
+	bool set = false;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;

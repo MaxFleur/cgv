@@ -289,10 +289,10 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	// then arrows on top
 	draw_arrows(ctx);
 
-	
 	for (int i = 0; i < m_centroids.size(); i++) {
 		m_line_style_nearest_values.fill_color = utils_functions::get_complementary_color(m_centroids.at(i).color);
 		create_nearest_value_lines(i);
+
 		line_prog.enable(ctx);
 		content_canvas.set_view(ctx, line_prog);
 		m_line_style_nearest_values.apply(ctx, line_prog);
@@ -442,6 +442,9 @@ void tf_editor_widget::update_content() {
 	if(data.empty())
 		return;
 
+	create_all_nearest_values = true;
+	set = false;
+
 	// reset previous total count and line geometry
 	total_count = 0;
 	m_line_geometry_relations.clear();
@@ -568,6 +571,8 @@ void tf_editor_widget::add_centroids() {
 		}
 	}
 
+	create_all_nearest_values = true;
+
 	has_damage = true;
 	post_recreate_gui();
 	post_redraw();
@@ -685,72 +690,115 @@ void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
 	content_canvas.disable_current_shader(ctx);
 }
 
-void tf_editor_widget::create_centroid_boundaries() {
-	m_centroid_boundaries.clear();
-	m_nearest_boundary_values.clear();
+bool tf_editor_widget::create_centroid_boundaries() {
+	float relative_position;
+	float boundary_left;
+	float boundary_right;
+	float nearest_value_left;
+	float nearest_value_right;
 
-	for (int i = 0; i < m_centroids.size(); i++) {
-		// For each centroid, we want to create the lines of the boundaries
-		std::vector<float> centroid_boundary_values;
-		std::vector<float> centroid_nearest_values;
+	const auto calculate_values = [&](int i, int protein_index) {
 
-		// Each widget has three centroids which will always generate the same values, 
-		// so skip and do only every 4th point
-		for (int j = 0; j < m_points.at(i).size(); j += 3) {
-			// Get the correct protein
-			const int protein_index = j / 3;
+		// Get the relative position of the centroid and it's left and right boundary
+		relative_position = m_centroids.at(i).centroids[protein_index];
+		boundary_left = relative_position - (m_centroids.at(i).gaussian_width / 2.0f);
+		boundary_right = relative_position + (m_centroids.at(i).gaussian_width / 2.0f);
 
-			// Get the relative position of the centroid and it's left and right boundary
-			const auto relative_line_position = m_centroids.at(i).centroids[protein_index];
-			auto left_boundary = relative_line_position - (m_centroids.at(i).gaussian_width / 2.0f);
-			auto right_boundary = relative_line_position + (m_centroids.at(i).gaussian_width / 2.0f);
-			// Keep boundaries within distance
-			if (left_boundary < 0.1f) {
-				left_boundary = 0.1f;
+		boundary_left = cgv::math::clamp(boundary_left, 0.1f, 0.9f);
+		boundary_right = cgv::math::clamp(boundary_right, 0.1f, 0.9f);
+
+		// Now calculate the positions of the nearest values to the boundaries
+		nearest_value_left = utils_functions::search_nearest_boundary_value(relative_position, boundary_left, protein_index, true, data);
+		nearest_value_right = utils_functions::search_nearest_boundary_value(relative_position, boundary_right, protein_index, false, data);
+
+		nearest_value_left = cgv::math::clamp(nearest_value_left, 0.1f, 0.9f);
+		nearest_value_right= cgv::math::clamp(nearest_value_right, 0.1f, 0.9f);
+	};
+
+	if (create_all_nearest_values) {
+		m_centroid_boundaries.clear();
+		m_nearest_boundary_values.clear();
+
+		for (int i = 0; i < m_centroids.size(); i++) {
+			// For each centroid, we want to create the lines of the boundaries
+			std::vector<float> centroid_boundary_values;
+			std::vector<float> centroid_nearest_values;
+
+			// Each widget has three centroids which will always generate the same values, 
+			// so skip and do only every 4th point
+			for (int j = 0; j < m_points.at(i).size(); j += 3) {
+				// Get the correct protein
+				calculate_values(i, j / 3);
+
+				// Store the values
+				centroid_boundary_values.push_back(boundary_left);
+				centroid_boundary_values.push_back(boundary_right);
+
+				centroid_nearest_values.push_back(nearest_value_left);
+				centroid_nearest_values.push_back(nearest_value_right);
 			}
-			if (right_boundary > 0.9f) {
-				right_boundary = 0.9f;
+
+			int boundary_index = 0;
+			std::vector<vec2> strip_coordinates;
+			std::vector<utils_data_types::point> nearest_boundary_coordinates;
+
+			// Iterate over widgets, ignore the back widget
+			for (int i = 0; i < 15; i += 4) {
+				for (int j = 0; j < 3; j++) {
+					// Push back a point for each widget
+					strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index)));
+					strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1)));
+
+					const auto point_boundary_left = utils_data_types::point({ m_widget_lines.at(i + j).interpolate(centroid_nearest_values.at(boundary_index)),
+																			   &m_widget_lines.at(i + j) });
+					const auto point_boundary_right = utils_data_types::point({ m_widget_lines.at(i + j).interpolate(centroid_nearest_values.at(boundary_index + 1)),
+																				&m_widget_lines.at(i + j) });
+					nearest_boundary_coordinates.push_back(point_boundary_left);
+					nearest_boundary_coordinates.push_back(point_boundary_right);
+				}
+				boundary_index += 2;
 			}
 
-			// Store the values
-			centroid_boundary_values.push_back(left_boundary);
-			centroid_boundary_values.push_back(right_boundary);
-
-			// Now calculate the positions of the nearest values to the boundaries
-			const auto nearest_val_left = utils_functions::search_nearest_boundary_value(relative_line_position, left_boundary, protein_index, true, data);
-			const auto nearest_val_right = utils_functions::search_nearest_boundary_value(relative_line_position, right_boundary, protein_index, false, data);
-			centroid_nearest_values.push_back(nearest_val_left);
-			centroid_nearest_values.push_back(nearest_val_right);
+			m_centroid_boundaries.push_back(strip_coordinates);
+			m_nearest_boundary_values.push_back(nearest_boundary_coordinates);
 		}
+		create_all_nearest_values = false;
 
-		std::vector<vec2> strip_coordinates;
-		std::vector<utils_data_types::point> nearest_boundary_coordinates;
-		int boundary_index = 0;
-		// Iterate over widgets, ignore the back widget
-		for (int i = 0; i < 15; i += 4) {
-			for (int j = 0; j < 3; j++) {
-				// Push back a point for each widget
-				strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index)));
-				strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1)));
-
-				const auto point_boundary_left = utils_data_types::point({ m_widget_lines.at(i + j).interpolate(centroid_nearest_values.at(boundary_index)),
-																		   &m_widget_lines.at(i + j) });
-				const auto point_boundary_right = utils_data_types::point({ m_widget_lines.at(i + j).interpolate(centroid_nearest_values.at(boundary_index + 1)),
-																		    &m_widget_lines.at(i + j) });
-				nearest_boundary_coordinates.push_back(point_boundary_left);
-				nearest_boundary_coordinates.push_back(point_boundary_right);
-			}
-			boundary_index += 2;
-		}
-
-		m_centroid_boundaries.push_back(strip_coordinates);
-		m_nearest_boundary_values.push_back(nearest_boundary_coordinates);
+		return true;
 	}
+	else if (set) {
+		calculate_values(m_dragged_centroid_ids[0], m_dragged_centroid_ids[1] / 3);
+		for (int i = 1; i < 4; i++) {
+
+			const auto centroid_layer = m_dragged_centroid_ids[0];
+			auto& line = m_points[centroid_layer][m_dragged_centroid_ids[i]].m_parent_line;
+
+			const auto dragged_id_left = m_dragged_centroid_ids[i] * 2;
+			const auto dragged_id_right = m_dragged_centroid_ids[i] * 2 + 1;
+
+			m_centroid_boundaries[centroid_layer][dragged_id_left] = line->interpolate(boundary_left);
+			m_centroid_boundaries[centroid_layer][dragged_id_right] = line->interpolate(boundary_right);
+
+			const auto point_boundary_left = utils_data_types::point({ line->interpolate(nearest_value_left), line });
+			const auto point_boundary_right = utils_data_types::point({ line->interpolate(nearest_value_right), line });
+
+			m_nearest_boundary_values[centroid_layer][dragged_id_left] = point_boundary_left;
+			m_nearest_boundary_values[centroid_layer][dragged_id_right] = point_boundary_right;
+		}
+		return true;
+	}
+	return false;
 }
 
 void tf_editor_widget::create_centroid_strips() {
+	if (m_points.empty()) {
+		return;
+	}
+
 	if (!m_centroid_strips_created) {
-		create_centroid_boundaries();
+		if (!create_centroid_boundaries()) {
+			return;
+		}
 		m_centroid_strips_created = true;
 
 		m_strips.clear();
@@ -800,6 +848,9 @@ void tf_editor_widget::create_centroid_strips() {
 }
 
 void tf_editor_widget::create_nearest_value_lines(int index) {
+	if (m_nearest_boundary_values.at(index).empty()) {
+		return;
+	}
 	m_line_geometry_nearest_values.clear();
 
 	for (int i = 0; i < m_nearest_boundary_values.at(index).size(); i++) {
@@ -818,22 +869,32 @@ void tf_editor_widget::set_point_positions() {
 			// Now the relating centroid points in the widget have to be updated
 			if (&m_points[i][j] == m_point_handles.get_dragged()) {
 				m_dragged_point_ptr = &m_points[i][j];
+				m_dragged_centroid_ids[0] = i;
+				m_dragged_centroid_ids[1] = j;
 
 				// Left widget point was moved, update center and right
 				if (j % 3 == 0) {
 					m_points[i][j + 1].move_along_line(m_points[i][j].get_relative_line_position());
 					m_points[i][j + 2].move_along_line(m_points[i][j].get_relative_line_position());
+					m_dragged_centroid_ids[2] = j + 1;
+					m_dragged_centroid_ids[3] = j + 2;
 				}
 				// Center widget point was moved, update left and right
 				else if (j % 3 == 1) {
 					m_points[i][j - 1].move_along_line(m_points[i][j].get_relative_line_position());
 					m_points[i][j + 1].move_along_line(m_points[i][j].get_relative_line_position());
+					m_dragged_centroid_ids[2] = j - 1;
+					m_dragged_centroid_ids[3] = j + 1;
 				}
 				// Right widget point was moved, update left and center
 				else if (j % 3 == 2) {
 					m_points[i][j - 1].move_along_line(m_points[i][j].get_relative_line_position());
 					m_points[i][j - 2].move_along_line(m_points[i][j].get_relative_line_position());
+					m_dragged_centroid_ids[2] = j - 1;
+					m_dragged_centroid_ids[3] = j - 2;
 				}
+
+				set = true;
 
 				int protein_index = j / 3;
 				// Remap to correct GUI vals
