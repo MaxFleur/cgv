@@ -37,7 +37,7 @@ Sarcomere render data idx 3012 (unsorted)
 // TODO: blur has wrappping problems (try for radius = 8)
 
 viewer::viewer() : application_plugin("Viewer") {
-	
+
 	blur_radius = 0;
 
 	vstyle.enable_depth_test = true;
@@ -60,7 +60,7 @@ viewer::viewer() : application_plugin("Viewer") {
 
 	shaders.add("screen", "screen_texture.glpr");
 	shaders.add("gradient", "gradient_3d");
-	
+
 	// default filter and clamp parameters are ok
 	dataset.gradient_tex = texture("flt32[R,G,B,A]");
 
@@ -73,14 +73,11 @@ viewer::viewer() : application_plugin("Viewer") {
 	sstyle.radius = 0.0003f;
 
 	tf_editor_w_ptr = register_overlay<tf_editor_widget>("PCP Overlay");
-	
+
 	bpcp_ptr = register_overlay<bpcp_overlay>("Block PCP Overlay");
 	bpcp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
 	bpcp_ptr->set_visibility(false);
 
-	// pcp2_ptr = register_overlay<pcp2_overlay>("PCP 2 Overlay");
-	// pcp2_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_END, cgv::glutil::overlay::AO_END);
-	
 	// sp_ptr = register_overlay<sp_overlay>("SP Overlay");
 	// sp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
 }
@@ -114,8 +111,8 @@ bool viewer::handle_event(cgv::gui::event& e) {
 	// return true if the event gets handled and stopped here or false if you want to pass it to the next plugin
 	unsigned et = e.get_kind();
 
-	if(et == cgv::gui::EID_KEY) {
-		cgv::gui::key_event& ke = (cgv::gui::key_event&) e;
+	if (et == cgv::gui::EID_KEY) {
+		cgv::gui::key_event& ke = (cgv::gui::key_event&)e;
 		cgv::gui::KeyAction ka = ke.get_action();
 
 		/* ka is one of:
@@ -125,18 +122,18 @@ bool viewer::handle_event(cgv::gui::event& e) {
 				KA_REPEAT
 			]
 		*/
-		if(ka == cgv::gui::KA_PRESS) {
+		if (ka == cgv::gui::KA_PRESS) {
 			unsigned short key = ke.get_key();
-			switch(ke.get_key()) {
+			switch (ke.get_key()) {
 			case 'T':
-				if(tf_editor_ptr) {
+				if (tf_editor_ptr) {
 					tf_editor_ptr->set_visibility(!tf_editor_ptr->is_visible());
 					post_redraw();
 					return true;
 				}
 				break;
 			case 'H':
-				if(length_histogram_po_ptr) {
+				if (length_histogram_po_ptr) {
 					length_histogram_po_ptr->set_visibility(!length_histogram_po_ptr->is_visible());
 					post_redraw();
 					return true;
@@ -147,8 +144,9 @@ bool viewer::handle_event(cgv::gui::event& e) {
 		}
 
 		return false;
-	} else if(et == cgv::gui::EID_MOUSE) {
-		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&) e;
+	}
+	else if (et == cgv::gui::EID_MOUSE) {
+		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 		cgv::gui::MouseAction ma = me.get_action();
 
 		/* ma is one of:
@@ -164,7 +162,8 @@ bool viewer::handle_event(cgv::gui::event& e) {
 		*/
 
 		return false;
-	} else {
+	}
+	else {
 		return false;
 	}
 }
@@ -174,10 +173,7 @@ bool viewer::handle_event(cgv::gui::event& e) {
 
 void viewer::on_set(void* member_ptr) {
 
-	if(member_ptr == &input_path) {
-		//std::cout << "=====================" << std::endl;
-		//std::cout << input_path << std::endl;
-		//
+	if (member_ptr == &input_path) {
 
 #ifdef CGV_FORCE_STATIC
 		std::string base_path = cgv::base::ref_prog_path_prefix() + "/" + input_path + "/";
@@ -188,37 +184,34 @@ void viewer::on_set(void* member_ptr) {
 		std::cout << "Setting base_path to: " << base_path << std::endl;
 
 		context* ctx_ptr = get_context();
-		if(ctx_ptr) {
+		if (ctx_ptr) {
 			std::string filename = base_path;
 			dataset.meta_fn = filename;
-			if(!read_data_set(*ctx_ptr, filename))
+			if (!read_data_set(*ctx_ptr, filename))
 				std::cout << "Error: Could not read data set from " << filename << std::endl;
 		}
 	}
 
 	IFSET(blur_radius) {
 		blur_radius = cgv::math::clamp(blur_radius, 0u, 8u);
-		if(prepare_btn)
+		if (prepare_btn)
 			prepare_btn->set("color", "0xff6666");
 	}
-
-	//IFSET(seg_idx) {
-	//	create_selected_segment_render_data();
-	//}
 
 	IFSET(fh.file_name) {
 		std::string extension = cgv::utils::file::get_extension(fh.file_name);
 		// only try to read the filename if it ends with an xml extension
-		if(cgv::utils::to_upper(extension) == "XML") {
+		if (cgv::utils::to_upper(extension) == "XML") {
 			context* ctx_ptr = get_context();
-			if(ctx_ptr) {
-				if(read_transfer_functions(*ctx_ptr, fh.file_name)) {
-					
+			if (ctx_ptr) {
+				if (read_transfer_functions(*ctx_ptr, fh.file_name)) {
+
 					dataset.transfer_function_fn = fh.file_name;
 
 					fh.has_unsaved_changes = false;
 					on_set(&fh.has_unsaved_changes);
-				} else {
+				}
+				else {
 					std::cout << "Error: could not read transfer functions from " << fh.file_name << std::endl;
 				}
 			}
@@ -228,13 +221,13 @@ void viewer::on_set(void* member_ptr) {
 	IFSET(fh.save_file_name) {
 		std::string extension = cgv::utils::file::get_extension(fh.save_file_name);
 
-		if(extension == "") {
+		if (extension == "") {
 			extension = "xml";
 			fh.save_file_name += "." + extension;
 		}
 
-		if(cgv::utils::to_upper(extension) == "XML") {
-			if(save_transfer_functions(fh.save_file_name)) {
+		if (cgv::utils::to_upper(extension) == "XML") {
+			if (save_transfer_functions(fh.save_file_name)) {
 
 				dataset.transfer_function_fn = fh.save_file_name;
 
@@ -242,20 +235,22 @@ void viewer::on_set(void* member_ptr) {
 				update_member(&fh.file_name);
 				fh.has_unsaved_changes = false;
 				on_set(&fh.has_unsaved_changes);
-			} else {
+			}
+			else {
 				std::cout << "Error: Could not write transfer functions to file: " << fh.save_file_name << std::endl;
 			}
-		} else {
+		}
+		else {
 			std::cout << "Please specify a xml file name." << std::endl;
 		}
 	}
 
 	IFSET(fh.has_unsaved_changes) {
 		auto ctrl = find_control(fh.file_name);
-		if(ctrl)
+		if (ctrl)
 			ctrl->set("text_color", fh.has_unsaved_changes ? cgv::gui::theme_info::instance().warning_hex() : "");
 	}
-	
+
 	update_member(member_ptr);
 	post_redraw();
 }
@@ -263,7 +258,7 @@ void viewer::on_set(void* member_ptr) {
 bool viewer::on_exit_request() {
 	// TODO: does not seem to fire when window is maximized?
 #ifndef _DEBUG
-	if(fh.has_unsaved_changes) {
+	if (fh.has_unsaved_changes) {
 		return cgv::gui::question("The transfer function has unsaved changes. Are you sure you want to quit?");
 	}
 #endif
@@ -296,9 +291,9 @@ bool viewer::init(cgv::render::context& ctx) {
 
 	bounding_box_rd.add(vec3(0.0f), vec3(1.0f), rgb(0.5f, 0.5f, 0.5f));
 	bounding_box_rd.add(vec3(0.0f), vec3(1.0f), rgb(1.0f, 0.0f, 0.0f));
-	
+
 	// init plot styles
-	if(length_histogram_po_ptr) {
+	if (length_histogram_po_ptr) {
 		auto& plot = length_histogram_po_ptr->ref_plot();
 
 		// setup doamin
@@ -307,8 +302,8 @@ bool viewer::init(cgv::render::context& ctx) {
 		// set the reference size to adjust the sizing of all visual elements
 		domain->reference_size = 0.0035f;
 		domain->fill = false;
-		
-		if(domain->axis_configs.size() > 1) {
+
+		if (domain->axis_configs.size() > 1) {
 			// fisrt axis config is x-axis
 			auto& x_axis = domain->axis_configs[0];
 			x_axis.secondary_ticks.type = cgv::plot::TickType::TT_NONE;
@@ -316,7 +311,7 @@ bool viewer::init(cgv::render::context& ctx) {
 			auto& y_axis = domain->axis_configs[1];
 			y_axis.secondary_ticks.type = cgv::plot::TickType::TT_NONE;
 		}
-		
+
 		// add a sub plot and alter its style
 		plot.add_sub_plot("length histogram");
 		plot.set_sub_plot_colors(0, rgb(0.1f, 0.3f, 0.7f));
@@ -334,28 +329,20 @@ bool viewer::init(cgv::render::context& ctx) {
 
 void viewer::init_frame(cgv::render::context& ctx) {
 
-	if(!view_ptr) {
-		if(view_ptr = find_view_as_node()) {
+	if (!view_ptr) {
+		if (view_ptr = find_view_as_node()) {
 			// set plot font faces
 			// only works after the plot has been initialized
-			if(length_histogram_po_ptr)
+			if (length_histogram_po_ptr)
 				length_histogram_po_ptr->ref_plot().set_label_font(30.0f, cgv::media::font::FontFaceAttributes::FFA_REGULAR, "Arial");
-			
+
 			ensure_selected_in_tab_group_parent();
 		}
 	}
 
-	/*if(tf_editor_ptr && histograms.changed) {
-		histograms.changed = false;
-		tf_editor_ptr->set_histogram(0, histograms.hist0);
-		tf_editor_ptr->set_histogram(1, histograms.hist1);
-		tf_editor_ptr->set_histogram(2, histograms.hist2);
-		tf_editor_ptr->set_histogram(3, histograms.hist3);
-	}*/
-
 	fbc.ensure(ctx);
 
-	if(tf_editor_ptr && tf_editor_ptr->was_updated()) {
+	if (tf_editor_ptr && tf_editor_ptr->was_updated()) {
 		update_tf_texture(ctx);
 		fh.has_unsaved_changes = true;
 		on_set(&fh.has_unsaved_changes);
@@ -363,8 +350,8 @@ void viewer::init_frame(cgv::render::context& ctx) {
 }
 
 void viewer::draw(cgv::render::context& ctx) {
-	
-	if(!view_ptr || !dataset.loaded || !tf_editor_ptr)
+
+	if (!view_ptr || !dataset.loaded || !tf_editor_ptr)
 		return;
 
 	vec3 eye_pos = view_ptr->get_eye();
@@ -372,11 +359,6 @@ void viewer::draw(cgv::render::context& ctx) {
 
 	unsigned offset = 0;
 	unsigned count = sarcomeres_rd.ref_pos().size();
-	
-	//mat4 rotation, translation, scale;
-	//rotation.identity();
-	//translation.identity();
-	//scale.identity();
 
 	// this matrix transforms the unit cube to the volume size and orientation
 	mat4 volume_transform = cgv::math::scale4(dataset.scaled_size);
@@ -388,33 +370,34 @@ void viewer::draw(cgv::render::context& ctx) {
 	bool draw_plot = false;
 	bool draw_segment_bbox = false;
 
-	if(view_mode == VM_VOLUME) {
+	if (view_mode == VM_VOLUME) {
 		clip_box_transform = volume_transform;
 
-		if(seg_idx > -1 && seg_idx < dataset.sarcomere_segments.size()) {
+		if (seg_idx > -1 && seg_idx < dataset.sarcomere_segments.size()) {
 			draw_plot = true;
 			draw_segment_bbox = true;
 
 			const auto& seg = dataset.sarcomere_segments[seg_idx];
-			if(segment_visibility == VO_SELECTED) {
+			if (segment_visibility == VO_SELECTED) {
 				offset = 2 * seg_idx;
 				count = 2;
 			}
 
-			if(use_aligned_segment_box) {
+			if (use_aligned_segment_box) {
 				vec3 box_translate = seg.box.get_center();
 				box_translate.z() *= dataset.scaled_size.z();
-				box_translate -= vec3(0.5f, 0.5f, 0.5f*dataset.scaled_size.z());
+				box_translate -= vec3(0.5f, 0.5f, 0.5f * dataset.scaled_size.z());
 
 				vec3 box_extent = seg.box.get_extent() * dataset.scaled_size;
 				segment_box_transform = cgv::math::translate4(box_translate) * cgv::math::scale4(box_extent);
-			} else {
-				mat4 T = cgv::math::translate4(0.5f*(seg.a + seg.b));
+			}
+			else {
+				mat4 T = cgv::math::translate4(0.5f * (seg.a + seg.b));
 
 				vec3 dir = normalize(seg.b - seg.a);
 				vec3 ref_dir = vec3(0.0f, 0.0f, 1.0f);
 
-				if(abs(dot(dir, ref_dir)) > 0.999f) {
+				if (abs(dot(dir, ref_dir)) > 0.999f) {
 					ref_dir = vec3(1.0f, 0.0f, 0.0f);
 					std::swap(dir, ref_dir);
 				}
@@ -440,92 +423,10 @@ void viewer::draw(cgv::render::context& ctx) {
 				segment_box_transform = T * R * S;
 			}
 
-			if(volume_visibility == VO_SELECTED)
+			if (volume_visibility == VO_SELECTED)
 				clip_box_transform = segment_box_transform;
 		}
-	} else {
-		/*if(seg_idx < dataset.sarcomere_segments.size()) {
-			const auto& seg = dataset.sarcomere_segments[seg_idx];
-			offset = 2 * seg_idx;
-			count = 2;
-
-			//seg_box = seg.box;
-
-			vec3 offset = 0.5f*(seg.a + seg.b);
-
-			vec3 dir = normalize(seg.b - seg.a);
-			vec3 ref_dir = vec3(0.0f, 0.0f, 1.0f);
-
-			if(abs(dot(dir, ref_dir)) > 0.999f) {
-				ref_dir = vec3(1.0f, 0.0f, 0.0f);
-				std::swap(dir, ref_dir);
-			}
-
-			vec3 ortho = normalize(cross(dir, ref_dir));
-			vec3 third = cross(dir, ortho);
-
-			mat4 R;
-			R.identity();
-			R.set_col(0, vec4(dir, 0.0f));
-			R.set_col(1, vec4(ortho, 0.0f));
-			R.set_col(2, vec4(third, 0.0f));
-
-			mat4 T = cgv::math::translate4(offset);
-
-			// this uses the size of the axis aligned bounding box, which will result in non-equally scaled boxes due to rotation
-			//vec3 extent = seg.box.get_extent();
-			//float volume_height = dataset.stack_height * dataset.volume_scaling;
-			//extent.z() *= volume_height;
-			//std::swap(extent.x(), extent.y());
-
-			vec3 extent(0.0f);
-			extent.x() = length(seg.a - seg.b) + 0.02f;
-			extent.y() = 0.04f;
-
-			float volume_height = dataset.stack_height * dataset.volume_scaling;
-			extent.z() = 0.2f * volume_height;
-
-			mat4 S = cgv::math::scale4(extent);
-
-			segment_box_transform = T * R * S;
-
-
-
-			/*vec3 offset = 0.5f*(seg.a + seg.b);
-
-			vec3 dir = normalize(seg.b - seg.a);
-			vec3 ortho = normalize(cross(dir, vec3(0.0f, 0.0f, 1.0f)));
-			//vec3 ortho = cgv::math::ortho(dir);
-			vec3 third = cross(dir, ortho);
-
-			rotation.identity();
-			rotation.set_col(0, vec4(dir, 0.0f));
-			rotation.set_col(1, vec4(ortho, 0.0f));
-			rotation.set_col(2, vec4(third, 0.0f));
-			rotation = inv(rotation);
-
-			translation = cgv::math::translate4(-offset);
-
-			vec3 extent = seg.box.get_extent();
-			float volume_height = dataset.stack_height * dataset.volume_scaling;
-			extent.z() *= volume_height;
-
-			scale = cgv::math::scale4(extent);*
-		}*/
 	}
-
-	
-	
-	
-
-	
-	
-
-	
-
-
-
-
 
 	fbc.enable(ctx);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -533,19 +434,19 @@ void viewer::draw(cgv::render::context& ctx) {
 	ctx.push_modelview_matrix();
 	//ctx.mul_modelview_matrix(rotation);
 	//ctx.mul_modelview_matrix(translation);
-	
-	if(segment_visibility != VO_NONE) {
-		if(show_sallimus_dots)
+
+	if (segment_visibility != VO_NONE) {
+		if (show_sallimus_dots)
 			sallimus_dots_rd.render(ctx, ref_sphere_renderer(ctx), sallimus_dots_style, offset, count);
 
-		if(show_sarcomeres)
+		if (show_sarcomeres)
 			sarcomeres_rd.render(ctx, ref_cone_renderer(ctx), sarcomere_style, offset, count);
 	}
 
 	// render voxel bounding boxes and sample points
-	if(show_sample_points)
+	if (show_sample_points)
 		sample_points_rd.render(ctx, ref_sphere_renderer(ctx), sstyle);
-	if(show_sample_voxels)
+	if (show_sample_voxels)
 		voxel_boxes_rd.render(ctx, ref_box_wire_renderer(ctx), bwstyle);
 
 	ctx.pop_modelview_matrix();
@@ -565,12 +466,7 @@ void viewer::draw(cgv::render::context& ctx) {
 
 	prog.disable(ctx);
 
-
-
-
-
-
-	if(volume_visibility != VO_NONE) {
+	if (volume_visibility != VO_NONE) {
 		ctx.push_modelview_matrix();
 		ctx.mul_modelview_matrix(clip_box_transform);
 
@@ -592,25 +488,14 @@ void viewer::draw(cgv::render::context& ctx) {
 		ctx.pop_modelview_matrix();
 	}
 
-
-
-
-
-
-	
-	
-	
-	
-	
-	
 	// render the bounding box of the whole volume
 	ctx.push_modelview_matrix();
 	ctx.mul_modelview_matrix(volume_transform);
 	bounding_box_rd.render(ctx, ref_box_wire_renderer(ctx), bwstyle, 0, 1);
 	ctx.pop_modelview_matrix();
-	
+
 	// render the bounding box of the selected sarcomere segment
-	if(draw_segment_bbox) {
+	if (draw_segment_bbox) {
 		ctx.push_modelview_matrix();
 		ctx.mul_modelview_matrix(segment_box_transform);
 		bounding_box_rd.render(ctx, ref_box_wire_renderer(ctx), bwstyle, 1, 1);
@@ -620,8 +505,8 @@ void viewer::draw(cgv::render::context& ctx) {
 
 void viewer::create_gui() {
 	add_decorator("Myofibril Viewer", "heading", "level=2");
-	
-	if(begin_tree_node("Data Set", blur_radius, true)) {
+
+	if (begin_tree_node("Data Set", blur_radius, true)) {
 		align("\a");
 		add_member_control(this, "Blur Radius", blur_radius, "value_slider", "min=0;max=8;step=1;ticks=true");
 		prepare_btn = add_button("Filter");
@@ -630,21 +515,21 @@ void viewer::create_gui() {
 		end_tree_node(blur_radius);
 	}
 
-	if(begin_tree_node("Volume Rendering", vstyle, false)) {
+	if (begin_tree_node("Volume Rendering", vstyle, false)) {
 		align("\a");
 		add_gui("vstyle", vstyle);
 		align("\b");
 		end_tree_node(vstyle);
 	}
 
-	if(begin_tree_node("Transfer Functions", tf_editor_ptr, false)) {
+	if (begin_tree_node("Transfer Functions", tf_editor_ptr, false)) {
 		align("\a");
 
 		std::string filter = "XML Files (xml):*.xml|All Files:*.*";
 		add_gui("File", fh.file_name, "file_name", "title='Open Transfer Function';filter='" + filter + "';save=false;w=136;small_icon=true;align_gui=' '" + (fh.has_unsaved_changes ? ";text_color=" + cgv::gui::theme_info::instance().warning_hex() : ""));
 		add_gui("save_file_name", fh.save_file_name, "file_name", "title='Save Transfer Function';filter='" + filter + "';save=true;control=false;small_icon=true");
 
-		for(size_t i = 0; i < dataset.stain_names.size(); ++i) {
+		for (size_t i = 0; i < dataset.stain_names.size(); ++i) {
 			add_member_control(this, "", dataset.stain_names[i], "string", "w=168", " ");
 			connect_copy(add_button("@1edit", "w=20;")->click, cgv::signal::rebind(this, &viewer::edit_transfer_function, cgv::signal::_c<size_t>(i)));
 		}
@@ -654,7 +539,7 @@ void viewer::create_gui() {
 		end_tree_node(tf_editor_ptr);
 	}
 
-	if(begin_tree_node("Sallimus dots", sallimus_dots_style, false)) {
+	if (begin_tree_node("Sallimus dots", sallimus_dots_style, false)) {
 		align("\a");
 		add_gui("", sallimus_dots_style);
 		align("\b");
@@ -663,25 +548,18 @@ void viewer::create_gui() {
 	add_member_control(this, "Show", show_sallimus_dots, "check");
 	//add_member_control(this, "Clip", clip_sallimus_dots, "check");
 
-	if(begin_tree_node("Sarcomeres", sarcomere_style, false)) {
+	if (begin_tree_node("Sarcomeres", sarcomere_style, false)) {
 		align("\a");
 		add_gui("", sarcomere_style);
 		align("\b");
 		end_tree_node(sarcomere_style);
 	}
 
-	if (begin_tree_node("PCP", tf_editor_w_ptr, false)) {
+	if (begin_tree_node("TF Editor - Lines", tf_editor_w_ptr, false)) {
 		align("\a");
 		inline_object_gui(tf_editor_w_ptr);
 		align("\b");
 		end_tree_node(tf_editor_w_ptr);
-	}
-
-	if (begin_tree_node("PCP 2", pcp2_ptr, false)) {
-		align("\a");
-		inline_object_gui(pcp2_ptr);
-		align("\b");
-		end_tree_node(pcp2_ptr);
 	}
 
 	if (begin_tree_node("SP", sp_ptr, false)) {
@@ -691,8 +569,8 @@ void viewer::create_gui() {
 		end_tree_node(sp_ptr);
 	}
 
-	if(bpcp_ptr) {
-		if(begin_tree_node("Block PCP", bpcp_ptr, false)) {
+	if (bpcp_ptr) {
+		if (begin_tree_node("Block PCP", bpcp_ptr, false)) {
 			add_member_control(this, "Threshold", gridtree_error_threshold, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
 			connect_copy(add_button("Extract Leafs")->click, cgv::signal::rebind(this, &viewer::generate_tree_boxes));
 
@@ -724,19 +602,19 @@ void viewer::create_gui() {
 
 	add_decorator("Centroid parameters:", "heading", "level=3");
 	add_member_control(this, "Centroid myosin", m_centr_myosin, "value_slider",
-					   "min=0.0;max=1.0;step=0.0001;ticks=true");
+		"min=0.0;max=1.0;step=0.0001;ticks=true");
 	add_member_control(this, "Centroid actin", m_centr_actin, "value_slider",
-					   "min=0.0;max=1.0;step=0.0001;ticks=true");
+		"min=0.0;max=1.0;step=0.0001;ticks=true");
 	add_member_control(this, "Centroid obscurin", m_centr_obscurin, "value_slider",
-					   "min=0.0;max=1.0;step=0.0001;ticks=true");
+		"min=0.0;max=1.0;step=0.0001;ticks=true");
 	add_member_control(this, "Centroid sallimus", m_centr_sallimus, "value_slider",
-					   "min=0.0;max=1.0;step=0.0001;ticks=true");
+		"min=0.0;max=1.0;step=0.0001;ticks=true");
 
 	add_decorator("Gaussian width:", "heading", "level=3");
 	add_member_control(this, "", m_gaussian_width, "value_slider",
-					   "min=0.0;max=1.0;step=0.0001;ticks=true");
-	
-	if(begin_tree_node("Histogram", length_histogram_po_ptr, false)) {
+		"min=0.0;max=1.0;step=0.0001;ticks=true");
+
+	if (begin_tree_node("Histogram", length_histogram_po_ptr, false)) {
 		align("\a");
 		inline_object_gui(length_histogram_po_ptr);
 		align("\b");
@@ -767,10 +645,7 @@ void viewer::create_pcp()
 
 	if (tf_editor_w_ptr)
 		tf_editor_w_ptr->set_data(data);
-		tf_editor_w_ptr->set_names(dataset.stain_names);
-
-	if (pcp2_ptr)
-		pcp2_ptr->set_data(data);
+	tf_editor_w_ptr->set_names(dataset.stain_names);
 
 	if (sp_ptr) {
 		sp_ptr->set_data(data);
@@ -783,7 +658,7 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 	// read the whole data set from a given meta file
 	// meta files contain information about and paths to the individual files used in a data set
 	// paths in a meta file are specified relative to the meta file location
-	if(!cgv::utils::file::exists(filename)) {
+	if (!cgv::utils::file::exists(filename)) {
 		std::cout << "Warning: Could not open file " << filename << std::endl;
 		return false;
 	}
@@ -800,43 +675,48 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 	std::string sarcomeres_fn = "";
 	std::string transfer_function_fn = "";
 
-	for(size_t i = 0; i < lines.size(); ++i) {
+	for (size_t i = 0; i < lines.size(); ++i) {
 		// convert token to string
 		std::string line = to_string(lines[i]);
 
-		if(line[0] == '#') {
-			if(line != "#SLICED_MICROSCOPY_META") {
+		if (line[0] == '#') {
+			if (line != "#SLICED_MICROSCOPY_META") {
 				// first line must be magic sequence
 				break;
 			}
-		} else {
+		}
+		else {
 			// other lines must be of format <identifier> = <value>
 			std::vector<cgv::utils::token> parts;
 			// split line at equals character and remove whitspaces
 			cgv::utils::split_to_tokens(line, parts, "", true, "", "", "= \t\n");
-			if(parts.size() == 2) {
+			if (parts.size() == 2) {
 				std::string identifier = to_string(parts[0]);
 				cgv::utils::token& value_tok = parts[1];
-				if(identifier == "stains") {
+				if (identifier == "stains") {
 					// read stains
 					std::vector<cgv::utils::token> values;
 					// split value token at commas
 					cgv::utils::split_to_tokens(value_tok, values, "", true, "", "", ", \t\n");
 					// we only expect 4 stain names
-					if(values.size() == 4) {
-						for(size_t j = 0; j < values.size(); ++j)
+					if (values.size() == 4) {
+						for (size_t j = 0; j < values.size(); ++j)
 							stain_names.push_back(to_string(values[j]));
 					}
-				} else if(identifier == "slices") {
+				}
+				else if (identifier == "slices") {
 					// read image slices file name
 					slices_fn = to_string(value_tok);
-				} else if(identifier == "sallimus_dots") {
+				}
+				else if (identifier == "sallimus_dots") {
 					// read sallimus dots file name
 					sallimus_dots_fn = to_string(value_tok);
-				} else if(identifier == "sarcomeres") {
+				}
+				else if (identifier == "sarcomeres") {
 					// read sarcomeres file name
 					sarcomeres_fn = to_string(value_tok);
-				} else if(identifier == "transfer_function") {
+				}
+				else if (identifier == "transfer_function") {
 					// read transfer function file name
 					transfer_function_fn = to_string(value_tok);
 				}
@@ -845,7 +725,7 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 	}
 
 	// check if all necessary information was read
-	if(stain_names.size() != 4 ||
+	if (stain_names.size() != 4 ||
 		slices_fn == "" ||
 		sallimus_dots_fn == "" ||
 		sarcomeres_fn == "") {
@@ -868,23 +748,24 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 
 	//std::string data_set_file_name = "63x-z4-edge2.tif";
 	//std::string data_set_file_name = "40hr_A/100x-z2.5-mid2_decon_image_aberration_corrected.tif";
-	
+
 	dataset.loaded = read_image_slices(ctx, slices_fn);
-	if(dataset.loaded)
+	if (dataset.loaded)
 		dataset.prepared = prepare_dataset();
 
 	// TODO: this is left in for compatibility reasons but is actually not needed anymore, since we read sallimus locations from the sarcomeres
-	if(read_sallimus_dots(sallimus_dots_fn))
+	if (read_sallimus_dots(sallimus_dots_fn))
 		create_sallimus_dots_geometry();
 	else
 		std::cout << "Error: Could not read sallimus dot locations from " << sallimus_dots_fn << std::endl;
 
-	if(read_sarcomeres(sarcomeres_fn)) {
+	if (read_sarcomeres(sarcomeres_fn)) {
 		// TODO: extract sarcomeres geometry was called after update, which overrides the color we put in the update method
 		// now I switched the order of these methods
 		extract_sarcomere_segments();
 		//update_sarcomeres_geometry();
-	} else {
+	}
+	else {
 		std::cout << "Error: Could not read sarcomeres from " << sarcomeres_fn << std::endl;
 	}
 
@@ -906,12 +787,13 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 	//create_selected_segment_render_data();
 
 	// transfer function is optional
-	if(transfer_function_fn == "") {
+	if (transfer_function_fn == "") {
 		transfer_function_fn = QUOTE_SYMBOL_VALUE(INPUT_DIR);
 		transfer_function_fn += "/../data/default.xml";
-	} else {
+	}
+	else {
 		std::filesystem::path transfer_function_path(transfer_function_fn);
-		if(transfer_function_path.is_relative())
+		if (transfer_function_path.is_relative())
 			transfer_function_fn = parent_path + transfer_function_fn;
 	}
 
@@ -926,31 +808,32 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 }
 
 bool viewer::read_image_slices(context& ctx, const std::string& filename) {
-	
+
 	std::cout << "Loading image slices...";
 
 	cgv::media::image::image_reader image(dataset.raw_image_format);
 
 	cgv::utils::stopwatch s(true);
-	
+
 	unsigned num_images = 0;
 
-	if(image.open(filename)) {
+	if (image.open(filename)) {
 		num_images = image.get_nr_images();
 		dataset.raw_image_slices.resize(num_images);
 
-		for(unsigned i = 0; i < num_images; ++i) {
-			if(image.seek_image(i)) {
+		for (unsigned i = 0; i < num_images; ++i) {
+			if (image.seek_image(i)) {
 				image.read_image(dataset.raw_image_slices[i]);
 			}
 		}
 		image.close();
-	} else {
+	}
+	else {
 		std::cout << "Error: Could not read image file \"" << filename << "\"" << std::endl;
 		return false;
 	}
 
-	if(num_images == 0) {
+	if (num_images == 0) {
 		return false;
 		std::cout << "Error: No images were read from file \"" << filename << "\"" << std::endl;
 	}
@@ -978,7 +861,7 @@ bool viewer::read_image_slices(context& ctx, const std::string& filename) {
 
 bool viewer::read_sallimus_dots(const std::string& filename) {
 
-	if(!std::filesystem::exists(filename))
+	if (!std::filesystem::exists(filename))
 		return false;
 
 	// clear previous data
@@ -1002,13 +885,14 @@ bool viewer::read_sallimus_dots(const std::string& filename) {
 	size_t line_offset = 0;
 	bool first_line = true;
 
-	while(read) {
+	while (read) {
 		std::string line = "";
 
-		if(nl_pos == std::string::npos) {
+		if (nl_pos == std::string::npos) {
 			read = false;
 			line = content.substr(line_offset, std::string::npos);
-		} else {
+		}
+		else {
 			size_t next_line_offset = nl_pos;
 			line = content.substr(line_offset, next_line_offset - line_offset);
 			line_offset = next_line_offset + 1;
@@ -1016,12 +900,12 @@ bool viewer::read_sallimus_dots(const std::string& filename) {
 		}
 
 		// skip first line
-		if(first_line) {
+		if (first_line) {
 			first_line = false;
 			continue;
 		}
 
-		if(line != "") {
+		if (line != "") {
 			// read position values
 			size_t space_pos = line.find_first_of(" ");
 			size_t last_space_pos = 0;
@@ -1048,7 +932,7 @@ bool viewer::read_sallimus_dots(const std::string& filename) {
 
 bool viewer::read_sarcomeres(const std::string& filename) {
 
-	if(!std::filesystem::exists(filename))
+	if (!std::filesystem::exists(filename))
 		return false;
 
 	// clear previous data
@@ -1072,13 +956,14 @@ bool viewer::read_sarcomeres(const std::string& filename) {
 	size_t line_offset = 0;
 	bool first_line = true;
 
-	while(read) {
+	while (read) {
 		std::string line = "";
 
-		if(nl_pos == std::string::npos) {
+		if (nl_pos == std::string::npos) {
 			read = false;
 			line = content.substr(line_offset, std::string::npos);
-		} else {
+		}
+		else {
 			size_t next_line_offset = nl_pos;
 			line = content.substr(line_offset, next_line_offset - line_offset);
 			line_offset = next_line_offset + 1;
@@ -1086,12 +971,12 @@ bool viewer::read_sarcomeres(const std::string& filename) {
 		}
 
 		// skip first line
-		if(first_line) {
+		if (first_line) {
 			first_line = false;
 			continue;
 		}
 
-		if(line != "") {
+		if (line != "") {
 			// read position values
 			vec3 pa(0.0f);
 			vec3 pb(0.0f);
@@ -1174,7 +1059,7 @@ bool viewer::read_transfer_functions(context& ctx, const std::string& filename) 
 
 bool viewer::save_transfer_functions(const std::string& filename) {
 
-	if(dataset.stain_names.size() == 4 && tfs.size() == 4)
+	if (dataset.stain_names.size() == 4 && tfs.size() == 4)
 		return cgv::glutil::color_map_writer::write_to_xml(filename, dataset.stain_names, tfs);
 	return false;
 }
@@ -1186,9 +1071,9 @@ bool viewer::save_data_set_meta_file(const std::string& filename) {
 
 	content += "stains = ";
 	size_t count = dataset.stain_names.size();
-	for(size_t i = 0; i < count; ++i) {
+	for (size_t i = 0; i < count; ++i) {
 		content += dataset.stain_names[i];
-		if(i + 1 < count)
+		if (i + 1 < count)
 			content += ",";
 	}
 
@@ -1197,7 +1082,7 @@ bool viewer::save_data_set_meta_file(const std::string& filename) {
 	content += "sallimus_dots = " + dataset.sallimus_dots_fn + "\n";
 	content += "sarcomeres = " + dataset.sarcomeres_fn + "\n";
 
-	if(dataset.transfer_function_fn != "")
+	if (dataset.transfer_function_fn != "")
 		content += "transfer_function = " + dataset.transfer_function_fn;
 
 	return cgv::utils::file::write(filename, content, true);
@@ -1206,7 +1091,7 @@ bool viewer::save_data_set_meta_file(const std::string& filename) {
 bool viewer::prepare_dataset() {
 
 	context* ctx_ptr = get_context();
-	if(!ctx_ptr) {
+	if (!ctx_ptr) {
 		std::cout << "Error: Could not prepare data set. Context is missing." << std::endl;
 		return false;
 	}
@@ -1215,14 +1100,14 @@ bool viewer::prepare_dataset() {
 	cgv::utils::stopwatch s0(true);
 
 	std::vector<data_view>* data_views = &dataset.raw_image_slices;
-	
-	if(blur_radius > 0) {
+
+	if (blur_radius > 0) {
 		std::cout << "Blurring slices... ";
 		cgv::utils::stopwatch s1(true);
 		data_views = new std::vector<data_view>(dataset.raw_image_slices.size());
 
 #pragma omp parallel for
-		for(int i = 0; i < data_views->size(); ++i) {
+		for (int i = 0; i < data_views->size(); ++i) {
 			data_view copy(dataset.raw_image_slices[i]);
 			//fast_gaussian_blur(m1dv, blur_radius); // with intermediary float conversion
 			fast_gaussian_bluru(copy, blur_radius); // without intermediary float conversion and correct integer rounding
@@ -1230,7 +1115,7 @@ bool viewer::prepare_dataset() {
 		}
 		std::cout << "done (" << s1.get_elapsed_time() << "s)" << std::endl;
 	}
-	
+
 	std::cout << "Combining components and slices... ";
 	cgv::utils::stopwatch s1(true);
 
@@ -1238,23 +1123,18 @@ bool viewer::prepare_dataset() {
 	cgv::data::data_view tex_data;
 
 	bool combine_success = true;
-	for(int i = 0; i < rgba_views.size(); ++i) {
-		if(!cgv::data::data_view::combine_components(rgba_views[i], data_views->begin() + 4 * i, data_views->begin() + 4 * i + 4)) {
+	for (int i = 0; i < rgba_views.size(); ++i) {
+		if (!cgv::data::data_view::combine_components(rgba_views[i], data_views->begin() + 4 * i, data_views->begin() + 4 * i + 4)) {
 			combine_success = false;
 		}
 	}
 
-	if(!combine_success) {
+	if (!combine_success) {
 		std::cout << "Error: Could not combine data view components." << std::endl;
 		return false;
 	}
-	
-	//std::vector<cgv::data::data_view> rgba_views_reversed;
-	//for(int i = rgba_views.size() - 1; i >= 0 ; --i) {
-	//	rgba_views_reversed.push_back(rgba_views[i]);
-	//}
 
-	if(!cgv::data::data_view::compose(tex_data, rgba_views)) {
+	if (!cgv::data::data_view::compose(tex_data, rgba_views)) {
 		std::cout << "Error: Could not compose data views." << std::endl;
 		return false;
 	}
@@ -1295,21 +1175,21 @@ bool viewer::prepare_dataset() {
 	histograms.hist3.resize(256, 0);
 
 #pragma omp parallel for
-	for(int i = 0; i < data_views->size(); ++i) {
+	for (int i = 0; i < data_views->size(); ++i) {
 		std::vector<unsigned>& hist = (*hists[i % 4]);
 		std::vector<unsigned> h = histogram((*data_views)[i]);
 
-		for(unsigned j = 0; j < 256; ++j) {
+		for (unsigned j = 0; j < 256; ++j) {
 			hist[j] += h[j];
 		}
 	}
 
 	histograms.changed = true;
 	std::cout << "done (" << s1.get_elapsed_time() << "s)" << std::endl;
-	
+
 #endif
 
-	if(prepare_btn)
+	if (prepare_btn)
 		prepare_btn->set("color", "");
 
 	post_redraw();
@@ -1324,9 +1204,9 @@ void viewer::extract_sarcomere_segments() {
 
 	float volume_height = dataset.stack_height * dataset.volume_scaling;
 
-	vec3 offset(0.5f, 0.5f, 0.5f*volume_height);
+	vec3 offset(0.5f, 0.5f, 0.5f * volume_height);
 
-	for(unsigned i = 0; i < sarcomeres.size(); i += 2) {
+	for (unsigned i = 0; i < sarcomeres.size(); i += 2) {
 		vec3 a = sarcomeres[i + 0];
 		vec3 b = sarcomeres[i + 1];
 
@@ -1343,10 +1223,10 @@ void viewer::extract_sarcomere_segments() {
 		seg.a = a;
 		seg.b = b;
 		seg.length = length(a - b);
-		
+
 		seg.generate_box(na, nb, 0.02f);
-		
-		if(seg.length > 0.0f)
+
+		if (seg.length > 0.0f)
 			segments.push_back(seg);
 	}
 
@@ -1354,8 +1234,8 @@ void viewer::extract_sarcomere_segments() {
 
 	std::sort(segments.begin(), segments.end(),
 		[](const auto& a, const auto& b) {
-			return a.length < b.length;
-		}
+		return a.length < b.length;
+	}
 	);
 
 	dataset.sarcomere_count = dataset.sarcomere_segments.size();
@@ -1363,21 +1243,21 @@ void viewer::extract_sarcomere_segments() {
 
 	int idx = 0;
 	auto ctrl = find_control(seg_idx, &idx);
-	if(ctrl) ctrl->set("max", dataset.sarcomere_count - 1);
+	if (ctrl) ctrl->set("max", dataset.sarcomere_count - 1);
 	idx += 1;
 	ctrl = find_control(seg_idx, &idx);
-	if(ctrl) ctrl->set("max", dataset.sarcomere_count - 1);
+	if (ctrl) ctrl->set("max", dataset.sarcomere_count - 1);
 }
 
 void viewer::calculate_volume_gradients(context& ctx) {
-	
+
 	unsigned group_size = 4;
 
 	auto& volume_tex = dataset.volume_tex;
 	ivec3 vres(volume_tex.get_width(), volume_tex.get_height(), volume_tex.get_depth());
 	uvec3 num_groups = ceil(vec3(vres) / (float)group_size);
 
-	if(!dataset.gradient_tex.is_created())
+	if (!dataset.gradient_tex.is_created())
 		dataset.gradient_tex.create(ctx, cgv::render::TT_3D, vres[0], vres[1], vres[2]);
 
 	// bind textures as 3D images (compare uniform declarations in compute shader gradient_3d.glcs)
@@ -1401,7 +1281,7 @@ void viewer::calculate_volume_gradients(context& ctx) {
 }
 
 void viewer::percentage_threshold(cgv::data::data_view& dv, float percentage) {
-	
+
 	struct pixel {
 		ivec2 coords;
 		unsigned char val;
@@ -1425,8 +1305,8 @@ void viewer::percentage_threshold(cgv::data::data_view& dv, float percentage) {
 	unsigned w = src_df_ptr->get_width();
 	unsigned h = src_df_ptr->get_height();
 
-	for(unsigned y = 0; y < h; ++y) {
-		for(unsigned x = 0; x < w; ++x) {
+	for (unsigned y = 0; y < h; ++y) {
+		for (unsigned x = 0; x < w; ++x) {
 			unsigned char val = dv.get<unsigned char>(0, x, y);
 			pixels.push_back(pixel(ivec2(y, x), val));
 		}
@@ -1437,12 +1317,12 @@ void viewer::percentage_threshold(cgv::data::data_view& dv, float percentage) {
 	percentage = cgv::math::clamp(percentage, 0.0f, 1.0f);
 	unsigned split_idx = static_cast<unsigned>(percentage * pixels.size());
 
-	for(unsigned j = 0; j < split_idx; ++j) {
+	for (unsigned j = 0; j < split_idx; ++j) {
 		const ivec2& c = pixels[j].coords;
 		dv.set(c.x() + w * c.y(), 0);
 	}
 
-	for(unsigned j = split_idx; j < pixels.size(); ++j) {
+	for (unsigned j = split_idx; j < pixels.size(); ++j) {
 		const ivec2& c = pixels[j].coords;
 		dv.set(c.x() + w * c.y(), 255);
 	}
@@ -1451,7 +1331,7 @@ void viewer::percentage_threshold(cgv::data::data_view& dv, float percentage) {
 // TOOD: check for image dimensions and components
 void viewer::gaussian_blur(cgv::data::data_view& dv, unsigned radius) {
 
-	if(radius == 0) return;
+	if (radius == 0) return;
 
 	data_view temp(dv);
 	const data_format* df_ptr = dv.get_format();
@@ -1468,35 +1348,35 @@ void viewer::gaussian_blur(cgv::data::data_view& dv, unsigned radius) {
 
 	int kernel_size = (2 * ir + 1);
 
-	for(int y = -ir; y <= ir; ++y) {
-		for(int x = -ir; x <= ir; ++x) {
+	for (int y = -ir; y <= ir; ++y) {
+		for (int x = -ir; x <= ir; ++x) {
 			float fx = static_cast<float>(x);
 			float fy = static_cast<float>(y);
 			float r_sqr = fx * fx + fy * fy;
 
 			float value = std::exp(-r_sqr / s) / (M_PI * s);
 
-			int idx = (x + ir) + kernel_size*(y + ir);
+			int idx = (x + ir) + kernel_size * (y + ir);
 			kernel[idx] = value;
 			sum += value;
 		}
 	}
 
-	for(unsigned i = 0; i < kernel.size(); ++i) {
+	for (unsigned i = 0; i < kernel.size(); ++i) {
 		kernel[i] /= sum;
 	}
 
-	for(unsigned y = 0; y < h; ++y) {
-		for(unsigned x = 0; x < w; ++x) {
+	for (unsigned y = 0; y < h; ++y) {
+		for (unsigned x = 0; x < w; ++x) {
 			float v = 0.0f;
 
-			for(int ky = -ir; ky <= ir; ++ky) {
-				for(int kx = -ir; kx <= ir; ++kx) {
+			for (int ky = -ir; ky <= ir; ++ky) {
+				for (int kx = -ir; kx <= ir; ++kx) {
 					int x_idx = static_cast<int>(x) + kx;
 					int y_idx = static_cast<int>(y) + ky;
 
-					x_idx = cgv::math::clamp(x_idx, 0, static_cast<int>(w)-1);
-					y_idx = cgv::math::clamp(y_idx, 0, static_cast<int>(h)-1);
+					x_idx = cgv::math::clamp(x_idx, 0, static_cast<int>(w) - 1);
+					y_idx = cgv::math::clamp(y_idx, 0, static_cast<int>(h) - 1);
 
 					float val = static_cast<float>(temp.get<unsigned char>(0, x_idx, y_idx));
 
@@ -1522,21 +1402,21 @@ std::vector<unsigned> gauss_boxes(unsigned n, unsigned r) {
 	float rf = static_cast<float>(r);
 	float nf = static_cast<float>(n);
 
-	float wIdeal = sqrt((12.0f * rf*rf / nf) + 1.0f);
+	float wIdeal = sqrt((12.0f * rf * rf / nf) + 1.0f);
 	int wl = static_cast<int>(floor(wIdeal));
 
-	if(wl % 2 == 0)
+	if (wl % 2 == 0)
 		--wl;
-	if(wl < 0)
+	if (wl < 0)
 		wl = 0;
 
 	int wu = wl + 2;
 
-	float mIdeal = (12.0f * rf*rf - nf * wl*wl - 4.0f * nf*wl - 3.0f * nf) / (-4.0f * wl - 4.0f);
+	float mIdeal = (12.0f * rf * rf - nf * wl * wl - 4.0f * nf * wl - 3.0f * nf) / (-4.0f * wl - 4.0f);
 	unsigned m = static_cast<int>(round(mIdeal));
-	
+
 	std::vector<unsigned> radii(n);
-	for(int i = 0; i < n; ++i) {
+	for (int i = 0; i < n; ++i) {
 		int size = i < m ? wl : wu;
 		radii[i] = static_cast<unsigned>((size - 1) / 2);
 	}
@@ -1555,19 +1435,19 @@ void box_blur_horizontal(data_view& src, data_view& dst, unsigned r) {
 	const cgv::type::uint8_type* src_ptr = src.get_ptr<cgv::type::uint8_type>();
 	cgv::type::uint8_type* dst_ptr = dst.get_ptr<cgv::type::uint8_type>();
 
-	for(unsigned y = 0; y < h; ++y) {
+	for (unsigned y = 0; y < h; ++y) {
 		unsigned ti = y * w;
 		unsigned li = ti;
 		unsigned ri = ti + r;
 
 		float fv = static_cast<float>(src_ptr[ti]);
 		float lv = static_cast<float>(src_ptr[ti + w - 1]);
-		float val = (r + 1)*fv;
+		float val = (r + 1) * fv;
 
-		for(int j = 0; j < r; ++j)
+		for (int j = 0; j < r; ++j)
 			val += static_cast<float>(src_ptr[ti + j]);
 
-		for(int j = 0; j <= r; ++j) {
+		for (int j = 0; j <= r; ++j) {
 			val += static_cast<float>(src_ptr[ri]) - fv;
 			dst_ptr[ti] = static_cast<unsigned char>(round(val * iarr));
 
@@ -1575,7 +1455,7 @@ void box_blur_horizontal(data_view& src, data_view& dst, unsigned r) {
 			++ti;
 		}
 
-		for(int j = r + 1; j < w - r; ++j) {
+		for (int j = r + 1; j < w - r; ++j) {
 			val += static_cast<float>(src_ptr[ri]) - static_cast<float>(src_ptr[li]);
 			dst_ptr[ti] = static_cast<unsigned char>(round(val * iarr));
 
@@ -1584,7 +1464,7 @@ void box_blur_horizontal(data_view& src, data_view& dst, unsigned r) {
 			++ti;
 		}
 
-		for(int j = w - r; j < w; ++j) {
+		for (int j = w - r; j < w; ++j) {
 			val += lv - static_cast<float>(src_ptr[li]);
 			dst_ptr[ti] = static_cast<unsigned char>(round(val * iarr));
 
@@ -1605,19 +1485,19 @@ void box_blur_vertical(data_view& src, data_view& dst, unsigned r) {
 	const cgv::type::uint8_type* src_ptr = src.get_ptr<cgv::type::uint8_type>();
 	cgv::type::uint8_type* dst_ptr = dst.get_ptr<cgv::type::uint8_type>();
 
-	for(unsigned x = 0; x < w; ++x) {
+	for (unsigned x = 0; x < w; ++x) {
 		unsigned ti = x;
 		unsigned li = ti;
-		unsigned ri = ti + r*w;
+		unsigned ri = ti + r * w;
 
 		float fv = static_cast<float>(src_ptr[ti]);
 		float lv = static_cast<float>(src_ptr[ti + h - 1]);
-		float val = (r + 1)*fv;
+		float val = (r + 1) * fv;
 
-		for(int j = 0; j < r; ++j)
+		for (int j = 0; j < r; ++j)
 			val += static_cast<float>(src_ptr[ti + j * w]);
 
-		for(int j = 0; j <= r; ++j) {
+		for (int j = 0; j <= r; ++j) {
 			val += static_cast<float>(src_ptr[ri]) - fv;
 			dst_ptr[ti] = static_cast<unsigned char>(round(val * iarr));
 
@@ -1625,7 +1505,7 @@ void box_blur_vertical(data_view& src, data_view& dst, unsigned r) {
 			ti += w;
 		}
 
-		for(int j = r + 1; j < h - r; ++j) {
+		for (int j = r + 1; j < h - r; ++j) {
 			val += static_cast<float>(src_ptr[ri]) - static_cast<float>(src_ptr[li]);
 			dst_ptr[ti] = static_cast<unsigned char>(round(val * iarr));
 
@@ -1634,7 +1514,7 @@ void box_blur_vertical(data_view& src, data_view& dst, unsigned r) {
 			ti += w;
 		}
 
-		for(int j = h - r; j < h; ++j) {
+		for (int j = h - r; j < h; ++j) {
 			val += lv - static_cast<float>(src_ptr[li]);
 			dst_ptr[ti] = static_cast<unsigned char>(round(val * iarr));
 
@@ -1646,7 +1526,7 @@ void box_blur_vertical(data_view& src, data_view& dst, unsigned r) {
 
 void viewer::fast_gaussian_blur(cgv::data::data_view& dv, unsigned radius) {
 
-	if(radius == 0) return;
+	if (radius == 0) return;
 
 	std::vector<unsigned> box_radii = gauss_boxes(3u, radius);
 
@@ -1672,19 +1552,19 @@ void box_blur_horizontalu(data_view& src, data_view& dst, unsigned r) {
 	const cgv::type::uint8_type* src_ptr = src.get_ptr<cgv::type::uint8_type>();
 	cgv::type::uint8_type* dst_ptr = dst.get_ptr<cgv::type::uint8_type>();
 
-	for(unsigned y = 0; y < h; ++y) {
+	for (unsigned y = 0; y < h; ++y) {
 		unsigned ti = y * w;
 		unsigned li = ti;
 		unsigned ri = ti + r;
 
 		int fv = src_ptr[ti];
 		int lv = src_ptr[ti + w - 1];
-		int val = (r + 1)*fv;
+		int val = (r + 1) * fv;
 
-		for(int j = 0; j < r; ++j)
+		for (int j = 0; j < r; ++j)
 			val += src_ptr[ti + j];
 
-		for(int j = 0; j <= r; ++j) {
+		for (int j = 0; j <= r; ++j) {
 			val += src_ptr[ri] - fv;
 			dst_ptr[ti] = (val + div_half) / div;
 
@@ -1692,7 +1572,7 @@ void box_blur_horizontalu(data_view& src, data_view& dst, unsigned r) {
 			++ti;
 		}
 
-		for(int j = r + 1; j < w - r; ++j) {
+		for (int j = r + 1; j < w - r; ++j) {
 			val += src_ptr[ri];
 			val -= src_ptr[li];
 			dst_ptr[ti] = (val + div_half) / div;
@@ -1702,7 +1582,7 @@ void box_blur_horizontalu(data_view& src, data_view& dst, unsigned r) {
 			++ti;
 		}
 
-		for(int j = w - r; j < w; ++j) {
+		for (int j = w - r; j < w; ++j) {
 			val += lv - src_ptr[li];
 			dst_ptr[ti] = (val + div_half) / div;
 
@@ -1724,19 +1604,19 @@ void box_blur_verticalu(data_view& src, data_view& dst, unsigned r) {
 	const cgv::type::uint8_type* src_ptr = src.get_ptr<cgv::type::uint8_type>();
 	cgv::type::uint8_type* dst_ptr = dst.get_ptr<cgv::type::uint8_type>();
 
-	for(unsigned x = 0; x < w; ++x) {
+	for (unsigned x = 0; x < w; ++x) {
 		unsigned ti = x;
 		unsigned li = ti;
 		unsigned ri = ti + r * w;
 
 		int fv = src_ptr[ti];
 		int lv = src_ptr[ti + h - 1];
-		int val = (r + 1)*fv;
+		int val = (r + 1) * fv;
 
-		for(int j = 0; j < r; ++j)
+		for (int j = 0; j < r; ++j)
 			val += src_ptr[ti + j * w];
 
-		for(int j = 0; j <= r; ++j) {
+		for (int j = 0; j <= r; ++j) {
 			val += src_ptr[ri] - fv;
 			dst_ptr[ti] = (val + div_half) / div;
 
@@ -1744,7 +1624,7 @@ void box_blur_verticalu(data_view& src, data_view& dst, unsigned r) {
 			ti += w;
 		}
 
-		for(int j = r + 1; j < h - r; ++j) {
+		for (int j = r + 1; j < h - r; ++j) {
 			val += src_ptr[ri];
 			val -= src_ptr[li];
 			dst_ptr[ti] = (val + div_half) / div;
@@ -1754,7 +1634,7 @@ void box_blur_verticalu(data_view& src, data_view& dst, unsigned r) {
 			ti += w;
 		}
 
-		for(int j = h - r; j < h; ++j) {
+		for (int j = h - r; j < h; ++j) {
 			val += lv - src_ptr[li];
 			dst_ptr[ti] = (val + div_half) / div;
 
@@ -1766,7 +1646,7 @@ void box_blur_verticalu(data_view& src, data_view& dst, unsigned r) {
 
 void viewer::fast_gaussian_bluru(cgv::data::data_view& dv, unsigned radius) {
 
-	if(radius == 0) return;
+	if (radius == 0) return;
 
 	std::vector<unsigned> box_radii = gauss_boxes(3u, radius);
 
@@ -1780,32 +1660,6 @@ void viewer::fast_gaussian_bluru(cgv::data::data_view& dv, unsigned radius) {
 	box_blur_verticalu(temp, dv, box_radii[2]);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void viewer::multiply(cgv::data::data_view& dv, float a) {
 
 	const data_format* src_df_ptr = dv.get_format();
@@ -1814,10 +1668,10 @@ void viewer::multiply(cgv::data::data_view& dv, float a) {
 	unsigned w = src_df_ptr->get_width();
 	unsigned h = src_df_ptr->get_height();
 
-	for(unsigned y = 0; y < h; ++y) {
-		for(unsigned x = 0; x < w; ++x) {
+	for (unsigned y = 0; y < h; ++y) {
+		for (unsigned x = 0; x < w; ++x) {
 			unsigned char val = dv.get<unsigned char>(0, x, y);
-	
+
 			float fval = a * static_cast<float>(val) / 255.0f;
 			fval = cgv::math::clamp(fval, 0.0f, 1.0f);
 
@@ -1827,7 +1681,7 @@ void viewer::multiply(cgv::data::data_view& dv, float a) {
 }
 
 std::vector<unsigned> viewer::histogram(cgv::data::data_view& dv) {
-	
+
 	std::vector<unsigned> hist(256, 0);
 
 	const data_format* src_df_ptr = dv.get_format();
@@ -1836,8 +1690,8 @@ std::vector<unsigned> viewer::histogram(cgv::data::data_view& dv) {
 	unsigned w = src_df_ptr->get_width();
 	unsigned h = src_df_ptr->get_height();
 
-	for(unsigned y = 0; y < h; ++y) {
-		for(unsigned x = 0; x < w; ++x) {
+	for (unsigned y = 0; y < h; ++y) {
+		for (unsigned x = 0; x < w; ++x) {
 			unsigned char val = dv.get<unsigned char>(0, x, y);
 			hist[val] += 1;
 		}
@@ -1851,23 +1705,23 @@ void viewer::create_length_histogram() {
 
 	const auto& segments = dataset.sarcomere_segments;
 
-	if(segments.size() < 2)
+	if (segments.size() < 2)
 		return;
 
 	// sarcomeres are already sorted by theri length so we can just take the first and last element to get the limits
 	float min_len = segments.front().length;
 	float max_len = segments.back().length;
-	
+
 	size_t buckets = 128;
 	float step = (max_len - min_len) / static_cast<float>(buckets);
 
 	length_histogram.clear();
 	length_histogram.resize(buckets, vec2(0.0f, 0.0f));
 
-	for(size_t i = 0; i < buckets; ++i)
+	for (size_t i = 0; i < buckets; ++i)
 		length_histogram[i].x() = static_cast<float>(i) * step;
 
-	for(const auto& segment : segments) {
+	for (const auto& segment : segments) {
 		float b = (segment.length - min_len) / step;
 		int bi = static_cast<int>(floor(b));
 		bi = cgv::math::clamp(bi, 0, static_cast<int>(buckets) - 1);
@@ -1875,7 +1729,7 @@ void viewer::create_length_histogram() {
 	}
 
 	// lastly connect the data to the plot
-	if(length_histogram_po_ptr) {
+	if (length_histogram_po_ptr) {
 		auto& plot = length_histogram_po_ptr->ref_plot();
 
 		plot.set_sub_plot_attribute(0, 0, &length_histogram[0][0], length_histogram.size(), sizeof(vec2));
@@ -1893,7 +1747,7 @@ void viewer::create_sallimus_dots_geometry() {
 	// clear previous data
 	sallimus_dots_rd.clear();
 
-	for(unsigned i = 0; i < segments.size(); ++i) {
+	for (unsigned i = 0; i < segments.size(); ++i) {
 		sallimus_dots_rd.add(segments[i].a);
 		sallimus_dots_rd.add(segments[i].b);
 	}
@@ -1911,7 +1765,7 @@ void viewer::create_sarcomeres_geometry() {
 	// clear previous data
 	sarcomeres_rd.clear();
 
-	for(unsigned i = 0; i < segments.size(); ++i) {
+	for (unsigned i = 0; i < segments.size(); ++i) {
 		// add start and end positions
 		sarcomeres_rd.add(segments[i].a, segments[i].b);
 		// add color for both positions (use color from style)
@@ -1929,233 +1783,6 @@ void viewer::create_segment_render_data() {
 	create_sallimus_dots_geometry();
 	create_sarcomeres_geometry();
 }
-
-/*void viewer::create_selected_segment_render_data() {
-
-	if(seg_idx < 0 && seg_idx >= dataset.sarcomere_segments.size())
-		return;
-
-	// define some distance functions for testing of sample points
-	auto signed_distance_capsule = [](vec3 p, vec3 a, vec3 b, float r) {
-		vec3 pa = p - a;
-		vec3 ba = b - a;
-		float h = cgv::math::clamp(dot(pa, ba) / dot(ba, ba), 0.0f, 1.0f);
-		return length(pa - ba * h) - r;
-	};
-
-	auto signed_distance_cylinder = [](vec3 p, vec3 a, vec3 b, float r) {
-		vec3  ba = b - a;
-		vec3  pa = p - a;
-		float baba = dot(ba, ba);
-		float paba = dot(pa, ba);
-		float x = length(pa*baba - ba * paba) - r * baba;
-		float y = abs(paba - baba * 0.5) - baba * 0.5;
-		float x2 = x * x;
-		float y2 = y * y*baba;
-		float d = (std::max(x, y) < 0.0) ? -std::min(x2, y2) : (((x > 0.0) ? x2 : 0.0) + ((y > 0.0) ? y2 : 0.0));
-		return cgv::math::sign(d)*sqrt(abs(d)) / baba;
-	};
-
-	// clear prevoious render data
-	voxel_boxes_rd.clear();
-	sample_points_rd.clear();
-
-	// get the currently active segment
-	const auto& seg = dataset.sarcomere_segments[seg_idx];
-
-	//ivec3 volume_resolution(1024, 1024, 18);
-	ivec3 volume_resolution(1024, 1024, dataset.num_slices);
-
-	// compute start and end index triple of voxels for the segment bounding box 
-	// the segment bounding box is already defined in normalized volume coordinates [0,1]^3
-	ivec3 idxa = seg.box.get_min_pnt() * vec3(volume_resolution);
-	ivec3 idxb = seg.box.get_max_pnt() * vec3(volume_resolution);
-
-	// make sure to covet eh whole box
-	idxb += 1;
-
-	// clamp to the actual index range
-	idxa = cgv::math::clamp(idxa, ivec3(0), volume_resolution);
-	idxb = cgv::math::clamp(idxb, ivec3(0), volume_resolution);
-
-	// get the voxel size in scaled/normalized volume coordinates
-	vec3 voxel_size = dataset.scaled_size / vec3(volume_resolution);
-	vec3 volume_offset = vec3(0.5f, 0.5f, 0.5f * dataset.scaled_size.z());
-
-	rgb col_red(1.0f, 0.0f, 0.0f);
-	rgb col_green(0.0f, 1.0f, 0.0f);
-
-	float rad = 0.01f;
-	vec3 delta = seg.b - seg.a;
-	float len = length(delta);
-	delta /= len;
-	len += 2.0f*rad;
-
-	unsigned bucket_count = 48;
-	float bucket_size = len / static_cast<float>(bucket_count);
-	sample_x.clear();
-	sample_values.clear();
-	sample_counts.clear();
-	sample_x.resize(bucket_count, 0.0f);
-	sample_values.resize(bucket_count, vec4(0.0f));
-	sample_counts.resize(bucket_count, 0u);
-
-
-	for(size_t i = 0; i < sample_x.size(); ++i)
-		sample_x[i] = static_cast<float>(i) * bucket_size;
-
-
-	for(unsigned z = idxa.z(); z < idxb.z(); ++z) {
-		for(unsigned y = idxa.y(); y < idxb.y(); ++y) {
-			for(unsigned x = idxa.x(); x < idxb.x(); ++x) {
-				vec3 pos(0.0f);
-				pos -= volume_offset;
-				pos += vec3(x, y, z) * voxel_size;
-				pos += 0.5f * voxel_size;
-
-
-				vec3 cyl_a = seg.a - delta * rad;
-				vec3 cyl_b = seg.b + delta * rad;
-
-
-				float dist = signed_distance_cylinder(pos, cyl_a, cyl_b, rad);
-				if(dist <= 0.0f) {
-					float line_dist = dot(pos - seg.a, delta);
-					float t = (line_dist + rad) / len;
-					t = cgv::math::clamp(t, 0.0f, 1.0f);
-
-					//sample_points_rd.add(pos);
-					//sample_points_rd.add((1.0f - t) * col_red + t * col_green);
-
-
-					unsigned bucket_idx = cgv::math::clamp(static_cast<unsigned>((line_dist + rad) / bucket_size), 0u, bucket_count);
-
-					// TODO: test if read values are correct
-					float prot0 = static_cast<float>(dataset.raw_data.get<unsigned char>(0, z, y, x));
-					float prot1 = static_cast<float>(dataset.raw_data.get<unsigned char>(1, z, y, x));
-					float prot2 = static_cast<float>(dataset.raw_data.get<unsigned char>(2, z, y, x));
-					float prot3 = static_cast<float>(dataset.raw_data.get<unsigned char>(3, z, y, x));
-
-					sample_values[bucket_idx] += vec4(prot0, prot1, prot2, prot3) / 255.0f;
-					//std::cout<<sample_values[bucket_idx]<<" ";
-					++sample_counts[bucket_idx];
-				}
-
-				//voxel_boxes_rd.add(pos, vec3(voxel_size), rgb(1.0f, 1.0f, 1.0f));
-			}
-		}
-	}
-
-	// white
-	// green
-	// blue
-	// red
-
-	for(size_t i = 0; i < sample_values.size(); ++i) {
-		unsigned sample_count = sample_counts[i];
-		if(sample_count > 0)
-			sample_values[i] /= static_cast<float>(sample_counts[i]);
-
-		//float x = 0.5f + i * 5.0f * sstyle.radius;
-		//vec4 y = 0.1f * densities;
-		//
-		//sample_points_rd.add(vec3(x, y[0], 0.0f), rgb(1.0f, 1.0f, 1.0f));
-		//sample_points_rd.add(vec3(x, y[1], 0.0f), rgb(0.0f, 1.0f, 0.0f));
-		//sample_points_rd.add(vec3(x, y[2], 0.0f), rgb(0.0f, 0.0f, 1.0f));
-		//sample_points_rd.add(vec3(x, y[3], 0.0f), rgb(1.0f, 0.0f, 0.0f));
-	}
-
-	for(unsigned i = 0; i < 4; ++i) {
-		plot.set_sub_plot_attribute(i, 0, &sample_x[0], sample_x.size(), sizeof(float));
-		plot.set_sub_plot_attribute(i, 1, &sample_values[0][i], sample_values.size(), sizeof(vec4));
-	}
-
-	plot.adjust_domain_to_data();
-	//plot.get_domain_config_ptr()->axis_configs[1].extent = 1.0f;
-	plot.adjust_tick_marks();
-	//plot.adjust_extent_to_domain_aspect_ratio();
-
-
-
-	std::cout << "\n Size:"<<dataset.sarcomere_segments.size()<<"\n";
-	
-	if (all_sample_values.size()) {
-		int closest_sarcomere = -1;
-		float closest_distance = 100.0f;
-		float furthest_distance = 0.0f;
-		std::vector<vec4> sample_values;
-		std::vector<vec4> sample_values2;
-		mean_values[0] = all_sample_values[294];
-		mean_values[1] = all_sample_values[657];
-
-
-		for (int current_segment = 0; current_segment < 1250//dataset.sarcomere_segments.size()
-			; current_segment++) {
-			sample_values = all_sample_values[current_segment];
-
-			for (unsigned val = 0; val < sample_x2.size(); ++val)
-				mean_values[0][val] += sample_values[val];
-
-			for (int compare_segment = 0; compare_segment < 1250//dataset.sarcomere_segments.size()
-				; compare_segment++) {
-				sample_values2 = all_sample_values[compare_segment];
-
-				float new_distance = 0.0f;
-
-				//Calculate distance between 
-				for (unsigned i = 0; i < 4; ++i) {
-					float euklidian = 0;
-					for (unsigned val = 0; val < sample_x2.size(); ++val)
-						if (sample_counts2.size())
-							euklidian += (sample_values[val][i] - sample_values2[val][i])*(sample_values[val][i] - sample_values2[val][i]);
-
-					new_distance += euklidian;
-				}
-
-				x_distances[current_segment] = new_distance;
-				y_lengths[current_segment] = len;
-
-				//std::cout << "Point " << current_segment << " has distance " << new_distance << ".\n\n";
-
-				if ((new_distance < closest_distance) && (current_segment != compare_segment)) {
-					closest_distance = new_distance;
-					closest_sarcomere = current_segment;
-
-					std::cout << "NEW CLOSEST SARCOMERE!!\nSarcomeres #" << current_segment << " and #" << compare_segment << " with distance " << closest_distance << "\n";
-				}
-				if ((new_distance > furthest_distance) && (current_segment != compare_segment)) {
-					furthest_distance = new_distance;
-
-					std::cout << "NEW FURTHEST SARCOMERE!!\nSarcomeres #" << current_segment << " and #" << compare_segment << " with distance " <<	furthest_distance << "\n";
-				}
-
-			}
-		}
-
-		//Divide by #sarcomeres to get the averages/means
-		for (unsigned val = 0; val < sample_x2.size(); ++val)
-			mean_values[0][val] /= 1250;
-
-
-		std::cout << "Closest Sarcomere: #" << closest_sarcomere << " with distance " << closest_distance << ".\n";
-		k_means_clustering(10);
-	}
-	else {
-		mean_values.clear();
-		mean_values.resize(max_clusters);
-		mean_values[0].resize(sample_x.size());
-		mean_values[1].resize(sample_x.size());
-		cluster_sizes.clear();
-		cluster_sizes.resize(max_clusters);
-		cluster_entries.clear();
-		cluster_entries.resize(max_clusters);
-		for(int i =0; i<max_clusters; i++)
-			cluster_sizes[i] = 0;
-		all_sample_values.clear();
-		all_sample_values.resize(1250);
-		compare_distances();
-	}
-}*/
 
 #include "lib_begin.h"
 
