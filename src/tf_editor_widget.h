@@ -60,6 +60,8 @@ protected:
 	line_geometry m_line_geometry_nearest_values;
 
 	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 1, vec2, position);
+	// If a centroid is dragged, the size of the other centroids will decrease
+	// so we need two different geometries and styles as well
 	point_geometry m_point_geometry_dragged;
 	point_geometry m_point_geometry;
 
@@ -139,6 +141,7 @@ private:
 	cgv::glutil::arrow2d_style m_arrow_style;
 
 	std::vector<utils_data_types::line> m_widget_lines;
+	// Boundaries of the centroids and the nearest values to these boundaries
 	std::vector<std::vector<vec2>> m_centroid_boundaries;
 	std::vector<std::vector<utils_data_types::point>> m_nearest_boundary_values;
 
@@ -151,20 +154,21 @@ private:
 	std::vector<std::vector<utils_data_types::point>> m_points;
 	cgv::glutil::draggables_collection<utils_data_types::point*> m_point_handles;
 
-	rgba color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
+	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
 	// ids used for the texts inside the widgets
 	int m_text_ids[4] = { 0, 1, 2, 3 };
 
+	// Store the indices of to be updated centroids if a point has been dragged 
 	int m_dragged_centroid_ids[4];
-
+	// The aress of the centroid that was dragged last
 	utils_data_types::point* m_dragged_point_ptr;
-
-	bool m_centroid_strips_created = true;
-
-	bool create_all_nearest_values = true;
-
-	bool set = false;
+	// Were strips created?
+	bool m_strips_created = true;
+	// Do we need to update all values?
+	bool m_create_all_values = true;
+	// Has a point been dragged?
+	bool m_dragged_id_set = false;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;
