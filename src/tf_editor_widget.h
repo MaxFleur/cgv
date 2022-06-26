@@ -101,6 +101,10 @@ public:
 	void set_data(std::vector<vec4>& data) { this->data = data; }
 	void set_names(std::vector<std::string>& names) { m_protein_names = names; }
 
+	bool was_updated;
+	// The stored centroids
+	std::vector<utils_data_types::centroid> m_centroids;
+
 private:
 
 	void init_widgets();
@@ -148,8 +152,6 @@ private:
 	std::vector<vec2> m_boundary_lines;
 
 	std::vector<std::string> m_protein_names;
-
-	std::vector<utils_data_types::centroid> m_centroids;
 
 	std::vector<std::vector<utils_data_types::point>> m_points;
 	cgv::glutil::draggables_collection<utils_data_types::point*> m_point_handles;

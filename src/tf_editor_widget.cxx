@@ -142,6 +142,8 @@ void tf_editor_widget::on_set(void* member_ptr) {
 					m_create_all_values = true;
 				}
 				// In all cases, we need to update
+				was_updated = true;
+
 				has_damage = true;
 				break;
 			}
@@ -570,6 +572,10 @@ void tf_editor_widget::add_widget_lines() {
 }
 
 void tf_editor_widget::add_centroids() {
+	if (m_centroids.size() == 5) {
+		return;
+	}
+
 	// Create a new centroid and store it
 	utils_data_types::centroid centr;
 	m_centroids.push_back(centr);
@@ -915,6 +921,8 @@ void tf_editor_widget::set_point_positions() {
 				const auto GUI_value = (m_points[i][j].get_relative_line_position() - 0.1f) / 0.8f;
 				m_centroids.at(i).centroids[protein_index] = GUI_value;
 				update_member(&m_centroids.at(i).centroids[protein_index]);
+
+				was_updated = true;
 			}
 		}
 	}

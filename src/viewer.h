@@ -278,13 +278,4 @@ public:
 	void draw(context& ctx);
 
 	void create_gui();
-
-private:
-
-		float m_centr_myosin = 0.5f;
-		float m_centr_actin = 0.5f;
-		float m_centr_obscurin = 0.5f;
-		float m_centr_sallimus = 0.5f;
-
-		float m_gaussian_width = 0.5f;
 };

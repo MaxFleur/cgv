@@ -347,6 +347,12 @@ void viewer::init_frame(cgv::render::context& ctx) {
 		fh.has_unsaved_changes = true;
 		on_set(&fh.has_unsaved_changes);
 	}
+
+	if (tf_editor_w_ptr->was_updated) {
+		tf_editor_w_ptr->was_updated = false;
+
+		on_set(&tf_editor_w_ptr->m_centroids);
+	}
 }
 
 void viewer::draw(cgv::render::context& ctx) {
@@ -480,8 +486,22 @@ void viewer::draw(cgv::render::context& ctx) {
 		vr.set_transfer_function_texture(&tf_tex);
 		vr.set_gradient_texture(&dataset.gradient_tex);
 		vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
-		vr.setCentroid(vec4(m_centr_myosin, m_centr_actin, m_centr_obscurin, m_centr_sallimus));
-		vr.setGaussianWidth(m_gaussian_width);
+
+		auto& vol_prog = vr.ref_prog();
+		vol_prog.enable(ctx);
+
+		const int size = tf_editor_w_ptr->m_centroids.size();
+		vol_prog.set_uniform(ctx, "centroid_values_size", size);
+
+		for (int i = 0; i < tf_editor_w_ptr->m_centroids.size(); i++) {
+			const auto color = tf_editor_w_ptr->m_centroids.at(i).color;
+			vec3 color_vec{ color.R(), color.G(), color.B() };
+
+			vol_prog.set_uniform(ctx, "centroids[" + std::to_string(i) + "]", tf_editor_w_ptr->m_centroids.at(i).centroids);
+			vol_prog.set_uniform(ctx, "widths[" + std::to_string(i) + "]", tf_editor_w_ptr->m_centroids.at(i).gaussian_width);
+			vol_prog.set_uniform(ctx, "colors[" + std::to_string(i) + "]", color_vec);
+		}
+		vol_prog.disable(ctx);
 
 		vr.render(ctx, 0, 0);
 
@@ -556,6 +576,7 @@ void viewer::create_gui() {
 	}
 
 	if (begin_tree_node("TF Editor - Lines", tf_editor_w_ptr, false)) {
+		add_member_control(this, "", tf_editor_w_ptr->m_centroids, "");
 		align("\a");
 		inline_object_gui(tf_editor_w_ptr);
 		align("\b");
@@ -599,20 +620,6 @@ void viewer::create_gui() {
 
 	// add a view for the sarcomere count that gets updated after loading a data set
 	add_view("Sarcomere Count", dataset.sarcomere_count);
-
-	add_decorator("Centroid parameters:", "heading", "level=3");
-	add_member_control(this, "Centroid myosin", m_centr_myosin, "value_slider",
-		"min=0.0;max=1.0;step=0.0001;ticks=true");
-	add_member_control(this, "Centroid actin", m_centr_actin, "value_slider",
-		"min=0.0;max=1.0;step=0.0001;ticks=true");
-	add_member_control(this, "Centroid obscurin", m_centr_obscurin, "value_slider",
-		"min=0.0;max=1.0;step=0.0001;ticks=true");
-	add_member_control(this, "Centroid sallimus", m_centr_sallimus, "value_slider",
-		"min=0.0;max=1.0;step=0.0001;ticks=true");
-
-	add_decorator("Gaussian width:", "heading", "level=3");
-	add_member_control(this, "", m_gaussian_width, "value_slider",
-		"min=0.0;max=1.0;step=0.0001;ticks=true");
 
 	if (begin_tree_node("Histogram", length_histogram_po_ptr, false)) {
 		align("\a");

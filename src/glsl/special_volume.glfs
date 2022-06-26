@@ -58,6 +58,12 @@ in vec4 position_fs;
 in vec3 position_object;
 in vec3 eye_fs;
 
+uniform vec3 colors[5];
+uniform vec4 centroids[5];
+uniform float widths[5];
+
+uniform int centroid_values_size;
+
 /*--------------------------------------------------------------------------*\
 Copyright (c) 2008-2009, Danny Ruijters. All rights reserved.
 http://www.dannyruijters.nl/cubicinterpolation/
@@ -351,7 +357,15 @@ void main()
 #else
 		vec4 density = textureCubic(volume_tex, uvw);
 #endif
-		const float alpha_values = gaussian_transfer_function(density, gaussian_centroid, gaussian_width);
+		float alpha_values = 0.0f;
+		vec3 color_sum;
+		for (int i = 0; i < centroid_values_size; i++) {
+			alpha_values += gaussian_transfer_function(density, centroids[i], widths[i]);
+			color_sum += colors[i];
+		}
+		// Average the alpha and colors
+		alpha_values /= centroid_values_size;
+		color_sum /= centroid_values_size;
 
 		const float texel_size = 1.0/4.0;
 		vec4 color_in0 = texture(transfer_function_tex, vec2(density[0], 0*texel_size + 0.5*texel_size));
@@ -360,7 +374,7 @@ void main()
 		vec4 color_in3 =  texture(transfer_function_tex, vec2(density[3], 3*texel_size + 0.5*texel_size));
 		
 		// choose green as the color (because it is easily visible) and set the alpha channel to the result from the GTF
-		vec4 color_in = vec4(0.0, 1.0, 0.0, alpha_values);
+		vec4 color_in = vec4(color_sum, alpha_values);
 		// scale by opacity scale
 		color_in.a *= opacity_scale;
 

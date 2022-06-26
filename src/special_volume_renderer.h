@@ -109,13 +109,8 @@ namespace cgv { // @<
 				m_gaussian_width = width;
 			};
 
-
-
 			bool set_gradient_texture(texture* tex);
 			bool set_depth_texture(texture* tex);
-
-			
-
 
 			///
 			bool enable(context& ctx);
