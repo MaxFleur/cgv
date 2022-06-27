@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cgv_glutil/overlay.h>
+#include <cgv_glutil/2d/draggable.h>
+#include <cgv_glutil/2d/draggables_collection.h>
 
 typedef cgv::glutil::overlay::vec2 vec2;
 typedef cgv::glutil::overlay::vec4 vec4;

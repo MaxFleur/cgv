@@ -4,8 +4,6 @@
 #include <cgv_glutil/generic_renderer.h>
 #include <cgv_glutil/msdf_gl_font_renderer.h>
 #include <cgv_glutil/overlay.h>
-#include <cgv_glutil/2d/draggable.h>
-#include <cgv_glutil/2d/draggables_collection.h>
 #include <cgv_glutil/2d/canvas.h>
 #include <cgv_glutil/2d/shape2d_styles.h>
 #include <plot/plot2d.h>

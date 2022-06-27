@@ -73,13 +73,14 @@ viewer::viewer() : application_plugin("Viewer") {
 	sstyle.radius = 0.0003f;
 
 	tf_editor_w_ptr = register_overlay<tf_editor_widget>("PCP Overlay");
+	tf_editor_w_ptr->set_visibility(false);
 
 	bpcp_ptr = register_overlay<bpcp_overlay>("Block PCP Overlay");
 	bpcp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
 	bpcp_ptr->set_visibility(false);
 
-	// sp_ptr = register_overlay<sp_overlay>("SP Overlay");
-	// sp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
+	sp_ptr = register_overlay<sp_overlay>("SP Overlay");
+	sp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
 }
 
 void viewer::clear(cgv::render::context& ctx) {

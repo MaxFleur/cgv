@@ -1,12 +1,16 @@
 #pragma once
 
+#ifndef    SP_OVERLAY_H
+#define    SP_OVERLAY_H
+
 #include <cgv_glutil/frame_buffer_container.h>
 #include <cgv_glutil/generic_renderer.h>
-#include <cgv_glutil/overlay.h>
 #include <cgv_glutil/2d/canvas.h>
 #include <cgv_glutil/2d/shape2d_styles.h>
 #include <cgv_glutil/msdf_gl_font_renderer.h>
 #include <plot/plot2d.h>
+
+#include "utils_data_types.h"
 
 /*
 This class provides an example to render a scatter plot (SP), depicting 2 dimensions of the given 4 dimensional data.
@@ -63,9 +67,15 @@ protected:
 
 	/// renderer for the 2d plot points
 	cgv::glutil::generic_renderer point_renderer;
+	// renderer for grid lines
+	cgv::glutil::generic_renderer m_line_renderer;
+
 	/// define a geometry class holding 2d positions and rgba colors for each point
 	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 2, vec2, position, rgba, color);
 	point_geometry points;
+
+	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
+	line_geometry m_line_geometry_grid;
 
 	/// stores the actually used font (atlas)
 	cgv::glutil::msdf_font font;
@@ -102,6 +112,22 @@ public:
 	
 	void set_data(std::vector<vec4>& data) { this->data = data; }
 	void set_names(std::vector<std::string>& names) { this->names = names; }
+
+private:
+
+	void create_grid_lines();
+
+	void add_grid_lines();
+
+private:
+
+	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
+
+	std::vector<utils_data_types::line> m_lines_grid;
+
+	cgv::glutil::line2d_style m_line_style_grid;
 };
 
 typedef cgv::data::ref_ptr<sp_overlay> sp_overlay_ptr;
+
+#endif SP_OVERLAY_H

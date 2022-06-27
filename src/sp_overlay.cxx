@@ -17,7 +17,7 @@ sp_overlay::sp_overlay() {
 	set_overlay_alignment(AO_START, AO_END);
 	set_overlay_stretch(SO_NONE);
 	set_overlay_margin(ivec2(-3));
-	set_overlay_size(ivec2(600, 600));
+	set_overlay_size(ivec2(700, 700));
 	
 	// add a color attachment to the content frame buffer with support for transparency (alpha)
 	fbc.add_attachment("color", "flt32[R,G,B,A]");
@@ -32,6 +32,8 @@ sp_overlay::sp_overlay() {
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
 	point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
+
+	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 }
 
 void sp_overlay::clear(cgv::render::context& ctx) {
@@ -43,6 +45,8 @@ void sp_overlay::clear(cgv::render::context& ctx) {
 
 	point_renderer.destruct(ctx);
 	points.destruct(ctx);
+
+	m_line_renderer.destruct(ctx);
 
 	font.destruct(ctx);
 	font_renderer.destruct(ctx);
@@ -93,6 +97,7 @@ bool sp_overlay::init(cgv::render::context& ctx) {
 	success &= viewport_canvas.init(ctx);
 	success &= point_renderer.init(ctx);
 	success &= font_renderer.init(ctx);
+	success &= m_line_renderer.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
 	if(success)
@@ -126,19 +131,19 @@ void sp_overlay::init_frame(cgv::render::context& ctx) {
 		content_canvas.set_resolution(ctx, overlay_size);
 		viewport_canvas.set_resolution(ctx, get_viewport_size());
 
-
-
-
-
-
 		if(font.is_initialized()) {
 			labels.clear();
 
-			labels.add_text("X", ivec2(domain.box.get_center().x(), domain.pos().y() - label_space/2), cgv::render::TA_NONE);
-			labels.add_text("Y", ivec2(domain.pos().x() - 0.75f*label_space, domain.box.get_center().y()), cgv::render::TA_NONE);
+			const auto x = domain.pos().x() + 100;
+			const auto y = domain.pos().y() - label_space / 2;
 
-			on_set(&x_idx);
-			on_set(&y_idx);
+			labels.add_text("Myosin", ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+			labels.add_text("Salimus", ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+			labels.add_text("Obscurin", ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+
+			labels.add_text("Actin", ivec2(x, domain.box.get_center().y() * 0.35f), cgv::render::TA_NONE);
+			labels.add_text("Obscurin", ivec2(x, domain.box.get_center().y()), cgv::render::TA_NONE);
+			labels.add_text("Salimus", ivec2(x, domain.box.get_center().y() * 1.65f), cgv::render::TA_NONE);
 		}
 	}
 }
@@ -199,6 +204,8 @@ void sp_overlay::draw_content(cgv::render::context& ctx) {
 		font_prog.disable(ctx);
 		// draw the first label only
 		font_renderer.render(ctx, get_overlay_size(), labels, 0, 1);
+		font_renderer.render(ctx, get_overlay_size(), labels, 1, 1);
+		font_renderer.render(ctx, get_overlay_size(), labels, 2, 1);
 
 		// save the current view matrix
 		content_canvas.push_modelview_matrix();
@@ -216,11 +223,24 @@ void sp_overlay::draw_content(cgv::render::context& ctx) {
 		font_prog.enable(ctx);
 		content_canvas.set_view(ctx, font_prog);
 		font_prog.disable(ctx);
-		font_renderer.render(ctx, get_overlay_size(), labels, 1, 1);
+		// font_renderer.render(ctx, get_overlay_size(), labels, 3, 1);
+		// font_renderer.render(ctx, get_overlay_size(), labels, 4, 1);
+		// font_renderer.render(ctx, get_overlay_size(), labels, 5, 1);
 
 		// restore the previous view matrix
 		content_canvas.pop_modelview_matrix(ctx);
 	}
+
+	create_grid_lines();
+	add_grid_lines();
+
+	// draw the grid lines
+	auto& line_prog = m_line_renderer.ref_prog();
+	line_prog.enable(ctx);
+	content_canvas.set_view(ctx, line_prog);
+	m_line_style_grid.apply(ctx, line_prog);
+	line_prog.disable(ctx);
+	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_grid);
 
 	// the amount of points that will be drawn in each step
 	int count = 50000;
@@ -304,6 +324,12 @@ void sp_overlay::init_styles(cgv::render::context& ctx) {
 	point_style.position_is_center = true;
 	point_style.feather_width = blur;
 
+	m_line_style_grid.use_blending = true;
+	m_line_style_grid.use_fill_color = true;
+	m_line_style_grid.apply_gamma = false;
+	m_line_style_grid.fill_color = m_color_gray;
+	m_line_style_grid.width = 3.0f;
+
 	// as the point style does not change during rendering, we can set it here once
 	auto& point_prog = point_renderer.ref_prog();
 	point_prog.enable(ctx);
@@ -360,13 +386,58 @@ void sp_overlay::update_content() {
 		avg *= 0.25f;
 
 		if(avg > threshold) {
-			// scale the values from [0,1] to the plot domain
-			vec2 pos(v[x_idx], v[y_idx]);
+			// Draw the points for each protein
+			// First column
+			float offset = 0.0f;
+
+			// Myosin - Actin, Myosin - Obscurin, Myosin - Salimus
+			for (int i = 1; i < 4; i++) {
+				vec2 pos(v[0], v[i]);
+
+				const auto x = pos.x();
+				const auto y = pos.y();
+
+				pos.set(x * 0.33f, (y / 3.0f) + offset);
+				pos *= size;
+				pos += org;
+
+				// add one point
+				points.add(pos, rgba(rgb(0.0f), alpha));
+
+				offset += 0.33f;
+			}
+			// Second col
+			// Salimus - Actin, Salimus - Obscurin
+			offset = 0.0f;
+			for (int i = 1; i < 3; i++) {
+				vec2 pos(v[3], v[i]);
+
+				const auto x = pos.x();
+				const auto y = pos.y();
+
+				pos.set((x * 0.33f) + 0.33f, (y / 3.0f) + offset);
+				pos *= size;
+				pos += org;
+
+				// add one point
+				points.add(pos, rgba(rgb(0.0f), alpha));
+
+				offset += 0.33f;
+			}
+			// Obscurin - Actin
+			vec2 pos(v[2], v[1]);
+
+			const auto x = pos.x();
+			const auto y = pos.y();
+
+			pos.set((x * 0.33f) + 0.66f, (y / 3.0f));
 			pos *= size;
 			pos += org;
 
 			// add one point
 			points.add(pos, rgba(rgb(0.0f), alpha));
+
+			offset += 0.33f;
 		}
 	}
 
@@ -376,4 +447,50 @@ void sp_overlay::update_content() {
 	has_damage = true;
 	// request a redraw
 	post_redraw();
+}
+
+void sp_overlay::create_grid_lines() {
+	m_lines_grid.clear();
+
+	const auto sizeX = domain.size().x();
+	const auto sizeY = domain.size().y();
+
+	// Coordinates for the most left and down line
+	vec2 horiz_left{ sizeX * 0.05f, sizeY * 0.05f };
+	vec2 horiz_right{ sizeX * 1.05f, sizeY * 0.05f };
+	vec2 vert_down{ sizeX * 0.05f, sizeY * 0.05f };
+	vec2 vert_up{ sizeX * 0.05f, sizeY * 1.05f };
+	m_lines_grid.push_back(utils_data_types::line({ horiz_left, horiz_right }));
+	m_lines_grid.push_back(utils_data_types::line({ vert_down, vert_up }));
+
+	// Modify for all following positions
+	horiz_left.set(sizeX * 0.38f, sizeY * 0.05f);
+	horiz_right.set(sizeX * 0.38f, sizeY * 1.05f);
+	vert_down.set(sizeX * 0.05f, sizeY * 0.38f);
+	vert_up.set(sizeX * 1.05f, sizeY * 0.38f);
+	m_lines_grid.push_back(utils_data_types::line({ horiz_left, horiz_right }));
+	m_lines_grid.push_back(utils_data_types::line({ vert_down, vert_up }));
+
+	horiz_left.set(sizeX * 0.05f, sizeY * 0.71f);
+	horiz_right.set(sizeX * 0.71f, sizeY * 0.71f);
+	vert_down.set(sizeX * 0.71f, sizeY * 0.05f);
+	vert_up.set(sizeX * 0.71f, sizeY * 0.71f);
+	m_lines_grid.push_back(utils_data_types::line({ horiz_left, horiz_right }));
+	m_lines_grid.push_back(utils_data_types::line({ vert_down, vert_up }));
+
+	horiz_left.set(sizeX * 0.05f, sizeY * 1.05f);
+	horiz_right.set(sizeX * 0.38f, sizeY * 1.05f);
+	vert_down.set(sizeX * 1.05f, sizeY * 0.05f);
+	vert_up.set(sizeX * 1.05f, sizeY * 0.38f);
+	m_lines_grid.push_back(utils_data_types::line({ horiz_left, horiz_right }));
+	m_lines_grid.push_back(utils_data_types::line({ vert_down, vert_up }));
+}
+
+void sp_overlay::add_grid_lines() {
+	m_line_geometry_grid.clear();
+
+	for (const auto l : m_lines_grid) {
+		m_line_geometry_grid.add(l.a);
+		m_line_geometry_grid.add(l.b);
+	}
 }
