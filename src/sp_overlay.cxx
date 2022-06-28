@@ -300,7 +300,31 @@ void sp_overlay::create_gui() {
 	add_decorator("Stain Indices", "heading", "level=3;font_style=regular");
 	add_decorator("", "separator", "h=2");
 	add_member_control(this, "X Index", x_idx, "value", "min=0;max=3;step=1");
+	add_member_control(this, "X Index", x_idx, "value", "min=0;max=3;step=1");
 	add_member_control(this, "Y Index", y_idx, "value", "min=0;max=3;step=1");
+
+	// Create new centroids
+	auto const add_centroid_button = add_button("Add centroid");
+	connect_copy(add_centroid_button->click, rebind(this, &sp_overlay::add_centroids));
+
+	// Add GUI controls for the centroid
+	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+		const auto header_string = "Centroid " + std::to_string(i) + " parameters:";
+		add_decorator(header_string, "heading", "level=3");
+		// Color widget
+		add_member_control(this, "Color centroid", m_shared_data_ptr->centroids.at(i).color, "", "");
+		// Centroid parameters themselves
+		add_member_control(this, "Centroid myosin", m_shared_data_ptr->centroids.at(i).centroids[0], "value_slider",
+			"min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Centroid actin", m_shared_data_ptr->centroids.at(i).centroids[1], "value_slider",
+			"min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Centroid obscurin", m_shared_data_ptr->centroids.at(i).centroids[2], "value_slider",
+			"min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Centroid sallimus", m_shared_data_ptr->centroids.at(i).centroids[3], "value_slider",
+			"min=0.0;max=1.0;step=0.0001;ticks=true");
+		// Gaussian width
+		add_member_control(this, "Gaussian width", m_shared_data_ptr->centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+	}
 }
 
 void sp_overlay::init_styles(cgv::render::context& ctx) {
@@ -493,4 +517,18 @@ void sp_overlay::add_grid_lines() {
 		m_line_geometry_grid.add(l.a);
 		m_line_geometry_grid.add(l.b);
 	}
+}
+
+void sp_overlay::add_centroids() {
+	if (m_shared_data_ptr->centroids.size() == 5) {
+		return;
+	}
+
+	// Create a new centroid and store it
+	utils_data_types::centroid centr;
+	m_shared_data_ptr->centroids.push_back(centr);
+
+	has_damage = true;
+	post_recreate_gui();
+	post_redraw();
 }

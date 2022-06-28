@@ -10,6 +10,7 @@
 #include <cgv_glutil/msdf_gl_font_renderer.h>
 #include <plot/plot2d.h>
 
+#include "shared_editor_data.h"
 #include "utils_data_types.h"
 
 /*
@@ -112,6 +113,7 @@ public:
 	
 	void set_data(std::vector<vec4>& data) { this->data = data; }
 	void set_names(std::vector<std::string>& names) { this->names = names; }
+	void set_shared_data(shared_data_ptr data_ptr) { m_shared_data_ptr = data_ptr; }
 
 private:
 
@@ -119,7 +121,11 @@ private:
 
 	void add_grid_lines();
 
+	void add_centroids();
+
 private:
+
+	shared_data_ptr m_shared_data_ptr;
 
 	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
