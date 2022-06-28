@@ -8,6 +8,7 @@
 #include <cgv_glutil/2d/shape2d_styles.h>
 #include <plot/plot2d.h>
 
+#include "shared_editor_data.h"
 #include "utils_data_types.h"
 
 /* This class provides the editor of the transfer function. The values are synchronized with the GUI */
@@ -98,10 +99,9 @@ public:
 	
 	void set_data(std::vector<vec4>& data) { this->data = data; }
 	void set_names(std::vector<std::string>& names) { m_protein_names = names; }
+	void set_shared_data(shared_data_ptr data_ptr) { m_shared_data_ptr = data_ptr; }
 
 	bool was_updated;
-	// The stored centroids
-	std::vector<utils_data_types::centroid> m_centroids;
 
 private:
 
@@ -134,6 +134,8 @@ private:
 	}
 
 private:
+
+	shared_data_ptr m_shared_data_ptr;
 
 	cgv::glutil::line2d_style m_line_style_relations;
 	cgv::glutil::line2d_style m_line_style_widgets;

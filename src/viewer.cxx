@@ -67,6 +67,8 @@ viewer::viewer() : application_plugin("Viewer") {
 	// default filter and clamp parameters are ok
 	dataset.gradient_tex = texture("flt32[R,G,B,A]");
 
+	m_shared_data_ptr = std::make_shared<shared_data>();
+
 	tf_editor_ptr = register_overlay<cgv::glutil::color_map_editor>("TF Editor");
 	tf_editor_ptr->set_opacity_support(true);
 	tf_editor_ptr->set_visibility(false);
@@ -76,6 +78,7 @@ viewer::viewer() : application_plugin("Viewer") {
 	sstyle.radius = 0.0003f;
 
 	tf_editor_w_ptr = register_overlay<tf_editor_widget>("PCP Overlay");
+	tf_editor_w_ptr->set_shared_data(m_shared_data_ptr);
 	// tf_editor_w_ptr->set_visibility(false);
 	
 	// sp_ptr = register_overlay<sp_overlay>("SP Overlay");
@@ -357,7 +360,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 	if (tf_editor_w_ptr->was_updated) {
 		tf_editor_w_ptr->was_updated = false;
 
-		on_set(&tf_editor_w_ptr->m_centroids);
+		on_set(&m_shared_data_ptr->centroids);
 	}
 }
 
@@ -495,15 +498,15 @@ void viewer::draw(cgv::render::context& ctx) {
 			auto& vol_prog = vr.ref_prog();
 			vol_prog.enable(ctx);
 
-			const int size = tf_editor_w_ptr->m_centroids.size();
+			const int size = m_shared_data_ptr->centroids.size();
 			vol_prog.set_uniform(ctx, "centroid_values_size", size);
 
-			for(int i = 0; i < tf_editor_w_ptr->m_centroids.size(); i++) {
-				const auto color = tf_editor_w_ptr->m_centroids.at(i).color;
+			for(int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+				const auto color = m_shared_data_ptr->centroids.at(i).color;
 				vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
 
-				vol_prog.set_uniform(ctx, "centroids[" + std::to_string(i) + "]", tf_editor_w_ptr->m_centroids.at(i).centroids);
-				vol_prog.set_uniform(ctx, "widths[" + std::to_string(i) + "]", tf_editor_w_ptr->m_centroids.at(i).gaussian_width);
+				vol_prog.set_uniform(ctx, "centroids[" + std::to_string(i) + "]", m_shared_data_ptr->centroids.at(i).centroids);
+				vol_prog.set_uniform(ctx, "widths[" + std::to_string(i) + "]", m_shared_data_ptr->centroids.at(i).gaussian_width);
 				vol_prog.set_uniform(ctx, "colors[" + std::to_string(i) + "]", color_vec);
 			}
 			vol_prog.disable(ctx);
@@ -605,7 +608,7 @@ void viewer::create_gui() {
 	}
 
 	if (begin_tree_node("TF Editor - Lines", tf_editor_w_ptr, false)) {
-		add_member_control(this, "", tf_editor_w_ptr->m_centroids, "");
+		add_member_control(this, "", m_shared_data_ptr->centroids, "");
 		align("\a");
 		inline_object_gui(tf_editor_w_ptr);
 		align("\b");

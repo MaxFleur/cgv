@@ -26,6 +26,8 @@
 #include "tf_editor_widget.h"
 #include "sp_overlay.h"
 
+#include "shared_editor_data.h"
+
 using namespace cgv::render;
 
 class viewer : public cgv::glutil::application_plugin {
@@ -47,8 +49,6 @@ protected:
 	cgv::glutil::color_map_editor_ptr tf_editor_ptr = nullptr;
 	/// store a pointer to the plot overlay
 	cgv::data::ref_ptr<plot_overlay> length_histogram_po_ptr = nullptr;
-
-
 
 	std::string input_path;
 
@@ -248,14 +248,12 @@ protected:
 	}
 
 	void edit_transfer_function(const size_t index) {
-		if(index >= 0 && index < tfs.size()) {
+		if (index >= 0 && index < tfs.size()) {
 			tf_editor_ptr->set_color_map(&tfs[index]);
 			tf_editor_ptr->set_visibility(true);
 			post_redraw();
 		}
 	}
-
-
 
 public:
 	class viewer();
@@ -276,4 +274,7 @@ public:
 	void draw(context& ctx);
 
 	void create_gui();
+
+private:
+	shared_data_ptr m_shared_data_ptr;
 };
