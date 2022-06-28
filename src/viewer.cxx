@@ -76,14 +76,10 @@ viewer::viewer() : application_plugin("Viewer") {
 	sstyle.radius = 0.0003f;
 
 	tf_editor_w_ptr = register_overlay<tf_editor_widget>("PCP Overlay");
-	tf_editor_w_ptr->set_visibility(false);
-
-	bpcp_ptr = register_overlay<bpcp_overlay>("Block PCP Overlay");
-	bpcp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
-	bpcp_ptr->set_visibility(false);
-
-	sp_ptr = register_overlay<sp_overlay>("SP Overlay");
-	sp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
+	// tf_editor_w_ptr->set_visibility(false);
+	
+	// sp_ptr = register_overlay<sp_overlay>("SP Overlay");
+	// sp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
 }
 
 void viewer::clear(cgv::render::context& ctx) {
@@ -621,18 +617,6 @@ void viewer::create_gui() {
 		inline_object_gui(sp_ptr);
 		align("\b");
 		end_tree_node(sp_ptr);
-	}
-
-	if (bpcp_ptr) {
-		if (begin_tree_node("Block PCP", bpcp_ptr, false)) {
-			add_member_control(this, "Threshold", gridtree_error_threshold, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
-			connect_copy(add_button("Extract Leafs")->click, cgv::signal::rebind(this, &viewer::generate_tree_boxes));
-
-			align("\a");
-			inline_object_gui(bpcp_ptr);
-			align("\b");
-			end_tree_node(bpcp_ptr);
-		}
 	}
 
 	add_member_control(this, "Show", show_sarcomeres, "check");

@@ -25,7 +25,6 @@
 
 #include "tf_editor_widget.h"
 #include "sp_overlay.h"
-#include "bpcp_overlay.h"
 
 using namespace cgv::render;
 
@@ -104,7 +103,6 @@ protected:
 
 	tf_editor_widget_ptr tf_editor_w_ptr = nullptr;
 	sp_overlay_ptr sp_ptr = nullptr;
-	bpcp_overlay_ptr bpcp_ptr = nullptr;
 
 	gridtree gtree;
 	float gridtree_error_threshold = 0.08f;
@@ -157,9 +155,6 @@ protected:
 				volume_data.push_back(volume);
 				volume_data.push_back(0.25f * (avg[0] + avg[1] + avg[2] + avg[3]));
 			}
-
-			if(bpcp_ptr)
-				bpcp_ptr->set_data(mm_data, volume_data);
 		}
 
 		post_redraw();
