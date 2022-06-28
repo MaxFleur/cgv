@@ -18,6 +18,7 @@
 
 #include "sliced_volume_data_set.h"
 #include "special_volume_renderer.h"
+#include "mdtf_volume_renderer.h"
 #include "gridtree.h"
 
 #include "plot_overlay.h"
@@ -67,6 +68,8 @@ protected:
 
 	sliced_volume_data_set dataset;
 	special_volume_render_style vstyle;
+	mdtf_volume_render_style mdtf_vstyle;
+	bool use_mdtf_volume_renderer = true;
 
 	struct {
 		std::vector<unsigned> hist0;

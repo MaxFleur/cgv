@@ -3,17 +3,16 @@
 #define NUM_STEPS 128
 #define INTERPOLATION_MODE 1
 #define ENABLE_NOISE_OFFSET 1
-#define BLEND_MODE 0
 #define ENABLE_SCALE_ADJUSTMENT 0
 #define ENABLE_LIGHTING 0
 #define ENABLE_DEPTH_TEST 0
 
-//***** begin interface of fragment.glfs ***********************************
+// ***** begin interface of fragment.glfs ***********************************
 uniform float gamma = 2.2;
 void finish_fragment(vec4 color);
-//***** end interface of fragment.glfs ***********************************
+// ***** end interface of fragment.glfs ***********************************
 
-//***** begin interface of view.glsl ***********************************
+// ***** begin interface of view.glsl ***********************************
 mat4 get_modelview_matrix();
 mat4 get_projection_matrix();
 mat4 get_modelview_projection_matrix();
@@ -21,14 +20,13 @@ mat4 get_inverse_modelview_matrix();
 mat4 get_inverse_modelview_projection_matrix();
 mat3 get_normal_matrix();
 mat3 get_inverse_normal_matrix();
-//***** end interface of view.glsl ***********************************
+// ***** end interface of view.glsl ***********************************
 
-//***** begin interface of surface.glsl ***********************************
+// ***** begin interface of surface.glsl ***********************************
 vec4 compute_reflected_appearance(vec3 position_eye, vec3 normal_eye, vec4 color, int side);
-//***** end interface of surface.glsl ***********************************
+// ***** end interface of surface.glsl ***********************************
 
 layout (binding = 0) uniform sampler3D volume_tex;
-layout (binding = 1) uniform sampler2D transfer_function_tex;
 layout (binding = 2) uniform sampler2D noise_tex;
 #if ENABLE_LIGHTING == 1
 layout (binding = 3) uniform sampler3D gradient_tex;
@@ -43,6 +41,9 @@ uniform float size_scale;
 uniform vec3 clip_box_min;
 uniform vec3 clip_box_max;
 
+uniform vec4 gaussian_centroid;
+uniform float gaussian_width;
+
 uniform mat4 clip_box_transform;
 uniform mat4 clip_box_transform_inverse;
 uniform mat4 volume_transform;
@@ -54,6 +55,12 @@ uniform mat4 combined_transform_inverse;
 in vec4 position_fs;
 in vec3 position_object;
 in vec3 eye_fs;
+
+uniform vec4 colors[5];
+uniform vec4 centroids[5];
+uniform float widths[5];
+
+uniform int centroid_values_size;
 
 /*--------------------------------------------------------------------------*\
 Copyright (c) 2008-2009, Danny Ruijters. All rights reserved.
@@ -195,6 +202,20 @@ vec3 safe_normalize(vec3 v) {
 	return len > 0.000001 ? v/len : vec3(0.0);
 }
 
+float gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, float gaussian_width) {
+
+	// construct a matrix with diagonal components set to the given value
+	mat4 K = mat4(1.0/gaussian_width);
+	
+	vec4 diff = density - gaussian_centroid;
+	mat4 K2 = K*K;
+
+	// calculate exponent; use dot product to multiply two vectors with the intention of receiving a single floating point result
+	float exponent = dot(diff, K2*diff);
+
+	return exp(-exponent);
+}
+
 bool intersect_box(vec3 origin, vec3 direction, out float t_min, out float t_max) {
 
 	vec3 inv_dir = 1.0 / direction;
@@ -306,7 +327,7 @@ void main()
 
 	// this seems kinda wrong in direct comparison to second option
 	//float scale_adjust = ray_dir.x*ray_dir.x * vol_size.x + ray_dir.y*ray_dir.y * vol_size.y + ray_dir.z*ray_dir.z * vol_size.z;
-	
+
 	vec3 rd = abs(ray_dir);
 	float scale_adjust = dot(abs(ray_dir), vol_size);
 	scale_adjust /= rd.x + rd.y + rd.z;
@@ -334,90 +355,48 @@ void main()
 #else
 		vec4 density = textureCubic(volume_tex, uvw);
 #endif
-		const float texel_size = 1.0/4.0;
-		vec4 color_in0 = texture(transfer_function_tex, vec2(density[0], 0*texel_size + 0.5*texel_size));
-		vec4 color_in1 = texture(transfer_function_tex, vec2(density[1], 1*texel_size + 0.5*texel_size));
-		vec4 color_in2 = texture(transfer_function_tex, vec2(density[2], 2*texel_size + 0.5*texel_size));
-		vec4 color_in3 = texture(transfer_function_tex, vec2(density[3], 3*texel_size + 0.5*texel_size));
+		// scale the alpha channel based on the global opacity scale
+		float alpha_scale = opacity_scale;
+
+#if ENABLE_SCALE_ADJUSTMENT == 1
+		alpha_scale *= size_scale; 
+		alpha_scale *= -exp(-step_size * scale_adjust) + 1.0;
+#endif
+
+		vec3 color_sum = vec3(0.0);
+		float alpha_sum = 0.0;
+		for (int i = 0; i < centroid_values_size; i++) {
+			float alpha = gaussian_transfer_function(density, centroids[i], widths[i]);
+			alpha *= colors[i].a;
+			alpha *= alpha_scale;
+
+			color_sum += alpha*colors[i].rgb;
+			alpha_sum += alpha;
+		}
+		// Average the alpha and colors
+		//alpha_values /= float(centroid_values_size);
+		//color_sum /= float(centroid_values_size);
+		//alpha_values /= alpha_sum;
+		//color_sum /= alpha_sum;
+		
+		vec4 color_in = vec4(color_sum, alpha_sum);
+		color_in = clamp(color_in, 0.0, 1.0);
 		
 #if ENABLE_LIGHTING == 1
 		// get the normal from a precomputed texture as the average gradient over all 4 channels
 		vec3 normal = -safe_normalize(texture(gradient_tex, uvw).xyz);
 		// apply lighting to all input colors
-		color_in0.rgb *= calculate_lighting(color_in0.rgb, normal, light_dir, ray_dir, 0.3);
-		color_in1.rgb *= calculate_lighting(color_in1.rgb, normal, light_dir, ray_dir, 0.3);
-		color_in2.rgb *= calculate_lighting(color_in2.rgb, normal, light_dir, ray_dir, 0.3);
-		color_in3.rgb *= calculate_lighting(color_in3.rgb, normal, light_dir, ray_dir, 0.3);
+		color_in.rgb *= calculate_lighting(color_in.rgb, normal, light_dir, ray_dir, 0.3);
 #endif
-		// scale the alpha channel based on the global opacity scale
-#if BLEND_MODE < 2
-		// scale each channel by 1/4 when blending all 4 channels as seperate layers
-		// to normalize their total contribution
-		color_in0.a *= 0.25 * opacity_scale;
-		color_in1.a *= 0.25 * opacity_scale;
-		color_in2.a *= 0.25 * opacity_scale;
-		color_in3.a *= 0.25 * opacity_scale;
-#else
-		color_in0.a *= opacity_scale;
-		color_in1.a *= opacity_scale;
-		color_in2.a *= opacity_scale;
-		color_in3.a *= opacity_scale;
-#endif
-
-#if ENABLE_SCALE_ADJUSTMENT == 1
-		// dont know if this is correct but it works for now
-		color_in0.a *= size_scale;
-		color_in1.a *= size_scale;
-		color_in2.a *= size_scale;
-		color_in3.a *= size_scale;
-
-		float step_fac = -exp(-step_size * scale_adjust) + 1.0;
-		color_in0.a *= step_fac;
-		color_in1.a *= step_fac;
-		color_in2.a *= step_fac;
-		color_in3.a *= step_fac;
-#endif
-
-		// premultiply alpha
-		color_in0.rgb *= color_in0.a;
-		color_in1.rgb *= color_in1.a;
-		color_in2.rgb *= color_in2.a;
-		color_in3.rgb *= color_in3.a;
-
-#if BLEND_MODE < 2
-		// make sure the alpha value does not exceed 1
-		color_in0.a = min(color_in0.a, 1.0);
-		color_in1.a = min(color_in1.a, 1.0);
-		color_in2.a = min(color_in2.a, 1.0);
-		color_in3.a = min(color_in3.a, 1.0);
-#endif
-
-#if BLEND_MODE == 0
-		// blend channels in RGBA order treating them as seperate layers
-		// blend overall samples back to front
-		color = color_in0 + (1.0 - color_in0.a)*color;
-		color = color_in1 + (1.0 - color_in1.a)*color;
-		color = color_in2 + (1.0 - color_in2.a)*color;
-		color = color_in3 + (1.0 - color_in3.a)*color;
-#elif BLEND_MODE == 1
-		// blend channels in ABGR order treating them as seperate layers
-		// blend overall samples back to front
-		color = color_in3 + (1.0 - color_in3.a)*color;
-		color = color_in2 + (1.0 - color_in2.a)*color;
-		color = color_in1 + (1.0 - color_in1.a)*color;
-		color = color_in0 + (1.0 - color_in0.a)*color;
-#elif BLEND_MODE == 2
-		// average the color contributions from the individual channels
-		// this feels counter intuitive but seems to work
-		vec4 color_in = color_in0 + color_in1 + color_in2 + color_in3;
-		color_in *= 0.25;
-
 		// make sure the alpha value does not exceed 1
 		color_in.a = min(color_in.a, 1.0);
 
+		// color is already premultiplied
+		//color_in.rgb *= color_in.a;
+		
 		// blend back to front
 		color = color_in + (1.0 - color_in.a)*color;
-#endif
+
 		//if(color.a > 1.0f)
         //    break;
 	}

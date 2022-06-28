@@ -7,16 +7,16 @@
 namespace cgv { // @<
 	namespace render { // @<
 		
-		class special_volume_renderer;
+		class mdtf_volume_renderer;
 
 		//! reference to a singleton volume renderer that is shared among drawables
 		/*! the second parameter is used for reference counting. Use +1 in your init method,
 			-1 in your clear method and default 0 argument otherwise. If internal reference
 			counter decreases to 0, singleton renderer is destructed. */
-		extern special_volume_renderer& ref_special_volume_renderer(context& ctx, int ref_count_change = 0);
+		extern mdtf_volume_renderer& ref_mdtf_volume_renderer(context& ctx, int ref_count_change = 0);
 
 		/** style of a volume */
-		struct special_volume_render_style : public render_style {
+		struct mdtf_volume_render_style : public render_style {
 			/*@name global volume rendering options*/
 			//@{
 			/// quality measure for the number of steps used during raymarching
@@ -45,12 +45,6 @@ namespace cgv { // @<
 			float size_scale;
 			/// opacity scaling parameter
 			float opacity_scale;
-			/// the blending mode used to combine the individual channel values
-			enum BlendMode {
-				BM_CHANNELS_ASCENDING = 0,
-				BM_CHANNELS_DESCENDING = 1,
-				BM_AVERAGE = 2,
-			} blend_mode;
 			/// a bounding box used to define a subspace of the volume to be visualized
 			box3 clip_box;
 
@@ -62,19 +56,17 @@ namespace cgv { // @<
 			/// wether to enable depth testing by reading depth from a texture to allow geometry intersecting the volume (depth texture must be supplied)
 			bool enable_depth_test;
 			/// construct with default values
-			special_volume_render_style();
+			mdtf_volume_render_style();
 		};
 
 		/// renderer that supports point splatting
-		class special_volume_renderer : public renderer
+		class mdtf_volume_renderer : public renderer
 		{
 		protected:
 			// TODO: rename or use the one from the renderer base class?
 			cgv::render::attribute_array_manager aa_manager;
 			/// the 3D texture used for rendering
 			texture* volume_texture;
-			/// the 2D transfer function texture used for classification of the volume values
-			texture* transfer_function_texture;
 			/// a 2D texture containing random noise used to offset ray start positions in order to reduce ring artifacts
 			texture noise_texture;
 			/// the 3D texture containing vector gradients used for lighting normal calculation
@@ -91,21 +83,24 @@ namespace cgv { // @<
 			void init_noise_texture(context& ctx);
 		public:
 			/// initializes position_is_center to true 
-			special_volume_renderer();
+			mdtf_volume_renderer();
 			/// construct shader programs and return whether this was successful, call inside of init method of drawable
 			bool init(context& ctx);
 			/// sets the 3D volume texture containing scalar values (density or other measured quantities)
 			bool set_volume_texture(texture* tex);
-			/// sets the transfer function used for classification; must be 1D or 2D (as loaded from an image)
-			bool set_transfer_function_texture(texture* tex);
 
+			void setCentroid(vec4 centroid)
+			{
+				m_centroid = centroid;
+			};
 
+			void setGaussianWidth(float width)
+			{
+				m_gaussian_width = width;
+			};
 
 			bool set_gradient_texture(texture* tex);
 			bool set_depth_texture(texture* tex);
-
-			
-
 
 			///
 			bool enable(context& ctx);
@@ -116,6 +111,10 @@ namespace cgv { // @<
 			///
 			void draw(context& ctx, size_t start, size_t count,
 				bool use_strips = false, bool use_adjacency = false, uint32_t strip_restart_index = -1);
+
+		private:
+			vec4 m_centroid;
+			float m_gaussian_width;
 		};
 	}
 }

@@ -44,6 +44,9 @@ viewer::viewer() : application_plugin("Viewer") {
 	vstyle.size_scale = 200.0f;
 	vstyle.blend_mode = special_volume_render_style::BM_AVERAGE;
 
+	mdtf_vstyle.enable_depth_test = true;
+	mdtf_vstyle.size_scale = 200.0f;
+
 	sarcomere_style.surface_color = rgb(0.55f, 0.50f, 0.4f);
 	sarcomere_style.radius = 0.001;
 
@@ -86,6 +89,7 @@ viewer::viewer() : application_plugin("Viewer") {
 void viewer::clear(cgv::render::context& ctx) {
 
 	ref_special_volume_renderer(ctx, -1);
+	ref_mdtf_volume_renderer(ctx, -1);
 	ref_sphere_renderer(ctx, -1);
 	ref_cone_renderer(ctx, -1);
 	ref_box_wire_renderer(ctx, -1);
@@ -252,6 +256,10 @@ void viewer::on_set(void* member_ptr) {
 			ctrl->set("text_color", fh.has_unsaved_changes ? cgv::gui::theme_info::instance().warning_hex() : "");
 	}
 
+	IFSET(use_mdtf_volume_renderer) {
+		post_recreate_gui();
+	}
+
 	update_member(member_ptr);
 	post_redraw();
 }
@@ -272,6 +280,7 @@ bool viewer::on_exit_request() {
 bool viewer::init(cgv::render::context& ctx) {
 
 	ref_special_volume_renderer(ctx, 1);
+	ref_mdtf_volume_renderer(ctx, 1);
 	ref_sphere_renderer(ctx, 1);
 	ref_cone_renderer(ctx, 1);
 	ref_box_wire_renderer(ctx, 1);
@@ -477,34 +486,46 @@ void viewer::draw(cgv::render::context& ctx) {
 		ctx.push_modelview_matrix();
 		ctx.mul_modelview_matrix(clip_box_transform);
 
-		vstyle.clip_box_transform = clip_box_transform;
-		vstyle.volume_transform = volume_transform;
+		if(use_mdtf_volume_renderer) {
+			mdtf_vstyle.clip_box_transform = clip_box_transform;
+			mdtf_vstyle.volume_transform = volume_transform;
 
-		auto& vr = ref_special_volume_renderer(ctx);
-		vr.set_render_style(vstyle);
-		vr.set_volume_texture(&dataset.volume_tex);
-		//vr.set_transfer_function_texture(&tf_editor_ptr->ref_tex());
-		vr.set_transfer_function_texture(&tf_tex);
-		vr.set_gradient_texture(&dataset.gradient_tex);
-		vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
+			auto& vr = ref_mdtf_volume_renderer(ctx);
+			vr.set_render_style(mdtf_vstyle);
+			vr.set_volume_texture(&dataset.volume_tex);
+			vr.set_gradient_texture(&dataset.gradient_tex);
+			vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
 
-		auto& vol_prog = vr.ref_prog();
-		vol_prog.enable(ctx);
+			auto& vol_prog = vr.ref_prog();
+			vol_prog.enable(ctx);
 
-		const int size = tf_editor_w_ptr->m_centroids.size();
-		vol_prog.set_uniform(ctx, "centroid_values_size", size);
+			const int size = tf_editor_w_ptr->m_centroids.size();
+			vol_prog.set_uniform(ctx, "centroid_values_size", size);
 
-		for (int i = 0; i < tf_editor_w_ptr->m_centroids.size(); i++) {
-			const auto color = tf_editor_w_ptr->m_centroids.at(i).color;
-			vec3 color_vec{ color.R(), color.G(), color.B() };
+			for(int i = 0; i < tf_editor_w_ptr->m_centroids.size(); i++) {
+				const auto color = tf_editor_w_ptr->m_centroids.at(i).color;
+				vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
 
-			vol_prog.set_uniform(ctx, "centroids[" + std::to_string(i) + "]", tf_editor_w_ptr->m_centroids.at(i).centroids);
-			vol_prog.set_uniform(ctx, "widths[" + std::to_string(i) + "]", tf_editor_w_ptr->m_centroids.at(i).gaussian_width);
-			vol_prog.set_uniform(ctx, "colors[" + std::to_string(i) + "]", color_vec);
+				vol_prog.set_uniform(ctx, "centroids[" + std::to_string(i) + "]", tf_editor_w_ptr->m_centroids.at(i).centroids);
+				vol_prog.set_uniform(ctx, "widths[" + std::to_string(i) + "]", tf_editor_w_ptr->m_centroids.at(i).gaussian_width);
+				vol_prog.set_uniform(ctx, "colors[" + std::to_string(i) + "]", color_vec);
+			}
+			vol_prog.disable(ctx);
+
+			vr.render(ctx, 0, 0);
+		} else {
+			vstyle.clip_box_transform = clip_box_transform;
+			vstyle.volume_transform = volume_transform;
+
+			auto& vr = ref_special_volume_renderer(ctx);
+			vr.set_render_style(vstyle);
+			vr.set_volume_texture(&dataset.volume_tex);
+			vr.set_transfer_function_texture(&tf_tex);
+			vr.set_gradient_texture(&dataset.gradient_tex);
+			vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
+
+			vr.render(ctx, 0, 0);
 		}
-		vol_prog.disable(ctx);
-
-		vr.render(ctx, 0, 0);
 
 		ctx.pop_modelview_matrix();
 	}
@@ -536,13 +557,24 @@ void viewer::create_gui() {
 		end_tree_node(blur_radius);
 	}
 
-	if (begin_tree_node("Volume Rendering", vstyle, false)) {
-		align("\a");
-		add_gui("vstyle", vstyle);
-		align("\b");
-		end_tree_node(vstyle);
-	}
+	add_member_control(this, "Use MDTF Volume Renderer", use_mdtf_volume_renderer, "check");
 
+	if(use_mdtf_volume_renderer) {
+		if(begin_tree_node("Volume Rendering", mdtf_vstyle, false)) {
+			align("\a");
+			add_gui("vstyle", mdtf_vstyle);
+			align("\b");
+			end_tree_node(mdtf_vstyle);
+		}
+	} else {
+		if(begin_tree_node("Volume Rendering", vstyle, false)) {
+			align("\a");
+			add_gui("vstyle", vstyle);
+			align("\b");
+			end_tree_node(vstyle);
+		}
+	}
+	
 	if (begin_tree_node("Transfer Functions", tf_editor_ptr, false)) {
 		align("\a");
 

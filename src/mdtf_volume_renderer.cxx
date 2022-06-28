@@ -1,4 +1,4 @@
-#include "special_volume_renderer.h"
+#include "mdtf_volume_renderer.h"
 
 #include <random>
 
@@ -17,20 +17,20 @@
 
 namespace cgv {
 	namespace render {
-		special_volume_renderer& ref_special_volume_renderer(context& ctx, int ref_count_change)
+		mdtf_volume_renderer& ref_mdtf_volume_renderer(context& ctx, int ref_count_change)
 		{
 			static int ref_count = 0;
-			static special_volume_renderer r;
-			r.manage_singleton(ctx, "special_volume_renderer", ref_count, ref_count_change);
+			static mdtf_volume_renderer r;
+			r.manage_singleton(ctx, "mdtf_volume_renderer", ref_count, ref_count_change);
 			return r;
 		}
 
-		render_style* special_volume_renderer::create_render_style() const
+		render_style* mdtf_volume_renderer::create_render_style() const
 		{
-			return new special_volume_render_style();
+			return new mdtf_volume_render_style();
 		}
 
-		void special_volume_renderer::init_noise_texture(context& ctx)
+		void mdtf_volume_renderer::init_noise_texture(context& ctx)
 		{
 			if(noise_texture.is_created())
 				noise_texture.destruct(ctx);
@@ -48,7 +48,7 @@ namespace cgv {
 			noise_texture.create(ctx, dv, 0);
 		}
 
-		special_volume_render_style::special_volume_render_style()
+		mdtf_volume_render_style::mdtf_volume_render_style()
 		{
 			integration_quality = IQ_128;
 			interpolation_mode = IP_LINEAR;
@@ -56,17 +56,15 @@ namespace cgv {
 			opacity_scale = 1.0f;
 			enable_scale_adjustment = true;
 			size_scale = 50.0f;
-			blend_mode = BM_CHANNELS_ASCENDING;
 			clip_box = box3(vec3(0.0f), vec3(1.0f));
 			enable_lighting = false;
 			enable_depth_test = false;
 		}
 
-		special_volume_renderer::special_volume_renderer() : noise_texture("flt32[R]")
+		mdtf_volume_renderer::mdtf_volume_renderer() : noise_texture("flt32[R]")
 		{
 			//shader_defines = shader_define_map();
 			volume_texture = nullptr;
-			transfer_function_texture = nullptr;
 			gradient_texture = nullptr;
 			depth_texture = nullptr;
 
@@ -76,16 +74,16 @@ namespace cgv {
 			noise_texture.set_wrap_t(TW_REPEAT);
 		}
 
-		bool special_volume_renderer::validate_attributes(const context& ctx) const
+		bool mdtf_volume_renderer::validate_attributes(const context& ctx) const
 		{
 			// validate set attributes
-			const special_volume_render_style& vrs = get_style<special_volume_render_style>();
+			const mdtf_volume_render_style& vrs = get_style<mdtf_volume_render_style>();
 			bool res = renderer::validate_attributes(ctx);
 			res = res && (volume_texture != nullptr);
 			return res;
 		}
 
-		bool special_volume_renderer::init(cgv::render::context& ctx)
+		bool mdtf_volume_renderer::init(cgv::render::context& ctx)
 		{
 			bool res = renderer::init(ctx);
 
@@ -121,7 +119,7 @@ namespace cgv {
 			return res;
 		}
 
-		bool special_volume_renderer::set_volume_texture(texture* tex)
+		bool mdtf_volume_renderer::set_volume_texture(texture* tex)
 		{
 			if(!tex || tex->get_nr_dimensions() != 3)
 				return false;
@@ -129,15 +127,7 @@ namespace cgv {
 			return true;
 		}
 
-		bool special_volume_renderer::set_transfer_function_texture(texture* tex)
-		{
-			if(!tex || tex->get_nr_dimensions() != 2)
-				return false;
-			transfer_function_texture = tex;
-			return true;
-		}
-
-		bool special_volume_renderer::set_gradient_texture(texture* tex)
+		bool mdtf_volume_renderer::set_gradient_texture(texture* tex)
 		{
 			if(!tex || tex->get_nr_dimensions() != 3)
 				return false;
@@ -145,38 +135,34 @@ namespace cgv {
 			return true;
 		}
 
-		bool special_volume_renderer::set_depth_texture(texture* tex)
+		bool mdtf_volume_renderer::set_depth_texture(texture* tex)
 		{
 			if(!tex || tex->get_nr_dimensions() != 2)
 				return false;
 			depth_texture = tex;
 			return true;
 		}
-		void special_volume_renderer::update_defines(shader_define_map& defines)
+		void mdtf_volume_renderer::update_defines(shader_define_map& defines)
 		{
-			const special_volume_render_style& vrs = get_style<special_volume_render_style>();
+			const mdtf_volume_render_style& vrs = get_style<mdtf_volume_render_style>();
 
-			shader_code::set_define(defines, "NUM_STEPS", vrs.integration_quality, special_volume_render_style::IQ_128);
-			shader_code::set_define(defines, "INTERPOLATION_MODE", vrs.interpolation_mode, special_volume_render_style::IP_LINEAR);
+			shader_code::set_define(defines, "NUM_STEPS", vrs.integration_quality, mdtf_volume_render_style::IQ_128);
+			shader_code::set_define(defines, "INTERPOLATION_MODE", vrs.interpolation_mode, mdtf_volume_render_style::IP_LINEAR);
 			shader_code::set_define(defines, "ENABLE_NOISE_OFFSET", vrs.enable_noise_offset, true);
-			shader_code::set_define(defines, "BLEND_MODE", vrs.blend_mode, special_volume_render_style::BM_CHANNELS_ASCENDING);
 			shader_code::set_define(defines, "ENABLE_SCALE_ADJUSTMENT", vrs.enable_scale_adjustment, false);
 			shader_code::set_define(defines, "ENABLE_LIGHTING", vrs.enable_lighting, false);
 			shader_code::set_define(defines, "ENABLE_DEPTH_TEST", vrs.enable_depth_test, false);
 		}
-		bool special_volume_renderer::build_shader_program(context& ctx, shader_program& prog, const shader_define_map& defines)
+		bool mdtf_volume_renderer::build_shader_program(context& ctx, shader_program& prog, const shader_define_map& defines)
 		{
-			return prog.build_program(ctx, "special_volume.glpr", true, defines);
+			return prog.build_program(ctx, "mdtf_volume.glpr", true, defines);
 		}
 
-		bool special_volume_renderer::enable(context& ctx)
+		bool mdtf_volume_renderer::enable(context& ctx)
 		{
-			const special_volume_render_style& vrs = get_style<special_volume_render_style>();
+			const mdtf_volume_render_style& vrs = get_style<mdtf_volume_render_style>();
 
 			if (!renderer::enable(ctx))
-				return false;
-
-			if(!volume_texture && !transfer_function_texture)
 				return false;
 
 			if(vrs.enable_lighting && !gradient_texture)
@@ -199,6 +185,9 @@ namespace cgv {
 			ref_prog().set_uniform(ctx, "combined_transform", inv(vrs.volume_transform) * vrs.clip_box_transform);
 			ref_prog().set_uniform(ctx, "combined_transform_inverse", inv(vrs.clip_box_transform) * vrs.volume_transform);
 
+			ref_prog().set_uniform(ctx, "gaussian_centroid", m_centroid);
+			ref_prog().set_uniform(ctx, "gaussian_width", m_gaussian_width);
+
 			glDisable(GL_DEPTH_TEST);
 
 			glEnable(GL_BLEND);
@@ -208,17 +197,15 @@ namespace cgv {
 			glCullFace(GL_FRONT);
 			
 			volume_texture->enable(ctx, 0);
-			transfer_function_texture->enable(ctx, 1);
 			noise_texture.enable(ctx, 2);
 			if(gradient_texture) gradient_texture->enable(ctx, 3);
 			if(depth_texture) depth_texture->enable(ctx, 4);
 			return true;
 		}
 		///
-		bool special_volume_renderer::disable(context& ctx)
+		bool mdtf_volume_renderer::disable(context& ctx)
 		{
 			volume_texture->disable(ctx);
-			transfer_function_texture->disable(ctx);
 			noise_texture.disable(ctx);
 			if(gradient_texture) gradient_texture->disable(ctx);
 			if(depth_texture) depth_texture->disable(ctx);
@@ -232,7 +219,7 @@ namespace cgv {
 			return renderer::disable(ctx);
 		}
 		///
-		void special_volume_renderer::draw(context& ctx, size_t start, size_t count, bool use_strips, bool use_adjacency, uint32_t strip_restart_index)
+		void mdtf_volume_renderer::draw(context& ctx, size_t start, size_t count, bool use_strips, bool use_adjacency, uint32_t strip_restart_index)
 		{
 			glDrawArrays(GL_TRIANGLES, 0, (GLsizei)36);
 		}
@@ -253,14 +240,14 @@ namespace cgv {
 namespace cgv {
 	namespace gui {
 
-		struct special_volume_render_style_gui_creator : public gui_creator {
+		struct mdtf_volume_render_style_gui_creator : public gui_creator {
 			/// attempt to create a gui and return whether this was successful
 			bool create(provider* p, const std::string& label,
 				void* value_ptr, const std::string& value_type,
 				const std::string& gui_type, const std::string& options, bool*) {
-				if(value_type != cgv::type::info::type_name<cgv::render::special_volume_render_style>::get_name())
+				if(value_type != cgv::type::info::type_name<cgv::render::mdtf_volume_render_style>::get_name())
 					return false;
-				cgv::render::special_volume_render_style* vrs_ptr = reinterpret_cast<cgv::render::special_volume_render_style*>(value_ptr);
+				cgv::render::mdtf_volume_render_style* vrs_ptr = reinterpret_cast<cgv::render::mdtf_volume_render_style*>(value_ptr);
 				cgv::base::base* b = dynamic_cast<cgv::base::base*>(p);
 
 				p->add_member_control(b, "Quality", vrs_ptr->integration_quality, "dropdown", "enums='8=8,16=16,32=32,64=64,128=128,256=256,512=512,1024=1024'");
@@ -269,7 +256,6 @@ namespace cgv {
 				p->add_member_control(b, "Scale Adjustment", vrs_ptr->size_scale, "value_slider", "w=170;min=0.0;step=0.001;max=500.0;log=true;ticks=true", " ");
 				p->add_member_control(b, "", vrs_ptr->enable_scale_adjustment, "check", "w=30");
 				p->add_member_control(b, "Opacity Scale", vrs_ptr->opacity_scale, "value_slider", "min=0.0;step=0.001;max=1.0;ticks=true");
-				p->add_member_control(b, "Blend Mode", vrs_ptr->blend_mode, "dropdown", "enums=Channels Ascending,Chanels Descending,Average");
 
 				p->add_member_control(b, "Lighting", vrs_ptr->enable_lighting, "check");
 				p->add_member_control(b, "Depth Test", vrs_ptr->enable_depth_test, "check");
@@ -294,7 +280,7 @@ namespace cgv {
 
 #include <cgv_gl/gl/lib_begin.h>
 
-		cgv::gui::gui_creator_registration<special_volume_render_style_gui_creator> special_volume_rs_gc_reg("special_volume_render_style_gui_creator");
+		cgv::gui::gui_creator_registration<mdtf_volume_render_style_gui_creator> mdtf_volume_rs_gc_reg("mdtf_volume_render_style_gui_creator");
 
 	}
 }
