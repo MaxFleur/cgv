@@ -310,7 +310,7 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 
 		// Nearest line values next
 		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-			m_line_style_nearest_values.fill_color = utils_functions::get_complementary_color(m_shared_data_ptr->centroids.at(i).color);
+			m_line_style_nearest_values.fill_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
 			create_nearest_value_lines(i);
 
 			line_prog.enable(ctx);
@@ -398,8 +398,11 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 
 	m_line_style_nearest_values.use_blending = true;
 	m_line_style_nearest_values.use_fill_color = true;
+	m_line_style_nearest_values.border_color = rgba{ 1.0f, 1.0f, 1.0f, 1.0f };
+	m_line_style_nearest_values.border_width = 2.0f;
+	m_line_style_nearest_values.ring_width = 2.5f;
+	m_line_style_nearest_values.width = 7.0f;
 	m_line_style_nearest_values.apply_gamma = false;
-	m_line_style_nearest_values.width = 2.0f;
 
 	auto& line_prog = m_polygon_renderer.ref_prog();
 	line_prog.enable(ctx);
