@@ -176,6 +176,9 @@ private:
 	bool m_create_all_values = true;
 	// Has a point been dragged?
 	bool m_dragged_id_set = false;
+
+	// Has the update button been pressed?
+	bool update_pressed = false;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;

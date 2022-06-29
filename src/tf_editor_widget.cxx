@@ -290,32 +290,35 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	line_prog.disable(ctx);
 	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
 
-	// Now create the centroid boundaries and strips
-	create_centroid_strips();
-
-	auto& line_prog_polygon = m_polygon_renderer.ref_prog();
-	line_prog_polygon.enable(ctx);
-	content_canvas.set_view(ctx, line_prog_polygon);
-	line_prog_polygon.disable(ctx);
-	// draw the lines from the given geometry with offset and count
-	glEnable(GL_PRIMITIVE_RESTART);
-	glPrimitiveRestartIndex(0xFFFFFFFF);
-	m_polygon_renderer.render(ctx, PT_TRIANGLE_STRIP, m_strips);
-	glDisable(GL_PRIMITIVE_RESTART);
-
 	// then arrows on top
 	draw_arrows(ctx);
 
-	// Next thing, the nearest value lines
-	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-		m_line_style_nearest_values.fill_color = utils_functions::get_complementary_color(m_shared_data_ptr->centroids.at(i).color);
-		create_nearest_value_lines(i);
+	// Now create the centroid boundaries and strips, if the update button was pressed
+	if (update_pressed) {
+		create_centroid_strips();
 
-		line_prog.enable(ctx);
-		content_canvas.set_view(ctx, line_prog);
-		m_line_style_nearest_values.apply(ctx, line_prog);
-		line_prog.disable(ctx);
-		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_nearest_values);
+		auto& line_prog_polygon = m_polygon_renderer.ref_prog();
+		line_prog_polygon.enable(ctx);
+		content_canvas.set_view(ctx, line_prog_polygon);
+		line_prog_polygon.disable(ctx);
+
+		// draw the lines from the given geometry with offset and count
+		glEnable(GL_PRIMITIVE_RESTART);
+		glPrimitiveRestartIndex(0xFFFFFFFF);
+		m_polygon_renderer.render(ctx, PT_TRIANGLE_STRIP, m_strips);
+		glDisable(GL_PRIMITIVE_RESTART);
+
+		// Nearest line values next
+		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+			m_line_style_nearest_values.fill_color = utils_functions::get_complementary_color(m_shared_data_ptr->centroids.at(i).color);
+			create_nearest_value_lines(i);
+
+			line_prog.enable(ctx);
+			content_canvas.set_view(ctx, line_prog);
+			m_line_style_nearest_values.apply(ctx, line_prog);
+			line_prog.disable(ctx);
+			m_line_renderer.render(ctx, PT_LINES, m_line_geometry_nearest_values);
+		}
 	}
 	
 	// then labels
@@ -460,6 +463,10 @@ void tf_editor_widget::update_content() {
 	
 	if(data.empty())
 		return;
+
+	if (!update_pressed) {
+		update_pressed = true;
+	}
 
 	m_create_all_values = true;
 	m_dragged_id_set = false;
