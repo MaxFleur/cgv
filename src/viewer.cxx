@@ -79,11 +79,11 @@ viewer::viewer() : application_plugin("Viewer") {
 
 	tf_editor_w_ptr = register_overlay<tf_editor_widget>("PCP Overlay");
 	tf_editor_w_ptr->set_shared_data(m_shared_data_ptr);
-	tf_editor_w_ptr->set_visibility(false);
 	
 	sp_ptr = register_overlay<sp_overlay>("SP Overlay");
 	sp_ptr->set_shared_data(m_shared_data_ptr);
 	sp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
+	sp_ptr->set_visibility(false);
 }
 
 void viewer::clear(cgv::render::context& ctx) {
@@ -506,10 +506,7 @@ void viewer::draw(cgv::render::context& ctx) {
 				const auto color = m_shared_data_ptr->centroids.at(i).color;
 				vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
 
-				//vol_prog.set_uniform(ctx, "centroids[" + std::to_string(i) + "]", m_shared_data_ptr->centroids.at(i).centroids);
-				//vol_prog.set_uniform(ctx, "widths[" + std::to_string(i) + "]", m_shared_data_ptr->centroids.at(i).gaussian_width);
-				//vol_prog.set_uniform(ctx, "colors[" + std::to_string(i) + "]", color_vec);
-				const std::string idx = std::to_string(i);
+				const auto idx = std::to_string(i);
 				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->centroids.at(i).centroids);
 				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->centroids.at(i).gaussian_width);
 				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);

@@ -53,10 +53,6 @@ in vec4 position_fs;
 in vec3 position_object;
 in vec3 eye_fs;
 
-//uniform vec4 colors[5];
-//uniform vec4 centroids[5];
-//uniform float widths[5];
-
 struct gtf_data {
 	vec4 c;
 	vec4 color;

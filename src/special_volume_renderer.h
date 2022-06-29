@@ -99,13 +99,8 @@ namespace cgv { // @<
 			/// sets the transfer function used for classification; must be 1D or 2D (as loaded from an image)
 			bool set_transfer_function_texture(texture* tex);
 
-
-
 			bool set_gradient_texture(texture* tex);
 			bool set_depth_texture(texture* tex);
-
-			
-
 
 			///
 			bool enable(context& ctx);
