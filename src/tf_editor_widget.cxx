@@ -58,6 +58,7 @@ void tf_editor_widget::clear(cgv::render::context& ctx) {
 	m_line_geometry_relations.destruct(ctx);
 	m_line_geometry_widgets.destruct(ctx);
 	m_line_geometry_nearest_values.destruct(ctx);
+	m_line_geometry_strip_borders.destruct(ctx);
 
 	m_font.destruct(ctx);
 	m_font_renderer.destruct(ctx);
@@ -308,8 +309,8 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 		m_polygon_renderer.render(ctx, PT_TRIANGLE_STRIP, m_strips);
 		glDisable(GL_PRIMITIVE_RESTART);
 
-		// Nearest line values next
 		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+			// Nearest value lines
 			m_line_style_nearest_values.fill_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
 			create_nearest_value_lines(i);
 
@@ -318,6 +319,16 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 			m_line_style_nearest_values.apply(ctx, line_prog);
 			line_prog.disable(ctx);
 			m_line_renderer.render(ctx, PT_LINES, m_line_geometry_nearest_values);
+
+			// Strip borders
+			m_line_style_strip_borders.border_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
+			create_strip_borders(i);
+
+			line_prog.enable(ctx);
+			content_canvas.set_view(ctx, line_prog);
+			m_line_style_strip_borders.apply(ctx, line_prog);
+			line_prog.disable(ctx);
+			m_line_renderer.render(ctx, PT_LINES, m_line_geometry_strip_borders);
 		}
 	}
 	
@@ -403,6 +414,11 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_line_style_nearest_values.ring_width = 2.5f;
 	m_line_style_nearest_values.width = 7.0f;
 	m_line_style_nearest_values.apply_gamma = false;
+
+	m_line_style_strip_borders.use_blending = true;
+	m_line_style_strip_borders.use_fill_color = false;
+	m_line_style_strip_borders.border_width = 1.5f;
+	m_line_style_strip_borders.apply_gamma = false;
 
 	auto& line_prog = m_polygon_renderer.ref_prog();
 	line_prog.enable(ctx);
@@ -768,7 +784,7 @@ bool tf_editor_widget::create_centroid_boundaries() {
 	};
 
 	if (m_create_all_values) {
-		m_centroid_boundaries.clear();
+		m_strip_border_points.clear();
 		m_nearest_boundary_values.clear();
 
 		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
@@ -811,7 +827,7 @@ bool tf_editor_widget::create_centroid_boundaries() {
 				boundary_index += 2;
 			}
 
-			m_centroid_boundaries.push_back(strip_coordinates);
+			m_strip_border_points.push_back(strip_coordinates);
 			m_nearest_boundary_values.push_back(nearest_boundary_coordinates);
 		}
 		m_create_all_values = false;
@@ -830,8 +846,8 @@ bool tf_editor_widget::create_centroid_boundaries() {
 			const auto dragged_id_one = m_dragged_centroid_ids[i] * 2;
 			const auto dragged_id_two = m_dragged_centroid_ids[i] * 2 + 1;
 			// Update the other centroids belonging to the widget as well
-			m_centroid_boundaries[centroid_layer][dragged_id_one] = line->interpolate(boundary_left);
-			m_centroid_boundaries[centroid_layer][dragged_id_two] = line->interpolate(boundary_right);
+			m_strip_border_points[centroid_layer][dragged_id_one] = line->interpolate(boundary_left);
+			m_strip_border_points[centroid_layer][dragged_id_two] = line->interpolate(boundary_right);
 			// Create points out of the newly updated centroids 
 			const auto point_boundary_one = utils_data_types::point({ line->interpolate(nearest_value_left), line });
 			const auto point_boundary_two = utils_data_types::point({ line->interpolate(nearest_value_right), line });
@@ -855,45 +871,47 @@ void tf_editor_widget::create_centroid_strips() {
 			return;
 		}
 		m_strips.clear();
+		m_line_geometry_strip_borders.clear();
 
 		int strip_index = 0;
 
 		// Construct to add four points to the strip, because every strip is between two widgets with two points each
-		const auto addPointsToStrips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
-			m_strips.add(m_centroid_boundaries.at(i).at(strip_id_1), color);
-			m_strips.add(m_centroid_boundaries.at(i).at(strip_id_2), color);
-			m_strips.add(m_centroid_boundaries.at(i).at(strip_id_3), color);
-			m_strips.add(m_centroid_boundaries.at(i).at(strip_id_4), color);
+		const auto add_points_to_strips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
+			m_strips.add(m_strip_border_points.at(i).at(strip_id_1), color);
+			m_strips.add(m_strip_border_points.at(i).at(strip_id_2), color);
+			m_strips.add(m_strip_border_points.at(i).at(strip_id_3), color);
+			m_strips.add(m_strip_border_points.at(i).at(strip_id_4), color);
 		};
 		// Add indices for the strips
-		const auto addIndicesToStrips = [&](int offset_start, int offset_end) {
+		const auto add_indices_to_strips = [&](int offset_start, int offset_end) {
 			for (int i = offset_start; i < offset_end; i++) {
 				m_strips.add_idx(strip_index + i);
 			}
 			// If done, end this strip
 			m_strips.add_idx(0xFFFFFFFF);
 		};
+
 		// Now strips themselves
 		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
 			const auto color = m_shared_data_ptr->centroids.at(i).color;
 
-			addPointsToStrips(0, 1, 11, 10, i, color);
-			addIndicesToStrips(0, 4);
+			add_points_to_strips(0, 1, 11, 10, i, color);
+			add_indices_to_strips(0, 4);
 
-			addPointsToStrips(2, 3, 19, 18, i, color);
-			addIndicesToStrips(4, 8);
+			add_points_to_strips(2, 3, 19, 18, i, color);
+			add_indices_to_strips(4, 8);
 
-			addPointsToStrips(4, 5, 13, 12, i, color);
-			addIndicesToStrips(8, 12);
+			add_points_to_strips(4, 5, 13, 12, i, color);
+			add_indices_to_strips(8, 12);
 
-			addPointsToStrips(6, 7, 17, 16, i, color);
-			addIndicesToStrips(12, 16);
+			add_points_to_strips(6, 7, 17, 16, i, color);
+			add_indices_to_strips(12, 16);
 
-			addPointsToStrips(8, 9, 21, 20, i, color);
-			addIndicesToStrips(16, 20);
+			add_points_to_strips(8, 9, 21, 20, i, color);
+			add_indices_to_strips(16, 20);
 
-			addPointsToStrips(14, 15, 23, 22, i, color);
-			addIndicesToStrips(20, 24);
+			add_points_to_strips(14, 15, 23, 22, i, color);
+			add_indices_to_strips(20, 24);
 
 			strip_index += 24;
 		}
@@ -913,6 +931,32 @@ void tf_editor_widget::create_nearest_value_lines(int index) {
 		m_line_geometry_nearest_values.add(line.a);
 		m_line_geometry_nearest_values.add(line.b);
 	}
+}
+
+void tf_editor_widget::create_strip_borders(int index) {
+	// if there are no values yet, do not do anything
+	if (m_strip_border_points.at(index).empty()) {
+		return;
+	}
+	m_line_geometry_strip_borders.clear();
+
+	const auto add_indices_to_strip_borders = [&](int index, int a, int b) {
+		m_line_geometry_strip_borders.add(m_strip_border_points.at(index).at(a));
+		m_line_geometry_strip_borders.add(m_strip_border_points.at(index).at(b));
+	};
+
+	add_indices_to_strip_borders(index, 0, 11);
+	add_indices_to_strip_borders(index, 1, 10);
+	add_indices_to_strip_borders(index, 2, 19);
+	add_indices_to_strip_borders(index, 3, 18);
+	add_indices_to_strip_borders(index, 4, 13);
+	add_indices_to_strip_borders(index, 5, 12);
+	add_indices_to_strip_borders(index, 6, 17);
+	add_indices_to_strip_borders(index, 7, 16);
+	add_indices_to_strip_borders(index, 8, 21);
+	add_indices_to_strip_borders(index, 9, 20);
+	add_indices_to_strip_borders(index, 14, 23);
+	add_indices_to_strip_borders(index, 15, 22);
 }
 
 void tf_editor_widget::set_point_positions() {
