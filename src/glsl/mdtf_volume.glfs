@@ -41,9 +41,6 @@ uniform float size_scale;
 uniform vec3 clip_box_min;
 uniform vec3 clip_box_max;
 
-uniform vec4 gaussian_centroid;
-uniform float gaussian_width;
-
 uniform mat4 clip_box_transform;
 uniform mat4 clip_box_transform_inverse;
 uniform mat4 volume_transform;
@@ -56,9 +53,17 @@ in vec4 position_fs;
 in vec3 position_object;
 in vec3 eye_fs;
 
-uniform vec4 colors[5];
-uniform vec4 centroids[5];
-uniform float widths[5];
+//uniform vec4 colors[5];
+//uniform vec4 centroids[5];
+//uniform float widths[5];
+
+struct gtf_data {
+	vec4 c;
+	vec4 color;
+	float width;
+};
+
+uniform gtf_data gtfs[5];
 
 uniform int centroid_values_size;
 
@@ -366,11 +371,12 @@ void main()
 		vec3 color_sum = vec3(0.0);
 		float alpha_sum = 0.0;
 		for (int i = 0; i < centroid_values_size; i++) {
-			float alpha = gaussian_transfer_function(density, centroids[i], widths[i]);
-			alpha *= colors[i].a;
+			gtf_data gtf = gtfs[i];
+			float alpha = gaussian_transfer_function(density, gtf.c, gtf.width);
+			alpha *= gtf.color.a;
 			alpha *= alpha_scale;
 
-			color_sum += alpha*colors[i].rgb;
+			color_sum += alpha*gtf.color.rgb;
 			alpha_sum += alpha;
 		}
 		// Average the alpha and colors

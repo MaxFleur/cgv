@@ -506,9 +506,13 @@ void viewer::draw(cgv::render::context& ctx) {
 				const auto color = m_shared_data_ptr->centroids.at(i).color;
 				vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
 
-				vol_prog.set_uniform(ctx, "centroids[" + std::to_string(i) + "]", m_shared_data_ptr->centroids.at(i).centroids);
-				vol_prog.set_uniform(ctx, "widths[" + std::to_string(i) + "]", m_shared_data_ptr->centroids.at(i).gaussian_width);
-				vol_prog.set_uniform(ctx, "colors[" + std::to_string(i) + "]", color_vec);
+				//vol_prog.set_uniform(ctx, "centroids[" + std::to_string(i) + "]", m_shared_data_ptr->centroids.at(i).centroids);
+				//vol_prog.set_uniform(ctx, "widths[" + std::to_string(i) + "]", m_shared_data_ptr->centroids.at(i).gaussian_width);
+				//vol_prog.set_uniform(ctx, "colors[" + std::to_string(i) + "]", color_vec);
+				const std::string idx = std::to_string(i);
+				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->centroids.at(i).centroids);
+				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->centroids.at(i).gaussian_width);
+				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
 			}
 			vol_prog.disable(ctx);
 

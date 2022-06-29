@@ -83,6 +83,7 @@ void sp_overlay::on_set(void* member_ptr) {
 			labels.set_text(1, names[y_idx]);
 	}
 
+	has_damage = true;
 	update_member(member_ptr);
 	post_redraw();
 }
@@ -203,9 +204,9 @@ void sp_overlay::draw_content(cgv::render::context& ctx) {
 		content_canvas.set_view(ctx, font_prog);
 		font_prog.disable(ctx);
 		// draw the first label only
-		font_renderer.render(ctx, get_overlay_size(), labels, 0, 1);
-		font_renderer.render(ctx, get_overlay_size(), labels, 1, 1);
-		font_renderer.render(ctx, get_overlay_size(), labels, 2, 1);
+		font_renderer.render(ctx, get_overlay_size(), labels, 0, 3);
+		//font_renderer.render(ctx, get_overlay_size(), labels, 1, 1);
+		//font_renderer.render(ctx, get_overlay_size(), labels, 2, 1);
 
 		// save the current view matrix
 		content_canvas.push_modelview_matrix();
@@ -215,18 +216,16 @@ void sp_overlay::draw_content(cgv::render::context& ctx) {
 		//  3 - move text to origin
 		//  2 - rotate 90 degrees
 		//  1 - move text back to its position
-		content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(labels.ref_texts()[1].position));	// 1
-		content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(90.0f));								// 2
-		content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(-labels.ref_texts()[1].position));	// 3
+		//content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(labels.ref_texts()[1].position));	// 1
+		content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(90.0f));							// 2
+		content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(vec2(0.0f, -40.0f)));	// 3
 
 		// now render the second label
 		font_prog.enable(ctx);
 		content_canvas.set_view(ctx, font_prog);
 		font_prog.disable(ctx);
-		// font_renderer.render(ctx, get_overlay_size(), labels, 3, 1);
-		// font_renderer.render(ctx, get_overlay_size(), labels, 4, 1);
-		// font_renderer.render(ctx, get_overlay_size(), labels, 5, 1);
-
+		font_renderer.render(ctx, get_overlay_size(), labels, 0, 3);
+		
 		// restore the previous view matrix
 		content_canvas.pop_modelview_matrix(ctx);
 	}
@@ -299,9 +298,8 @@ void sp_overlay::create_gui() {
 
 	add_decorator("Stain Indices", "heading", "level=3;font_style=regular");
 	add_decorator("", "separator", "h=2");
-	add_member_control(this, "X Index", x_idx, "value", "min=0;max=3;step=1");
-	add_member_control(this, "X Index", x_idx, "value", "min=0;max=3;step=1");
-	add_member_control(this, "Y Index", y_idx, "value", "min=0;max=3;step=1");
+	//add_member_control(this, "X Index", x_idx, "value", "min=0;max=3;step=1");
+	//add_member_control(this, "Y Index", y_idx, "value", "min=0;max=3;step=1");
 
 	// Create new centroids
 	auto const add_centroid_button = add_button("Add centroid");
