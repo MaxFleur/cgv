@@ -380,7 +380,7 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_line_style_widgets.use_blending = true;
 	m_line_style_widgets.use_fill_color = true;
 	m_line_style_widgets.apply_gamma = false;
-	m_line_style_widgets.fill_color = m_color_gray;
+	m_line_style_widgets.fill_color = m_gray_widgets;
 	m_line_style_widgets.width = 3.0f;
 
 	m_line_style_polygons.use_blending = true;
@@ -413,7 +413,8 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_arrow_style.stem_width = 0.0f;
 	m_arrow_style.feather_width = 0.0f;
 	m_arrow_style.head_length_is_relative = false;
-	m_arrow_style.fill_color = m_color_gray;
+	m_arrow_style.fill_color = m_gray_arrows;
+	m_arrow_style.border_color = m_gray_arrows;
 	m_arrow_style.use_fill_color = true;
 
 	cgv::glutil::shape2d_style plot_rect_style;
@@ -712,7 +713,7 @@ void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets, they don't need arrows
 		if ((i + 1) % 4 != 0) {
-			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, m_color_gray, m_color_gray);
+			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, m_gray_widgets, m_gray_widgets);
 		}
 	}
 	// dont forget to disable the curent shader when we don't need it anymore

@@ -41,7 +41,7 @@ struct line
 
 	struct centroid
 	{
-		rgba color{0.0f, 0.0f, 0.0f, 0.0f};
+		rgba color{0.0f, 0.0f, 0.0f, 0.5f};
 
 		vec4 centroids{ 0.0f, 0.0f, 0.0f, 0.0f };
 

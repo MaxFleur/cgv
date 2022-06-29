@@ -156,7 +156,8 @@ private:
 	std::vector<std::vector<utils_data_types::point>> m_points;
 	cgv::glutil::draggables_collection<utils_data_types::point*> m_point_handles;
 
-	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
+	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
+	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 0.25f };
 
 	// ids used for the texts inside the widgets
 	int m_text_ids[4] = { 0, 1, 2, 3 };
