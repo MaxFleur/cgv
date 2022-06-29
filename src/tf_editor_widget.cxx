@@ -732,9 +732,6 @@ bool tf_editor_widget::create_centroid_boundaries() {
 		relative_position = m_shared_data_ptr->centroids.at(i).centroids[protein_index];
 		boundary_left = relative_position - (m_shared_data_ptr->centroids.at(i).gaussian_width / 2.0f);
 		boundary_right = relative_position + (m_shared_data_ptr->centroids.at(i).gaussian_width / 2.0f);
-		// Make sure that the values are in range
-		boundary_left = cgv::math::clamp(boundary_left, 0.1f, 0.9f);
-		boundary_right = cgv::math::clamp(boundary_right, 0.1f, 0.9f);
 
 		// Now calculate the positions of the nearest values to the boundaries
 		// Map the boundaries to the minimum and maximum protein value if they are above it
@@ -745,16 +742,13 @@ bool tf_editor_widget::create_centroid_boundaries() {
 		else {
 			nearest_value_left = utils_functions::search_nearest_boundary_value(relative_position, boundary_left, protein_index, true, data);
 		}
+
 		if (boundary_right > m_max[protein_index]) {
 			nearest_value_right = m_max[protein_index];
 		}
 		else {
 			nearest_value_right = utils_functions::search_nearest_boundary_value(relative_position, boundary_right, protein_index, false, data);
 		}
-		
-		// Make sure that the values are in range
-		nearest_value_left = cgv::math::clamp(nearest_value_left, 0.1f, 0.9f);
-		nearest_value_right= cgv::math::clamp(nearest_value_right, 0.1f, 0.9f);
 	};
 
 	if (m_create_all_values) {
@@ -789,6 +783,7 @@ bool tf_editor_widget::create_centroid_boundaries() {
 					// Push back every two points for each widget line
 					strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index)));
 					strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1)));
+
 					// Apply the nearest values to points and store them
 					const auto point_boundary_left = utils_data_types::point({ m_widget_lines.at(i + j).interpolate(centroid_nearest_values.at(boundary_index)),
 																			   &m_widget_lines.at(i + j) });
