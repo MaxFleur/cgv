@@ -137,6 +137,11 @@ void tf_editor_widget::on_set(void* member_ptr) {
 					m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 					m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 					m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
+
+					m_dragged_centroid_ids[0] = i;
+					m_dragged_centroid_ids[1] = index;
+					m_dragged_centroid_ids[2] = index + 1;
+					m_dragged_centroid_ids[3] = index + 2;
 				}
 				// Every centroid for this index has to be redrawn if he width was adjusted
 				else if (member_ptr == &m_shared_data_ptr->centroids.at(i).gaussian_width) {
