@@ -473,6 +473,7 @@ void tf_editor_widget::update_content() {
 		const auto avg = (v[0] + v[1] + v[2] + v[3]) * 0.25f;
 
 		if(avg > threshold) {
+			// Get the minimum and maximum value for each protein
 			m_min = cgv::math::min(m_min, v);
 			m_max = cgv::math::max(m_max, v);
 
@@ -736,8 +737,21 @@ bool tf_editor_widget::create_centroid_boundaries() {
 		boundary_right = cgv::math::clamp(boundary_right, 0.1f, 0.9f);
 
 		// Now calculate the positions of the nearest values to the boundaries
-		nearest_value_left = utils_functions::search_nearest_boundary_value(relative_position, boundary_left, protein_index, true, data);
-		nearest_value_right = utils_functions::search_nearest_boundary_value(relative_position, boundary_right, protein_index, false, data);
+		// Map the boundaries to the minimum and maximum protein value if they are above it
+		if (boundary_left < m_min[protein_index]) {
+			nearest_value_left = m_min[protein_index];
+		}
+		// In every other case, search for the nearest value
+		else {
+			nearest_value_left = utils_functions::search_nearest_boundary_value(relative_position, boundary_left, protein_index, true, data);
+		}
+		if (boundary_right > m_max[protein_index]) {
+			nearest_value_right = m_max[protein_index];
+		}
+		else {
+			nearest_value_right = utils_functions::search_nearest_boundary_value(relative_position, boundary_right, protein_index, false, data);
+		}
+		
 		// Make sure that the values are in range
 		nearest_value_left = cgv::math::clamp(nearest_value_left, 0.1f, 0.9f);
 		nearest_value_right= cgv::math::clamp(nearest_value_right, 0.1f, 0.9f);
