@@ -16,7 +16,10 @@ struct line
 		vec2 a;
 		vec2 b;
 
-		vec2 interpolate(float value) const {
+		vec2 interpolate(float value, bool clamp_enabled = true) const {
+			if (clamp_enabled) {
+				value = cgv::math::clamp(value, 0.1f, 0.9f);
+			}
 			return cgv::math::lerp(a, b, value);
 		}
 

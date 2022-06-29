@@ -161,6 +161,10 @@ private:
 	// ids used for the texts inside the widgets
 	int m_text_ids[4] = { 0, 1, 2, 3 };
 
+	// minimum and maximum values of the current visualized data range
+	vec4 m_min;
+	vec4 m_max;
+
 	// Store the indices of to be updated centroids if a point has been dragged 
 	int m_dragged_centroid_ids[4];
 	// The aress of the centroid that was dragged last

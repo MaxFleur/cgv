@@ -462,25 +462,22 @@ void tf_editor_widget::update_content() {
 	total_count = 0;
 	m_line_geometry_relations.clear();
 
-	vec4 min_v(std::numeric_limits<float>::max());
-	vec4 max_v(-std::numeric_limits<float>::max());
+	m_min = std::numeric_limits<float>::max();
+	m_max = -std::numeric_limits<float>::max();
 
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
 		vec4& v = data[i];
-		//const vec4& v = (data[i] * 0.8f) + 0.1f;
 
 		// calculate the average to allow filtering with the given threshold
 		const auto avg = (v[0] + v[1] + v[2] + v[3]) * 0.25f;
 
 		if(avg > threshold) {
-			min_v = cgv::math::min(min_v, v);
-			max_v = cgv::math::max(max_v, v);
+			m_min = cgv::math::min(m_min, v);
+			m_max = cgv::math::max(m_max, v);
 
 			// Map the vector values to a range between 0.1 and 0.9 
 			// so the outmost parts of the widget lines stay clear
-			// TODO: maybe move mapping to line interpolate?
-			v = 0.8f*v + 0.1f;
 
 			// Left to right
 			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]));
