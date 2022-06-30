@@ -542,47 +542,47 @@ void tf_editor_widget::update_content() {
 void tf_editor_widget::init_widgets() {
 	m_widget_lines.clear();
 
-	const auto add_lines = [&](vec2 p0, vec2 p1, vec2 p2, bool add_back_line, vec2 p3 = { 0.0f, 0.0f }) {
-		m_widget_lines.push_back(utils_data_types::line({ p0, p1 }));
-		m_widget_lines.push_back(utils_data_types::line({ p1, p2 }));
-		if (add_back_line) {
-			m_widget_lines.push_back(utils_data_types::line({ p2, p3 }));
-			m_widget_lines.push_back(utils_data_types::line({ p3, p0 }));
-		}
-		else {
-			m_widget_lines.push_back(utils_data_types::line({ p2, p0 }));
-		}
+	const auto add_lines = [&](vec2 v_0, vec2 v_1, vec2 v_2, vec2 v_3, bool invert = true) {
+		m_widget_lines.push_back(utils_data_types::line({ v_0, v_1 }));
+		invert ? m_widget_lines.push_back(utils_data_types::line({ v_2, v_1 })) : m_widget_lines.push_back(utils_data_types::line({ v_1, v_2 }));
+		invert ? m_widget_lines.push_back(utils_data_types::line({ v_3, v_2 })) : m_widget_lines.push_back(utils_data_types::line({ v_2, v_3 }));
+		m_widget_lines.push_back(utils_data_types::line({ v_3, v_0 }));
 	};
 
 	const auto sizeX = domain.size().x();
 	const auto sizeY = domain.size().y();
 	/// General line generation order: Left, center, right relations line, then a last line for closing
 	// Left widget
-	const vec2 x_left_0 {sizeX * 0.3f, sizeY * 0.95f};
-	const vec2 x_left_1 {sizeX * 0.35f, sizeY * 0.75f};
-	const vec2 x_left_2 {sizeX * 0.23f, sizeY * 0.45f};
-	const vec2 x_left_3 {sizeX * 0.1f, sizeY * 0.45f};
-	add_lines(x_left_0, x_left_1, x_left_2, true, x_left_3);
+	vec2 vec_0 {sizeX * 0.3f, sizeY * 0.95f};
+	vec2 vec_1 {sizeX * 0.35f, sizeY * 0.75f};
+	vec2 vec_2 {sizeX * 0.23f, sizeY * 0.45f};
+	vec2 vec_3 {sizeX * 0.1f, sizeY * 0.45f};
+	add_lines(vec_0, vec_1, vec_2, vec_3);
 
 	// Right widget
-	const vec2 x_right_0{sizeX * 0.9f, sizeY * 0.45f};
-	const vec2 x_right_1{sizeX * 0.77f, sizeY * 0.45f};
-	const vec2 x_right_2{sizeX * 0.65f, sizeY * 0.75f};
-	const vec2 x_right_3{sizeX * 0.7f, sizeY * 0.95f};
-	add_lines(x_right_0, x_right_1, x_right_2, true, x_right_3);
+	vec_0.set(sizeX * 0.9f, sizeY * 0.45f);
+	vec_1.set(sizeX * 0.77f, sizeY * 0.45f);
+	vec_2.set(sizeX * 0.65f, sizeY * 0.75f);
+	vec_3.set(sizeX * 0.7f, sizeY * 0.95f);
+	m_widget_lines.push_back(utils_data_types::line({ vec_1, vec_0 }));
+	m_widget_lines.push_back(utils_data_types::line({ vec_2, vec_1 }));
+	m_widget_lines.push_back(utils_data_types::line({ vec_3, vec_2 }));
+	m_widget_lines.push_back(utils_data_types::line({ vec_3, vec_0 }));
 
 	// Bottom widget
-	const vec2 x_bottom_0{sizeX * 0.23f, sizeY * 0.05f};
-	const vec2 x_bottom_1{sizeX * 0.33f, sizeY * 0.25f};
-	const vec2 x_bottom_2{sizeX * 0.67f, sizeY * 0.25f};
-	const vec2 x_bottom_3{sizeX * 0.77f, sizeY * 0.05f};
-	add_lines(x_bottom_0, x_bottom_1, x_bottom_2, true, x_bottom_3);
+	vec_0.set(sizeX * 0.23f, sizeY * 0.05f);
+	vec_1.set(sizeX * 0.33f, sizeY * 0.25f);
+	vec_2.set(sizeX * 0.67f, sizeY * 0.25f);
+	vec_3.set(sizeX * 0.77f, sizeY * 0.05f);
+	add_lines(vec_0, vec_1, vec_2, vec_3, false);
 
 	// Center widget, order: Left, right, bottom
-	const vec2 x_center_0{sizeX * 0.4f, sizeY * 0.4f};
-	const vec2 x_center_1{sizeX * 0.5f, sizeY * 0.6f};
-	const vec2 x_center_2{sizeX * 0.6f, sizeY * 0.4f};
-	add_lines(x_center_0, x_center_1, x_center_2, false);
+	vec_0.set(sizeX * 0.4f, sizeY * 0.4f);
+	vec_1.set(sizeX * 0.5f, sizeY * 0.6f);
+	vec_2.set(sizeX * 0.6f, sizeY * 0.4f);
+	m_widget_lines.push_back(utils_data_types::line({ vec_0, vec_1 }));
+	m_widget_lines.push_back(utils_data_types::line({ vec_1, vec_2 }));
+	m_widget_lines.push_back(utils_data_types::line({ vec_0, vec_2 }));
 
 	// draw smaller boundaries on the relations borders
 	for (int i = 0; i < 15; i++) {
@@ -895,22 +895,22 @@ void tf_editor_widget::create_centroid_strips() {
 		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
 			const auto color = m_shared_data_ptr->centroids.at(i).color;
 
-			add_points_to_strips(0, 1, 11, 10, i, color);
+			add_points_to_strips(0, 1, 10, 11, i, color);
 			add_indices_to_strips(0, 4);
 
-			add_points_to_strips(2, 3, 19, 18, i, color);
+			add_points_to_strips(3, 2, 19, 18, i, color);
 			add_indices_to_strips(4, 8);
 
-			add_points_to_strips(4, 5, 13, 12, i, color);
+			add_points_to_strips(5, 4, 13, 12, i, color);
 			add_indices_to_strips(8, 12);
 
-			add_points_to_strips(6, 7, 17, 16, i, color);
+			add_points_to_strips(7, 6, 17, 16, i, color);
 			add_indices_to_strips(12, 16);
 
-			add_points_to_strips(8, 9, 21, 20, i, color);
+			add_points_to_strips(9, 8, 21, 20, i, color);
 			add_indices_to_strips(16, 20);
 
-			add_points_to_strips(14, 15, 23, 22, i, color);
+			add_points_to_strips(14, 15, 22, 23, i, color);
 			add_indices_to_strips(20, 24);
 
 			strip_index += 24;
@@ -945,18 +945,18 @@ void tf_editor_widget::create_strip_borders(int index) {
 		m_line_geometry_strip_borders.add(m_strip_border_points.at(index).at(b));
 	};
 
-	add_indices_to_strip_borders(index, 0, 11);
-	add_indices_to_strip_borders(index, 1, 10);
-	add_indices_to_strip_borders(index, 2, 19);
-	add_indices_to_strip_borders(index, 3, 18);
-	add_indices_to_strip_borders(index, 4, 13);
-	add_indices_to_strip_borders(index, 5, 12);
-	add_indices_to_strip_borders(index, 6, 17);
-	add_indices_to_strip_borders(index, 7, 16);
-	add_indices_to_strip_borders(index, 8, 21);
-	add_indices_to_strip_borders(index, 9, 20);
-	add_indices_to_strip_borders(index, 14, 23);
-	add_indices_to_strip_borders(index, 15, 22);
+	add_indices_to_strip_borders(index, 0, 10);
+	add_indices_to_strip_borders(index, 1, 11);
+	add_indices_to_strip_borders(index, 2, 18);
+	add_indices_to_strip_borders(index, 3, 19);
+	add_indices_to_strip_borders(index, 4, 12);
+	add_indices_to_strip_borders(index, 5, 13);
+	add_indices_to_strip_borders(index, 6, 16);
+	add_indices_to_strip_borders(index, 7, 17);
+	add_indices_to_strip_borders(index, 8, 20);
+	add_indices_to_strip_borders(index, 9, 21);
+	add_indices_to_strip_borders(index, 14, 22);
+	add_indices_to_strip_borders(index, 15, 23);
 }
 
 void tf_editor_widget::set_point_positions() {
