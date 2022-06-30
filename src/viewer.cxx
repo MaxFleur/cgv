@@ -508,7 +508,7 @@ void viewer::draw(cgv::render::context& ctx) {
 
 				const auto idx = std::to_string(i);
 				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->centroids.at(i).centroids);
-				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->centroids.at(i).gaussian_width);
+				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->centroids.at(i).widths);
 				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
 			}
 			vol_prog.disable(ctx);

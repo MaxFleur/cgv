@@ -121,32 +121,36 @@ void tf_editor_widget::on_set(void* member_ptr) {
 			break;
 		}
 	}
+	const auto set_dragged_centroid_ids = [&](int i, int index) {
+		m_dragged_centroid_ids[0] = i;
+		m_dragged_centroid_ids[1] = index;
+		m_dragged_centroid_ids[2] = index + 1;
+		m_dragged_centroid_ids[3] = index + 2;
+	};
+
 	// look for updated centroid data
 	for (int i = 0; i < m_shared_data_ptr->centroids.size(); ++i) {
 		auto value = 0.0f;
-		auto index = 0;
 
 		for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
 			if (member_ptr == &m_shared_data_ptr->centroids.at(i).centroids[c_protein_i] || 
 				member_ptr == &m_shared_data_ptr->centroids.at(i).color ||
-				member_ptr == &m_shared_data_ptr->centroids.at(i).gaussian_width) {
+				member_ptr == &m_shared_data_ptr->centroids.at(i).widths[c_protein_i]) {
 				// Move the according points if their position was changed
 				if (member_ptr == &m_shared_data_ptr->centroids.at(i).centroids[c_protein_i]) {
 					value = m_shared_data_ptr->centroids.at(i).centroids[c_protein_i];
-					index = c_protein_i * 3;
+					const auto index = c_protein_i * 3;
 
 					m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 					m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 					m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate((value * 0.8f) + 0.1f);
 
-					m_dragged_centroid_ids[0] = i;
-					m_dragged_centroid_ids[1] = index;
-					m_dragged_centroid_ids[2] = index + 1;
-					m_dragged_centroid_ids[3] = index + 2;
+					set_dragged_centroid_ids(i, index);
 				}
 				// Every centroid for this index has to be redrawn if he width was adjusted
-				else if (member_ptr == &m_shared_data_ptr->centroids.at(i).gaussian_width) {
-					m_create_all_values = true;
+				else if (member_ptr == &m_shared_data_ptr->centroids.at(i).widths[c_protein_i]) {
+					const auto index = c_protein_i * 3;
+					set_dragged_centroid_ids(i, index);
 				}
 				// In all cases, we need to update
 				was_updated = true;
@@ -375,16 +379,19 @@ void tf_editor_widget::create_gui() {
 		// Color widget
 		add_member_control(this, "Color centroid", m_shared_data_ptr->centroids.at(i).color, "", "");
 		// Centroid parameters themselves
-		add_member_control(this, "Centroid myosin", m_shared_data_ptr->centroids.at(i).centroids[0], "value_slider",
+		add_member_control(this, "Centroid Myosin", m_shared_data_ptr->centroids.at(i).centroids[0], "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid actin", m_shared_data_ptr->centroids.at(i).centroids[1], "value_slider",
+		add_member_control(this, "Centroid Actin", m_shared_data_ptr->centroids.at(i).centroids[1], "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid obscurin", m_shared_data_ptr->centroids.at(i).centroids[2], "value_slider",
+		add_member_control(this, "Centroid Obscurin", m_shared_data_ptr->centroids.at(i).centroids[2], "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid sallimus", m_shared_data_ptr->centroids.at(i).centroids[3], "value_slider",
+		add_member_control(this, "Centroid Sallimus", m_shared_data_ptr->centroids.at(i).centroids[3], "value_slider",
 						   "min=0.0;max=1.0;step=0.0001;ticks=true");
 		// Gaussian width
-		add_member_control(this, "Gaussian width", m_shared_data_ptr->centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Myosin", m_shared_data_ptr->centroids.at(i).widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Actin", m_shared_data_ptr->centroids.at(i).widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Obscurin", m_shared_data_ptr->centroids.at(i).widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Salimus", m_shared_data_ptr->centroids.at(i).widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 	}
 }
 
@@ -762,8 +769,8 @@ bool tf_editor_widget::create_centroid_boundaries() {
 
 		// Get the relative position of the centroid and it's left and right boundary
 		relative_position = m_shared_data_ptr->centroids.at(i).centroids[protein_index];
-		boundary_left = relative_position - (m_shared_data_ptr->centroids.at(i).gaussian_width / 2.0f);
-		boundary_right = relative_position + (m_shared_data_ptr->centroids.at(i).gaussian_width / 2.0f);
+		boundary_left = relative_position - (m_shared_data_ptr->centroids.at(i).widths[protein_index] / 2.0f);
+		boundary_right = relative_position + (m_shared_data_ptr->centroids.at(i).widths[protein_index] / 2.0f);
 
 		// Now calculate the positions of the nearest values to the boundaries
 		// Map the boundaries to the minimum and maximum protein value if they are above it

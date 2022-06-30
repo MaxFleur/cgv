@@ -321,7 +321,7 @@ void sp_overlay::create_gui() {
 		add_member_control(this, "Centroid sallimus", m_shared_data_ptr->centroids.at(i).centroids[3], "value_slider",
 			"min=0.0;max=1.0;step=0.0001;ticks=true");
 		// Gaussian width
-		add_member_control(this, "Gaussian width", m_shared_data_ptr->centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		// add_member_control(this, "Gaussian width", m_shared_data_ptr->centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 	}
 }
 

@@ -45,7 +45,7 @@ struct line
 
 		vec4 centroids{ 0.0f, 0.0f, 0.0f, 0.0f };
 
-		float gaussian_width = 0.0f;
+		vec4 widths{ 0.5f, 0.5f, 0.5f, 0.5f };
 	};
 
 	struct point : public cgv::glutil::draggable

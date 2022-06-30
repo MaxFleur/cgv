@@ -56,7 +56,7 @@ in vec3 eye_fs;
 struct gtf_data {
 	vec4 c;
 	vec4 color;
-	float width;
+	vec4 width;
 };
 
 uniform gtf_data gtfs[5];
@@ -203,10 +203,14 @@ vec3 safe_normalize(vec3 v) {
 	return len > 0.000001 ? v/len : vec3(0.0);
 }
 
-float gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, float gaussian_width) {
+float gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, vec4 gaussian_width) {
 
 	// construct a matrix with diagonal components set to the given value
-	mat4 K = mat4(1.0/gaussian_width);
+	mat4 K;
+	K[0] = vec4(1.0 / gaussian_width[0], 0.0, 0.0, 0.0);
+	K[1] = vec4(0.0, 1.0 / gaussian_width[1], 0.0, 0.0);
+	K[2] = vec4(0.0, 0.0, 1.0 / gaussian_width[2], 0.0);
+	K[3] = vec4(0.0, 0.0, 0.0, 1.0 / gaussian_width[3]);
 	
 	vec4 diff = density - gaussian_centroid;
 	mat4 K2 = K*K;
@@ -375,11 +379,6 @@ void main()
 			color_sum += alpha*gtf.color.rgb;
 			alpha_sum += alpha;
 		}
-		// Average the alpha and colors
-		//alpha_values /= float(centroid_values_size);
-		//color_sum /= float(centroid_values_size);
-		//alpha_values /= alpha_sum;
-		//color_sum /= alpha_sum;
 		
 		vec4 color_in = vec4(color_sum, alpha_sum);
 		color_in = clamp(color_in, 0.0, 1.0);
