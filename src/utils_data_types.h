@@ -93,4 +93,25 @@ struct line
 			return dist <= size.x();
 		}
 	};
+
+	struct polygon {
+		std::vector<vec2> points;
+
+		bool is_point_in_polygon(int x, int y) {
+			bool is_inside = false;
+
+			for (int i = 0, j = points.size() - 1; i < points.size(); j = i++) {
+
+				const auto i_x = points.at(i).x();
+				const auto i_y = points.at(i).y();
+				const auto j_x = points.at(j).x();
+				const auto j_y = points.at(j).y();
+
+				if (((i_y > y) != (j_y > y)) && (x < (j_x - i_x) * (y - i_y) / (j_y - i_y) + i_x)) {
+					is_inside = !is_inside;
+				}
+			}
+			return is_inside;
+		}
+	};
 }

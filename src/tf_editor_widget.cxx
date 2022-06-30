@@ -93,6 +93,11 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 		cgv::gui::MouseAction ma = me.get_action();
 
+		if (me.get_action() == cgv::gui::MA_PRESS) {
+			const auto offset = get_context()->get_height() - domain.size().y();
+			check_mouse_click(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
+		}
+
 		bool handled = false;
 		handled |= m_point_handles.handle(e, domain.size());
 
@@ -103,6 +108,7 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 		}
 		return false;
 	}
+
 	return false;
 }
 
@@ -556,6 +562,15 @@ void tf_editor_widget::init_widgets() {
 		m_widget_lines.push_back(utils_data_types::line({ v_3, v_0 }));
 	};
 
+	const auto add_points_to_polygon = [&](vec2 v_0, vec2 v_1, vec2 v_2, vec2 v_3) {
+		utils_data_types::polygon p;
+		p.points.push_back(v_0);
+		p.points.push_back(v_1);
+		p.points.push_back(v_2);
+		p.points.push_back(v_3);
+		m_widget_polygons.push_back(p);
+	};
+
 	const auto sizeX = domain.size().x();
 	const auto sizeY = domain.size().y();
 	/// General line generation order: Left, center, right relations line, then a last line for closing
@@ -565,6 +580,7 @@ void tf_editor_widget::init_widgets() {
 	vec2 vec_2 {sizeX * 0.23f, sizeY * 0.45f};
 	vec2 vec_3 {sizeX * 0.1f, sizeY * 0.45f};
 	add_lines(vec_0, vec_1, vec_2, vec_3);
+	add_points_to_polygon(vec_0, vec_1, vec_2, vec_3);
 
 	// Right widget
 	vec_0.set(sizeX * 0.9f, sizeY * 0.45f);
@@ -575,6 +591,7 @@ void tf_editor_widget::init_widgets() {
 	m_widget_lines.push_back(utils_data_types::line({ vec_2, vec_1 }));
 	m_widget_lines.push_back(utils_data_types::line({ vec_3, vec_2 }));
 	m_widget_lines.push_back(utils_data_types::line({ vec_3, vec_0 }));
+	add_points_to_polygon(vec_0, vec_1, vec_2, vec_3);
 
 	// Bottom widget
 	vec_0.set(sizeX * 0.23f, sizeY * 0.05f);
@@ -582,6 +599,7 @@ void tf_editor_widget::init_widgets() {
 	vec_2.set(sizeX * 0.67f, sizeY * 0.25f);
 	vec_3.set(sizeX * 0.77f, sizeY * 0.05f);
 	add_lines(vec_0, vec_1, vec_2, vec_3, false);
+	add_points_to_polygon(vec_0, vec_1, vec_2, vec_3);
 
 	// Center widget, order: Left, right, bottom
 	vec_0.set(sizeX * 0.4f, sizeY * 0.4f);
@@ -590,6 +608,12 @@ void tf_editor_widget::init_widgets() {
 	m_widget_lines.push_back(utils_data_types::line({ vec_0, vec_1 }));
 	m_widget_lines.push_back(utils_data_types::line({ vec_1, vec_2 }));
 	m_widget_lines.push_back(utils_data_types::line({ vec_0, vec_2 }));
+
+	utils_data_types::polygon p;
+	p.points.push_back(vec_0);
+	p.points.push_back(vec_1);
+	p.points.push_back(vec_2);
+	m_widget_polygons.push_back(p);
 
 	// draw smaller boundaries on the relations borders
 	for (int i = 0; i < 15; i++) {
@@ -1013,4 +1037,12 @@ void tf_editor_widget::set_point_positions() {
 
 	has_damage = true;
 	post_redraw();
+}
+
+void tf_editor_widget::check_mouse_click(int x, int y) {
+	for (int i = 0; i < m_widget_polygons.size(); i++) {
+		if (m_widget_polygons.at(i).is_point_in_polygon(x, y)) {
+			break;
+		}
+	}
 }

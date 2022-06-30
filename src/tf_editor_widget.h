@@ -130,6 +130,8 @@ private:
 
 	void set_point_positions();
 
+	void check_mouse_click(int x, int y);
+
 	void end_drag() {
 		m_dragged_point_ptr = nullptr;
 		has_damage = true;
@@ -149,6 +151,8 @@ private:
 	cgv::glutil::arrow2d_style m_arrow_style;
 
 	std::vector<utils_data_types::line> m_widget_lines;
+	std::vector<utils_data_types::polygon> m_widget_polygons;
+
 	// Boundaries of the centroids and the nearest values to these boundaries
 	std::vector<std::vector<vec2>> m_strip_border_points;
 	std::vector<std::vector<utils_data_types::point>> m_nearest_boundary_values;
