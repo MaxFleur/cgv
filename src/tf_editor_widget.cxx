@@ -958,7 +958,10 @@ void tf_editor_widget::create_nearest_value_lines(int index) {
 	m_line_geometry_nearest_values.clear();
 
 	for (int i = 0; i < m_nearest_boundary_values.at(index).size(); i++) {
-		const auto line = utils_functions::create_nearest_boundary_line(m_nearest_boundary_values.at(index).at(i));
+		// Make sure that the lines are drawn so that their longer end is inside the widget
+		auto draw_left = i >= 2 && i <= 11 || i == 22 || i == 23 ? false : true;
+		const auto line = utils_functions::create_nearest_boundary_line(m_nearest_boundary_values.at(index).at(i), draw_left);
+
 		m_line_geometry_nearest_values.add(line.a);
 		m_line_geometry_nearest_values.add(line.b);
 	}

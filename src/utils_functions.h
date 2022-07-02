@@ -43,8 +43,11 @@ namespace utils_functions
 		return nearest_position;
 	}
 
-	utils_data_types::line create_nearest_boundary_line(utils_data_types::point point) {
-		const auto direction = normalize(point.pos - point.m_parent_line->a);
+	utils_data_types::line create_nearest_boundary_line(utils_data_types::point point, bool draw_left) {
+		// The longer shaft of the line has to be inside the belonging widget.
+		// So the direction is changed based on on the input bool
+		const auto direction = normalize(point.pos - (draw_left ? point.m_parent_line->a : point.m_parent_line->b));
+		
 		const auto ortho_direction = cgv::math::ortho(direction);
 
 		return utils_data_types::line({ point.pos - 4.0f * ortho_direction, point.pos + 10.0f * ortho_direction });
