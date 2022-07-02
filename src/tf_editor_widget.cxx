@@ -18,7 +18,7 @@ tf_editor_widget::tf_editor_widget()
 	set_overlay_alignment(AO_START, AO_END);
 	set_overlay_stretch(SO_NONE);
 	set_overlay_margin(ivec2(-3));
-	set_overlay_size(ivec2(800, 500));
+	set_overlay_size(ivec2(600, 600));
 	
 	// add a color attachment to the content frame buffer with support for transparency (alpha)
 	fbc.add_attachment("color", "flt32[R,G,B,A]");
@@ -730,9 +730,11 @@ void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
 	for (int i = 0; i < m_shared_data_ptr->centroids.size(); ++i) {
 		m_point_geometry.clear();
 		m_point_geometry_dragged.clear();
+
+		const auto color = m_shared_data_ptr->centroids.at(i).color;
 		// Apply color to the centroids
-		m_draggable_style.fill_color = m_shared_data_ptr->centroids.at(i).color;
-		m_draggable_style_dragged.fill_color = m_shared_data_ptr->centroids.at(i).color;
+		m_draggable_style.fill_color = rgba{color.R(), color.G(), color.B(), 1.0f};
+		m_draggable_style_dragged.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 
 		for (int j = 0; j < m_points[i].size(); j++) {
 			// If a point has been dragged, check for its pointer and add it, otherwise add to the undragged ones
