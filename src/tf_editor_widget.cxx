@@ -800,20 +800,13 @@ bool tf_editor_widget::create_centroid_boundaries() {
 
 		// Now calculate the positions of the nearest values to the boundaries
 		// Map the boundaries to the minimum and maximum protein value if they are above it
-		if (boundary_left < m_min[protein_index]) {
-			nearest_value_left = m_min[protein_index];
-		}
-		// In every other case, search for the nearest value
-		else {
+		boundary_left < m_min[protein_index] ?
+			nearest_value_left = m_min[protein_index] :
+			// In every other case, search for the nearest value
 			nearest_value_left = utils_functions::search_nearest_boundary_value(relative_position, boundary_left, protein_index, true, data);
-		}
-
-		if (boundary_right > m_max[protein_index]) {
-			nearest_value_right = m_max[protein_index];
-		}
-		else {
+		boundary_right > m_max[protein_index] ?
+			nearest_value_right = m_max[protein_index] :
 			nearest_value_right = utils_functions::search_nearest_boundary_value(relative_position, boundary_right, protein_index, false, data);
-		}
 	};
 
 	if (m_create_all_values) {
@@ -845,17 +838,18 @@ bool tf_editor_widget::create_centroid_boundaries() {
 			// Iterate over widgets, ignore the back widget
 			for (int i = 0; i < 15; i += 4) {
 				for (int j = 0; j < 3; j++) {
+					const auto vec_left = m_widget_lines.at(i + j).interpolate(utils_functions::calc_boundary(centroid_boundary_values.at(boundary_index)));
+					const auto vec_right = m_widget_lines.at(i + j).interpolate(utils_functions::calc_boundary(centroid_boundary_values.at(boundary_index + 1)));
+
 					// Push back every two points for each widget line
-					strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index)));
-					strip_coordinates.push_back(m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1)));
+					strip_coordinates.push_back(vec_left);
+					strip_coordinates.push_back(vec_right);
 
 					// Apply the nearest values to points and store them
-					const auto point_boundary_left = utils_data_types::point({ m_widget_lines.at(i + j).interpolate(centroid_nearest_values.at(boundary_index)),
-																			   &m_widget_lines.at(i + j) });
-					const auto point_boundary_right = utils_data_types::point({ m_widget_lines.at(i + j).interpolate(centroid_nearest_values.at(boundary_index + 1)),
-																				&m_widget_lines.at(i + j) });
-					nearest_boundary_coordinates.push_back(point_boundary_left);
-					nearest_boundary_coordinates.push_back(point_boundary_right);
+					const auto nearest_value_left = utils_data_types::point({ vec_left, &m_widget_lines.at(i + j) });
+					const auto nearest_value_right = utils_data_types::point({ vec_right, &m_widget_lines.at(i + j) });
+					nearest_boundary_coordinates.push_back(nearest_value_left);
+					nearest_boundary_coordinates.push_back(nearest_value_right);
 				}
 				boundary_index += 2;
 			}
@@ -875,18 +869,18 @@ bool tf_editor_widget::create_centroid_boundaries() {
 			// Get the overall centroid and it's parent line
 			const auto centroid_layer = m_dragged_centroid_ids[0];
 			auto& line = m_points[centroid_layer][m_dragged_centroid_ids[i]].m_parent_line;
-		
+
 			const auto dragged_id_one = m_dragged_centroid_ids[i] * 2;
 			const auto dragged_id_two = m_dragged_centroid_ids[i] * 2 + 1;
 			// Update the other centroids belonging to the widget as well
-			m_strip_border_points[centroid_layer][dragged_id_one] = line->interpolate(boundary_left);
-			m_strip_border_points[centroid_layer][dragged_id_two] = line->interpolate(boundary_right);
+			m_strip_border_points[centroid_layer][dragged_id_one] = line->interpolate(utils_functions::calc_boundary(boundary_left));
+			m_strip_border_points[centroid_layer][dragged_id_two] = line->interpolate(utils_functions::calc_boundary(boundary_right));
 			// Create points out of the newly updated centroids 
-			const auto point_boundary_one = utils_data_types::point({ line->interpolate(nearest_value_left), line });
-			const auto point_boundary_two = utils_data_types::point({ line->interpolate(nearest_value_right), line });
+			const auto nearest_val_one = utils_data_types::point({ line->interpolate(utils_functions::calc_boundary(nearest_value_left)), line });
+			const auto nearest_val_two = utils_data_types::point({ line->interpolate(utils_functions::calc_boundary(nearest_value_right)), line });
 
-			m_nearest_boundary_values[centroid_layer][dragged_id_one] = point_boundary_one;
-			m_nearest_boundary_values[centroid_layer][dragged_id_two] = point_boundary_two;
+			m_nearest_boundary_values[centroid_layer][dragged_id_one] = nearest_val_one;
+			m_nearest_boundary_values[centroid_layer][dragged_id_two] = nearest_val_two;
 		}
 		return true;
 	}

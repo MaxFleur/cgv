@@ -52,4 +52,8 @@ namespace utils_functions
 
 		return utils_data_types::line({ point.pos - 4.0f * ortho_direction, point.pos + 10.0f * ortho_direction });
 	}
+
+	float calc_boundary(float value) {
+		return 0.8f * value + 0.1f;
+	}
 }
