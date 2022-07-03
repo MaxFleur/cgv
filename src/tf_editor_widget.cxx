@@ -97,10 +97,6 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 			const auto offset = get_context()->get_height() - domain.size().y();
 			find_clicked_centroid(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
 		}
-		/*if (me.get_button() == cgv::gui::MB_LEFT_BUTTON) {
-			const auto offset = get_context()->get_height() - domain.size().y();
-			find_clicked_centroid(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
-		}*/
 
 		// Set width if a scroll is done
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
