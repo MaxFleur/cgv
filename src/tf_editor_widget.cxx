@@ -91,12 +91,17 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 	}
 	else if (et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
-		cgv::gui::MouseAction ma = me.get_action();
-		// Search for points if LMP is pressed
+
+		// Search for points if LMB is pressed
 		if (me.get_action() == cgv::gui::MB_LEFT_BUTTON) {
 			const auto offset = get_context()->get_height() - domain.size().y();
 			find_clicked_centroid(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
 		}
+		/*if (me.get_button() == cgv::gui::MB_LEFT_BUTTON) {
+			const auto offset = get_context()->get_height() - domain.size().y();
+			find_clicked_centroid(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
+		}*/
+
 		// Set width if a scroll is done
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
 			const auto is_change_negative = me.get_dy() > 0 ? true : false;
