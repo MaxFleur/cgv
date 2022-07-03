@@ -99,8 +99,9 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 		}
 		// Set width if a scroll is done
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
+			const auto is_change_negative = me.get_dy() > 0 ? true : false;
 			const auto offset = get_context()->get_height() - domain.size().y();
-			scroll_centroid_width(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
+			scroll_centroid_width(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset, is_change_negative);
 		}
 
 		bool handled = false;
@@ -1055,14 +1056,15 @@ void tf_editor_widget::find_clicked_centroid(int x, int y) {
 	}
 }
 
-void tf_editor_widget::scroll_centroid_width(int x, int y) {
+void tf_editor_widget::scroll_centroid_width(int x, int y, bool negative_change) {
 	auto found = false;
 	int found_index;
 	// Search through all polygons
 	for (int i = 0; i < m_widget_polygons.size(); i++) {
 		// If we found a polygon, update the corresponding width
 		if (m_widget_polygons.at(i).is_point_in_polygon(x, y)) {
-			m_shared_data_ptr->centroids[m_clicked_centroid_id].widths[i] += 0.02f;
+			const auto change = negative_change ? -0.02f : 0.02f;
+			m_shared_data_ptr->centroids[m_clicked_centroid_id].widths[i] += change;
 
 			found = true;
 			found_index = i;
