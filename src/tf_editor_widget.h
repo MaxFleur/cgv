@@ -183,7 +183,7 @@ private:
 	// Do we need to update all values?
 	bool m_create_all_values = true;
 	// Has a point been dragged?
-	bool m_dragged_id_set = false;
+	bool m_interacted_id_set = false;
 
 	// Has the update button been pressed?
 	bool update_pressed = false;

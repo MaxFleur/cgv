@@ -148,6 +148,7 @@ void tf_editor_widget::on_set(void* member_ptr) {
 					m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate(value);
 					m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate(value);
 					m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate(value);
+					m_interacted_id_set = true;
 
 					utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
 				}
@@ -498,7 +499,7 @@ void tf_editor_widget::update_content() {
 	}
 
 	m_create_all_values = true;
-	m_dragged_id_set = false;
+	m_interacted_id_set = false;
 
 	// reset previous total count and line geometry
 	total_count = 0;
@@ -856,7 +857,7 @@ bool tf_editor_widget::create_centroid_boundaries() {
 	}
 	// If a centroid is dragged in the editor, it would make no sense to redraw everything
 	// So we redraw only for the centroids that were updated, if a point has been dragged
-	else if (m_dragged_id_set) {
+	else if (m_interacted_id_set) {
 		calculate_values(m_interacted_centroid_ids[0], m_interacted_centroid_ids[1] / 3);
 		for (int i = 1; i < 4; i++) {
 			// Get the overall centroid and it's parent line
@@ -1020,7 +1021,7 @@ void tf_editor_widget::set_point_positions() {
 					add_lines(i, j, -1, -2);
 				}
 
-				m_dragged_id_set = true;
+				m_interacted_id_set = true;
 
 				int protein_index = j / 3;
 				// Remap to correct GUI vals
@@ -1078,7 +1079,7 @@ void tf_editor_widget::scroll_centroid_width(int x, int y) {
 		}
 	}
 	if (found) {
-		m_dragged_id_set = true;
+		m_interacted_id_set = true;
 		utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, m_clicked_centroid_id, found_index);
 
 		has_damage = true;
