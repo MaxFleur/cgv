@@ -62,12 +62,10 @@ protected:
 	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 1, vec2, position);
 	// If a centroid is dragged, the size of the other centroids will decrease
 	// so we need two different geometries and styles as well
-	point_geometry m_point_geometry_dragged;
+	point_geometry m_point_geometry_interacted;
 	point_geometry m_point_geometry;
 
 	cgv::glutil::generic_renderer m_point_renderer;
-	cgv::glutil::shape2d_style m_draggable_style;
-	cgv::glutil::shape2d_style m_draggable_style_dragged;
 
 	cgv::glutil::msdf_font m_font;
 	cgv::glutil::msdf_gl_font_renderer m_font_renderer;
@@ -130,10 +128,12 @@ private:
 
 	void set_point_positions();
 
-	void check_mouse_click(int x, int y);
+	void find_clicked_centroid(int x, int y);
+
+	void scroll_centroid_width(int x, int y);
 
 	void end_drag() {
-		m_dragged_point_ptr = nullptr;
+		m_interacted_centroids.clear();
 		has_damage = true;
 		post_redraw();
 	}
@@ -148,6 +148,9 @@ private:
 	cgv::glutil::line2d_style m_line_style_nearest_values;
 	cgv::glutil::line2d_style m_line_style_strip_borders;
 
+	cgv::glutil::shape2d_style m_draggable_style;
+	cgv::glutil::shape2d_style m_draggable_style_interacted;
+
 	cgv::glutil::arrow2d_style m_arrow_style;
 
 	std::vector<utils_data_types::line> m_widget_lines;
@@ -161,6 +164,7 @@ private:
 
 	std::vector<std::vector<utils_data_types::point>> m_points;
 	cgv::glutil::draggables_collection<utils_data_types::point*> m_point_handles;
+	std::vector<utils_data_types::point*> m_interacted_centroids;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 0.25f };
@@ -173,9 +177,7 @@ private:
 	vec4 m_max;
 
 	// Store the indices of to be updated centroids if a point has been dragged 
-	int m_dragged_centroid_ids[4];
-	// The aress of the centroid that was dragged last
-	utils_data_types::point* m_dragged_point_ptr;
+	int m_interacted_centroid_ids[4];
 	// Were strips created?
 	bool m_strips_created = true;
 	// Do we need to update all values?
@@ -185,6 +187,10 @@ private:
 
 	// Has the update button been pressed?
 	bool update_pressed = false;
+
+	bool m_is_point_clicked = false;
+
+	int m_clicked_centroid_id = 0;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;

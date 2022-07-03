@@ -56,4 +56,12 @@ namespace utils_functions
 	float calc_boundary(float value) {
 		return 0.8f * value + 0.1f;
 	}
+
+	void set_interacted_centroid_ids(int *interacted_centroid_ids, int id, int input_index) {
+		const auto index = input_index * 3;
+		interacted_centroid_ids[0] = id;
+		interacted_centroid_ids[1] = index;
+		interacted_centroid_ids[2] = index + 1;
+		interacted_centroid_ids[3] = index + 2;
+	}
 }

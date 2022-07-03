@@ -57,7 +57,7 @@ struct line
 		{
 			m_parent_line = line;
 			this->pos = pos;
-			size = vec2(8.0f);
+			size = vec2(30.0f);
 			position_is_center = true;
 			constraint_reference = CR_FULL_SIZE;
 		}
