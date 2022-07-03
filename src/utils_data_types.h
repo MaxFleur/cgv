@@ -17,6 +17,7 @@ struct line
 		vec2 b;
 
 		vec2 interpolate(float value, bool clamp_enabled = true) const {
+			// Clamp so the value stays inside the boundaries
 			if (clamp_enabled) {
 				value = cgv::math::clamp(value, 0.1f, 0.9f);
 			}
@@ -57,6 +58,7 @@ struct line
 		{
 			m_parent_line = line;
 			this->pos = pos;
+			// Huger size so the point is easily clickable
 			size = vec2(30.0f);
 			position_is_center = true;
 			constraint_reference = CR_FULL_SIZE;
@@ -98,6 +100,8 @@ struct line
 	struct polygon {
 		std::vector<vec2> points;
 
+		// Find apoint inside a polygon based on the Jordan method
+		// https://www.maths.ed.ac.uk/~v1ranick/jordan/cr.pdf
 		bool is_point_in_polygon(int x, int y) {
 			bool is_inside = false;
 

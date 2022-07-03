@@ -133,7 +133,7 @@ private:
 	void scroll_centroid_width(int x, int y);
 
 	void end_drag() {
-		m_interacted_centroids.clear();
+		m_interacted_points.clear();
 		has_damage = true;
 		post_redraw();
 	}
@@ -164,7 +164,8 @@ private:
 
 	std::vector<std::vector<utils_data_types::point>> m_points;
 	cgv::glutil::draggables_collection<utils_data_types::point*> m_point_handles;
-	std::vector<utils_data_types::point*> m_interacted_centroids;
+
+	std::vector<utils_data_types::point*> m_interacted_points;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 0.25f };
@@ -176,7 +177,7 @@ private:
 	vec4 m_min;
 	vec4 m_max;
 
-	// Store the indices of to be updated centroids if a point has been dragged 
+	// Store the indices of to be updated centroids if a point has been interacted with
 	int m_interacted_centroid_ids[4];
 	// Were strips created?
 	bool m_strips_created = true;
@@ -188,9 +189,10 @@ private:
 	// Has the update button been pressed?
 	bool update_pressed = false;
 
+	// Has a point been clicked?
 	bool m_is_point_clicked = false;
-
-	int m_clicked_centroid_id = 0;
+	// Id of the centroid layer whose point was clicked
+	int m_clicked_centroid_id ;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;

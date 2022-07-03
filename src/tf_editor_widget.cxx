@@ -11,7 +11,7 @@
 tf_editor_widget::tf_editor_widget()
 {	
 	set_name("PCP Overlay");
-	// prevent the mouse events from reaching throug this overlay to the underlying elements
+	// prevent the mouse events from reaching through this overlay to the underlying elements
 	block_events = true;
 
 	// setup positioning and size
@@ -36,7 +36,7 @@ tf_editor_widget::tf_editor_widget()
 	// frame buffer
 	viewport_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
-	// initialize the line renderer with a shader program capable of drawing 2d lines
+	// initialize the renderers
 	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 	m_point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 	m_polygon_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::polygon);
@@ -47,8 +47,6 @@ tf_editor_widget::tf_editor_widget()
 }
 
 void tf_editor_widget::clear(cgv::render::context& ctx) {
-
-	// destruct all previously initialized members
 	content_canvas.destruct(ctx);
 	viewport_canvas.destruct(ctx);
 	fbc.clear(ctx);
@@ -64,6 +62,8 @@ void tf_editor_widget::clear(cgv::render::context& ctx) {
 	m_font_renderer.destruct(ctx);
 
 	m_polygon_renderer.destruct(ctx);
+	m_point_geometry.destruct(ctx);
+	m_point_geometry_interacted.destruct(ctx);
 }
 
 bool tf_editor_widget::self_reflect(cgv::reflect::reflection_handler& _rh) {
@@ -92,11 +92,12 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 	else if (et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 		cgv::gui::MouseAction ma = me.get_action();
-
+		// Search for points if LMP is pressed
 		if (me.get_action() == cgv::gui::MB_LEFT_BUTTON) {
 			const auto offset = get_context()->get_height() - domain.size().y();
 			find_clicked_centroid(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
 		}
+		// Set width if a scroll is done
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
 			const auto offset = get_context()->get_height() - domain.size().y();
 			scroll_centroid_width(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
@@ -121,8 +122,8 @@ void tf_editor_widget::on_set(void* member_ptr) {
 	if(member_ptr == &line_alpha) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
-	// change the labels if the GUI index is updated
 	}
+	// change the labels if the GUI index is updated
 	for (int i = 0; i < 4; i++) {
 		if (member_ptr == &m_text_ids[i]) {
 			m_text_ids[i] = cgv::math::clamp(m_text_ids[i], 0, 3);
@@ -148,8 +149,8 @@ void tf_editor_widget::on_set(void* member_ptr) {
 					m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate(value);
 					m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate(value);
 					m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate(value);
+					// Set the strips
 					m_interacted_id_set = true;
-
 					utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
 				}
 				// Every centroid for this index has to be redrawn if he width was adjusted
@@ -158,7 +159,6 @@ void tf_editor_widget::on_set(void* member_ptr) {
 				}
 				// In all cases, we need to update
 				was_updated = true;
-
 				has_damage = true;
 				break;
 			}
@@ -222,6 +222,7 @@ void tf_editor_widget::init_frame(cgv::render::context& ctx) {
 
 		m_point_handles.set_constraint(domain);
 
+		// Set the font texts
 		if (m_font.is_initialized()) {
 			m_labels.clear();
 
@@ -347,7 +348,7 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	font_prog.disable(ctx);
 	m_font_renderer.render(ctx, get_overlay_size(), m_labels);
 
-	// draggables are the last thing to be drawn
+	// draggables are the last thing to be drawn so they are above everything else
 	draw_draggables(ctx);
 
 	fbc.disable(ctx);
@@ -367,10 +368,6 @@ void tf_editor_widget::create_gui() {
 	// add controls for parameters
 	add_member_control(this, "Threshold", threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "Line Alpha", line_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "Protein left:", m_text_ids[0], "value", "min=0;max=3;step=1");
-	add_member_control(this, "Protein right:", m_text_ids[1], "value", "min=0;max=3;step=1");
-	add_member_control(this, "Protein bottom:", m_text_ids[2], "value", "min=0;max=3;step=1");
-	add_member_control(this, "Protein center:", m_text_ids[3], "value", "min=0;max=3;step=1");
 
 	// Create new centroids
 	auto const add_centroid_button = add_button("Add centroid");
@@ -461,7 +458,6 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	plot_rect_style.apply(ctx, rectangle_prog);
 	viewport_canvas.disable_current_shader(ctx);
 
-	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;
 	text_style.fill_color = rgba(rgb(0.0f), 1.0f);
 	text_style.border_color.alpha() = 0.0f;
@@ -520,9 +516,6 @@ void tf_editor_widget::update_content() {
 			m_min = cgv::math::min(m_min, v);
 			m_max = cgv::math::max(m_max, v);
 
-			// Map the vector values to a range between 0.1 and 0.9 
-			// so the outmost parts of the widget lines stay clear
-
 			// Left to right
 			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]));
 			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_text_ids[1]]));
@@ -543,10 +536,8 @@ void tf_editor_widget::update_content() {
 			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_text_ids[3]]));
 		}
 	}
-
-	// tell the program that we need to update the content of this overlay
+	// content was updated, so redraw
 	has_damage = true;
-	// request a redraw
 	post_redraw();
 }
 
@@ -571,13 +562,13 @@ void tf_editor_widget::init_widgets() {
 
 	const auto sizeX = domain.size().x();
 	const auto sizeY = domain.size().y();
-	/// General line generation order: Left, center, right relations line, then a last line for closing
 	// Left widget
 	vec2 vec_0 {sizeX * 0.3f, sizeY * 0.95f};
 	vec2 vec_1 {sizeX * 0.35f, sizeY * 0.75f};
 	vec2 vec_2 {sizeX * 0.23f, sizeY * 0.45f};
 	vec2 vec_3 {sizeX * 0.1f, sizeY * 0.45f};
 	add_lines(vec_0, vec_1, vec_2, vec_3);
+	// Create a polygon out of each widget
 	add_points_to_polygon(vec_0, vec_1, vec_2, vec_3);
 
 	// Right widget
@@ -615,7 +606,7 @@ void tf_editor_widget::init_widgets() {
 
 	// draw smaller boundaries on the relations borders
 	for (int i = 0; i < 15; i++) {
-		// ignore the "back" lines of the widgets, they don't need boundaries
+		// ignore the "back" lines of the widgets which basically is the 4th line, they don't need boundaries
 		if ((i + 1) % 4 != 0) {
 			const auto direction = normalize(m_widget_lines.at(i).b - m_widget_lines.at(i).a);
 			const auto ortho_direction = cgv::math::ortho(direction);
@@ -642,6 +633,7 @@ void tf_editor_widget::add_widget_lines() {
 }
 
 void tf_editor_widget::add_centroids() {
+	// Hardcoded boundary, this might change later
 	if (m_shared_data_ptr->centroids.size() == 5) {
 		return;
 	}
@@ -659,7 +651,7 @@ void tf_editor_widget::add_centroids() {
 	}
 	// A new centroid was added, so we need to redraw completely
 	m_create_all_values = true;
-
+	// Update
 	has_damage = true;
 	post_recreate_gui();
 	post_redraw();
@@ -675,7 +667,6 @@ void tf_editor_widget::add_centroid_draggables() {
 			points.push_back(utils_data_types::point(vec2(m_widget_lines.at(i).interpolate(0.1f)), &m_widget_lines.at(i)));
 		}
 	}
-
 	m_points.push_back(points);
 }
 
@@ -696,7 +687,7 @@ bool tf_editor_widget::draw_plot(cgv::render::context& ctx) {
 	// make sure to not draw more lines than available
 	if(total_count + count > m_line_geometry_relations.get_render_count())
 		count = m_line_geometry_relations.get_render_count() - total_count;
-
+	// draw the relations
 	if(count > 0) {
 		auto& line_prog = m_line_renderer.ref_prog();
 		line_prog.enable(ctx);
@@ -726,27 +717,25 @@ bool tf_editor_widget::draw_plot(cgv::render::context& ctx) {
 
 void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
 	for (int i = 0; i < m_shared_data_ptr->centroids.size(); ++i) {
+		// Clear for each centroid because colors etc might change
 		m_point_geometry.clear();
 		m_point_geometry_interacted.clear();
 
 		const auto color = m_shared_data_ptr->centroids.at(i).color;
-		// Apply color to the centroids
+		// Apply color to the centroids, always do full opacity
 		m_draggable_style.fill_color = rgba{color.R(), color.G(), color.B(), 1.0f};
 		m_draggable_style_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 
 		for (int j = 0; j < m_points[i].size(); j++) {
-			// Add a point based on if it has been interacted with
-			if (std::find(m_interacted_centroids.begin(), m_interacted_centroids.end(), &m_points[i][j]) != m_interacted_centroids.end()) {
-				m_point_geometry_interacted.add(m_points[i][j].get_render_position());
-			}
-			else {
+			// Add the points based on if they have been interacted with
+			std::find(m_interacted_points.begin(), m_interacted_points.end(), &m_points[i][j]) != m_interacted_points.end() ?
+				m_point_geometry_interacted.add(m_points[i][j].get_render_position()) :
 				m_point_geometry.add(m_points[i][j].get_render_position());
-			}
 		}
 
 		m_point_geometry.set_out_of_date();
 
-		// Draw undragged and (if set) dragged centroids
+		// Draw 
 		shader_program& point_prog = m_point_renderer.ref_prog();
 		point_prog.enable(ctx);
 		content_canvas.set_view(ctx, point_prog);
@@ -767,7 +756,7 @@ void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
 	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
 	m_arrow_style.apply(ctx, arrow_prog);
 	
-	// draw arrows on the right widget sides
+	// draw arrows indicating where the maximum value is
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets, they don't need arrows
 		if ((i + 1) % 4 != 0) {
@@ -793,7 +782,6 @@ bool tf_editor_widget::create_centroid_boundaries() {
 		boundary_right = relative_position + (m_shared_data_ptr->centroids.at(i).widths[protein_index] / 2.0f);
 
 		// Now calculate the positions of the nearest values to the boundaries
-		// Map the boundaries to the minimum and maximum protein value if they are above it
 		boundary_left < m_min[protein_index] ?
 			nearest_value_left = m_min[protein_index] :
 			// In every other case, search for the nearest value
@@ -802,7 +790,7 @@ bool tf_editor_widget::create_centroid_boundaries() {
 			nearest_value_right = m_max[protein_index] :
 			nearest_value_right = utils_functions::search_nearest_boundary_value(relative_position, boundary_right, protein_index, false, data);
 	};
-
+	// The case where all values have to be drawn
 	if (m_create_all_values) {
 		m_strip_border_points.clear();
 		m_nearest_boundary_values.clear();
@@ -812,8 +800,8 @@ bool tf_editor_widget::create_centroid_boundaries() {
 			std::vector<float> centroid_boundary_values;
 			std::vector<float> centroid_nearest_values;
 
-			// Each widget has three centroids which will always generate the same values, 
-			// so skip and do only every 4th point
+			// Each widget has three points which will always generate the same values, 
+			// so do less calculations by doing only every 4th point
 			for (int j = 0; j < m_points.at(i).size(); j += 3) {
 				// Get the correct protein
 				calculate_values(i, j / 3);
@@ -825,21 +813,22 @@ bool tf_editor_widget::create_centroid_boundaries() {
 				centroid_nearest_values.push_back(nearest_value_right);
 			}
 
+			// Now the strips
 			int boundary_index = 0;
 			std::vector<vec2> strip_coordinates;
 			std::vector<utils_data_types::point> nearest_boundary_coordinates;
 
-			// Iterate over widgets, ignore the back widget
+			// Iterate over widgets, ignore the back widget as usual
 			for (int i = 0; i < 15; i += 4) {
 				for (int j = 0; j < 3; j++) {
 					const auto vec_left = m_widget_lines.at(i + j).interpolate(utils_functions::calc_boundary(centroid_boundary_values.at(boundary_index)));
 					const auto vec_right = m_widget_lines.at(i + j).interpolate(utils_functions::calc_boundary(centroid_boundary_values.at(boundary_index + 1)));
 
-					// Push back every two points for each widget line
+					// Push back two vectors for the corresponding widget line
 					strip_coordinates.push_back(vec_left);
 					strip_coordinates.push_back(vec_right);
 
-					// Apply the nearest values to points and store them
+					// Apply the nearest values to these vectors and store them
 					const auto nearest_value_left = utils_data_types::point({ vec_left, &m_widget_lines.at(i + j) });
 					const auto nearest_value_right = utils_data_types::point({ vec_right, &m_widget_lines.at(i + j) });
 					nearest_boundary_coordinates.push_back(nearest_value_left);
@@ -856,25 +845,28 @@ bool tf_editor_widget::create_centroid_boundaries() {
 		return true;
 	}
 	// If a centroid is dragged in the editor, it would make no sense to redraw everything
-	// So we redraw only for the centroids that were updated, if a point has been dragged
+	// So we redraw only the centroids that were updated
 	else if (m_interacted_id_set) {
+		// Recalculate values
 		calculate_values(m_interacted_centroid_ids[0], m_interacted_centroid_ids[1] / 3);
+
+		// No need to iterate over the first array entry
 		for (int i = 1; i < 4; i++) {
-			// Get the overall centroid and it's parent line
+			// Get the overall centroid layer and the parent line
 			const auto centroid_layer = m_interacted_centroid_ids[0];
 			auto& line = m_points[centroid_layer][m_interacted_centroid_ids[i]].m_parent_line;
 
-			const auto dragged_id_one = m_interacted_centroid_ids[i] * 2;
-			const auto dragged_id_two = m_interacted_centroid_ids[i] * 2 + 1;
+			const auto id_left = m_interacted_centroid_ids[i] * 2;
+			const auto id_right = m_interacted_centroid_ids[i] * 2 + 1;
 			// Update the other centroids belonging to the widget as well
-			m_strip_border_points[centroid_layer][dragged_id_one] = line->interpolate(utils_functions::calc_boundary(boundary_left));
-			m_strip_border_points[centroid_layer][dragged_id_two] = line->interpolate(utils_functions::calc_boundary(boundary_right));
+			m_strip_border_points[centroid_layer][id_left] = line->interpolate(utils_functions::calc_boundary(boundary_left));
+			m_strip_border_points[centroid_layer][id_right] = line->interpolate(utils_functions::calc_boundary(boundary_right));
+
 			// Create points out of the newly updated centroids 
 			const auto nearest_val_one = utils_data_types::point({ line->interpolate(utils_functions::calc_boundary(nearest_value_left)), line });
 			const auto nearest_val_two = utils_data_types::point({ line->interpolate(utils_functions::calc_boundary(nearest_value_right)), line });
-
-			m_nearest_boundary_values[centroid_layer][dragged_id_one] = nearest_val_one;
-			m_nearest_boundary_values[centroid_layer][dragged_id_two] = nearest_val_two;
+			m_nearest_boundary_values[centroid_layer][id_left] = nearest_val_one;
+			m_nearest_boundary_values[centroid_layer][id_right] = nearest_val_two;
 		}
 		return true;
 	}
@@ -896,7 +888,7 @@ void tf_editor_widget::create_centroid_strips() {
 
 		int strip_index = 0;
 
-		// Construct to add four points to the strip, because every strip is between two widgets with two points each
+		// Add four points to the strip, because every strip is between two widgets with two points each
 		const auto add_points_to_strips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
 			m_strips.add(m_strip_border_points.at(i).at(strip_id_1), color);
 			m_strips.add(m_strip_border_points.at(i).at(strip_id_2), color);
@@ -918,19 +910,14 @@ void tf_editor_widget::create_centroid_strips() {
 
 			add_points_to_strips(0, 1, 10, 11, i, color);
 			add_indices_to_strips(0, 4);
-
 			add_points_to_strips(3, 2, 19, 18, i, color);
 			add_indices_to_strips(4, 8);
-
 			add_points_to_strips(5, 4, 13, 12, i, color);
 			add_indices_to_strips(8, 12);
-
 			add_points_to_strips(7, 6, 17, 16, i, color);
 			add_indices_to_strips(12, 16);
-
 			add_points_to_strips(9, 8, 21, 20, i, color);
 			add_indices_to_strips(16, 20);
-
 			add_points_to_strips(14, 15, 22, 23, i, color);
 			add_indices_to_strips(20, 24);
 
@@ -986,13 +973,13 @@ void tf_editor_widget::create_strip_borders(int index) {
 void tf_editor_widget::set_point_positions() {
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
-	m_interacted_centroids.clear();
-
+	m_interacted_points.clear();
+	
 	if (m_is_point_clicked) {
 		m_is_point_clicked = false;
 	}
 
-	const auto add_lines = [&](int index_row, int index_col, int pos_1, int pos_2) {
+	const auto set_points = [&](int index_row, int index_col, int pos_1, int pos_2) {
 		m_points[index_row][index_col + pos_1].move_along_line(m_points[index_row][index_col].get_relative_line_position());
 		m_points[index_row][index_col + pos_2].move_along_line(m_points[index_row][index_col].get_relative_line_position());
 		m_interacted_centroid_ids[2] = index_col + pos_1;
@@ -1003,22 +990,22 @@ void tf_editor_widget::set_point_positions() {
 		for (int j = 0; j < m_points[i].size(); j++) {
 			// Now the relating centroid points in the widget have to be updated
 			if (&m_points[i][j] == m_point_handles.get_dragged()) {
-				m_interacted_centroids.push_back(&m_points[i][j]);
+				m_interacted_points.push_back(&m_points[i][j]);
 
 				m_interacted_centroid_ids[0] = i;
 				m_interacted_centroid_ids[1] = j;
 
 				// Left widget point was moved, update center and right
 				if (j % 3 == 0) {
-					add_lines(i, j, 1, 2);
+					set_points(i, j, 1, 2);
 				}
 				// Center widget point was moved, update left and right
 				else if (j % 3 == 1) {
-					add_lines(i, j, -1, 1);
+					set_points(i, j, -1, 1);
 				}
 				// Right widget point was moved, update left and center
 				else if (j % 3 == 2) {
-					add_lines(i, j, -1, -2);
+					set_points(i, j, -1, -2);
 				}
 
 				m_interacted_id_set = true;
@@ -1042,13 +1029,15 @@ void tf_editor_widget::find_clicked_centroid(int x, int y) {
 	const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y)};
 	auto found = false;
 	int found_index;
-
+	// Search all points
 	for (int i = 0; i < m_points.size(); i++) {
 		for (int j = 0; j < m_points.at(i).size(); j++) {
+			// If the mouse was clicked inside a point, store all point addresses belonging to the 
+			// corresponding layer
 			if (m_points.at(i).at(j).is_inside(input_vec)) {
-				m_interacted_centroids.clear();
+				m_interacted_points.clear();
 				for (int k = 0; k < m_points.at(i).size(); k++) {
-					m_interacted_centroids.push_back(&m_points.at(i).at(k));
+					m_interacted_points.push_back(&m_points.at(i).at(k));
 				}
 				found = true;
 				found_index = i;
@@ -1058,9 +1047,9 @@ void tf_editor_widget::find_clicked_centroid(int x, int y) {
 	}
 
 	m_is_point_clicked = found;
+	// If we found something, redraw 
 	if (found) {
 		m_clicked_centroid_id = found_index;
-
 		has_damage = true;
 		post_redraw();
 	}
@@ -1069,7 +1058,9 @@ void tf_editor_widget::find_clicked_centroid(int x, int y) {
 void tf_editor_widget::scroll_centroid_width(int x, int y) {
 	auto found = false;
 	int found_index;
+	// Search through all polygons
 	for (int i = 0; i < m_widget_polygons.size(); i++) {
+		// If we found a polygon, update the corresponding width
 		if (m_widget_polygons.at(i).is_point_in_polygon(x, y)) {
 			m_shared_data_ptr->centroids[m_clicked_centroid_id].widths[i] += 0.02f;
 
@@ -1078,6 +1069,7 @@ void tf_editor_widget::scroll_centroid_width(int x, int y) {
 			break;
 		}
 	}
+	// If we found something, we have to set the corresponding point ids and redraw
 	if (found) {
 		m_interacted_id_set = true;
 		utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, m_clicked_centroid_id, found_index);
