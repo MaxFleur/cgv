@@ -92,28 +92,30 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 	else if (et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
+		ivec2 mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
+
 		// Search for points if LMB is pressed
-		if (me.get_action() == cgv::gui::MB_LEFT_BUTTON) {
-			const auto offset = get_context()->get_height() - domain.size().y();
-			find_clicked_centroid(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
+		if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
+			//const auto offset = get_context()->get_height() - domain.size().y();
+			//find_clicked_centroid(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset);
+			find_clicked_centroid(mpos.x(), mpos.y());
 		}
 
 		// Set width if a scroll is done
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
 			const auto is_change_negative = me.get_dy() > 0 ? true : false;
-			const auto offset = get_context()->get_height() - domain.size().y();
-			scroll_centroid_width(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset, is_change_negative);
+			//const auto offset = get_context()->get_height() - domain.size().y();
+			//scroll_centroid_width(me.get_x(), get_context()->get_height() - 1 - me.get_y() - offset, is_change_negative);
+			scroll_centroid_width(mpos.x(), mpos.y(), is_change_negative);
 		}
 
 		bool handled = false;
-		handled |= m_point_handles.handle(e, domain.size());
+		handled |= m_point_handles.handle(e, last_viewport_size, container);
 
 		if (handled)
 			post_redraw();
-		if (m_point_handles.handle(e, last_viewport_size, container)) {
-			return true;
-		}
-		return false;
+		
+		return handled;
 	}
 
 	return false;
@@ -453,6 +455,7 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_arrow_style.fill_color = m_gray_arrows;
 	m_arrow_style.border_color = m_gray_arrows;
 	m_arrow_style.use_fill_color = true;
+	m_arrow_style.use_blending = true;
 
 	cgv::glutil::shape2d_style plot_rect_style;
 	plot_rect_style.use_texture = true;

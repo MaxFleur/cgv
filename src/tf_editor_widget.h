@@ -168,7 +168,7 @@ private:
 	std::vector<utils_data_types::point*> m_interacted_points;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
-	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 0.25f };
+	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 1.0f };
 
 	// ids used for the texts inside the widgets
 	int m_text_ids[4] = { 0, 1, 2, 3 };
