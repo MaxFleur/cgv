@@ -101,7 +101,6 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 
 		// Set width if a scroll is done
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
-			// TODO: make sure the user cannot scroll the width below zero
 			scroll_centroid_width(mpos.x(), mpos.y(), me.get_dy() > 0 ? true : false);
 		}
 
@@ -511,32 +510,24 @@ void tf_editor_widget::update_content() {
 			m_min = cgv::math::min(m_min, v);
 			m_max = cgv::math::max(m_max, v);
 
-			//rgba col = gtf(centroid, v);
-			// example for adding color
-			rgba col(rgb(0.0f), line_alpha);
-			/*if(mode == EXTENDET_MODE) {
-				col = ...gtf();
-			}
-			*/
-
 			// Left to right
-			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_text_ids[1]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]));
+			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_text_ids[1]]));
 			// Left to center
-			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_text_ids[0]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_text_ids[3]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_text_ids[0]]));
+			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_text_ids[3]]));
 			// Left to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_text_ids[0]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_text_ids[2]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_text_ids[0]]));
+			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_text_ids[2]]));
 			// Right to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_text_ids[1]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_text_ids[2]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_text_ids[1]]));
+			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_text_ids[2]]));
 			// Right to center
-			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_text_ids[1]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_text_ids[3]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_text_ids[1]]));
+			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_text_ids[3]]));
 			// Bottom to center
-			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_text_ids[2]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_text_ids[3]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_text_ids[2]]));
+			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_text_ids[3]]));
 		}
 	}
 	// content was updated, so redraw
@@ -546,6 +537,7 @@ void tf_editor_widget::update_content() {
 
 void tf_editor_widget::init_widgets() {
 	m_widget_lines.clear();
+	m_widget_polygons.clear();
 
 	const auto add_lines = [&](vec2 v_0, vec2 v_1, vec2 v_2, vec2 v_3, bool invert = true) {
 		m_widget_lines.push_back(utils_data_types::line({ v_0, v_1 }));
@@ -834,14 +826,6 @@ bool tf_editor_widget::create_centroid_boundaries() {
 		for (int i = 1; i < 4; i++) {
 			// Get the overall centroid layer and the parent line
 			const auto centroid_layer = m_interacted_centroid_ids[0];
-			/* TODO: it crashes on the following line when:
-				the overlay has been resized (open Overlay in the GUI and select an option from the stretch dropdown) and
-				update was clicked and
-				a centroid point handle has been right-clicked and
-				the user tries to scroll
-
-				maybe some data gets lost or points not re-initialized correctly after resizing?
-			*/
 			auto& line = m_points[centroid_layer][m_interacted_centroid_ids[i]].m_parent_line;
 
 			const auto id_left = m_interacted_centroid_ids[i] * 2;
@@ -1029,7 +1013,9 @@ void tf_editor_widget::scroll_centroid_width(int x, int y, bool negative_change)
 		// If we found a polygon, update the corresponding width
 		if (m_widget_polygons.at(i).is_point_in_polygon(x, y)) {
 			const auto change = negative_change ? -0.02f : 0.02f;
-			m_shared_data_ptr->centroids[m_clicked_centroid_id].widths[i] += change;
+			auto& width = m_shared_data_ptr->centroids[m_clicked_centroid_id].widths[i];
+			width += change;
+			width = cgv::math::clamp(width, 0.0f, 1.0f);
 
 			found = true;
 			found_index = i;

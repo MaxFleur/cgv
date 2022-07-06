@@ -53,12 +53,11 @@ protected:
 
 	/// define a geometry class holding only 2d position values
 	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
-	DEFINE_GENERIC_RENDER_DATA_CLASS(plot_line_geometry, 2, vec2, position, rgba, color);
 	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 2, vec2, position, rgba, color);
 	polygon_geometry m_strips;
 
 	// The lines for the relations between the widgets
-	plot_line_geometry m_line_geometry_relations;
+	line_geometry m_line_geometry_relations;
 	// widget boundaries
 	line_geometry m_line_geometry_widgets;
 	line_geometry m_line_geometry_strip_borders;
