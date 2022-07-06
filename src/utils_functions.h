@@ -53,11 +53,6 @@ namespace utils_functions
 		return utils_data_types::line({ point.pos - 4.0f * ortho_direction, point.pos + 10.0f * ortho_direction });
 	}
 
-	// map values between a range of 0.1f and 0.9 without actually clamping them
-	float calc_boundary(float value) {
-		return 0.8f * value + 0.1f;
-	}
-
 	// set the centroid id array
 	void set_interacted_centroid_ids(int *interacted_centroid_ids, int id, int input_index) {
 		// Because we have four centroids, but 12 points, multiply with 3

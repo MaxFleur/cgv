@@ -20,7 +20,8 @@ struct line
 			// Clamp so the value stays inside the boundaries
 			if (clamp_enabled) {
 				// TODO: should the value really be clamped instead of being remapped?
-				value = cgv::math::clamp(value, 0.1f, 0.9f);
+				value = cgv::math::clamp(value, 0.0f, 1.0f);
+				value = cgv::math::lerp(0.1f, 0.9f, value);
 			}
 			return cgv::math::lerp(a, b, value);
 		}
@@ -60,7 +61,7 @@ struct line
 			m_parent_line = line;
 			this->pos = pos;
 			// Huger size so the point is easily clickable
-			size = vec2(30.0f);
+			size = vec2(6.0f);
 			position_is_center = true;
 			constraint_reference = CR_FULL_SIZE;
 		}

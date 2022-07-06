@@ -611,8 +611,8 @@ void tf_editor_widget::init_widgets() {
 			const auto direction = normalize(m_widget_lines.at(i).b - m_widget_lines.at(i).a);
 			const auto ortho_direction = cgv::math::ortho(direction);
 
-			const auto boundary_left = m_widget_lines.at(i).interpolate(0.1f);
-			const auto boundary_right = m_widget_lines.at(i).interpolate(0.9f);
+			const auto boundary_left = m_widget_lines.at(i).interpolate(0.0f);
+			const auto boundary_right = m_widget_lines.at(i).interpolate(1.0f);
 
 			m_widget_lines.push_back(
 				utils_data_types::line({boundary_left - 5.0f * ortho_direction, boundary_left + 3.0f * ortho_direction}));
@@ -664,7 +664,7 @@ void tf_editor_widget::add_centroid_draggables() {
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets
 		if ((i + 1) % 4 != 0) {
-			points.push_back(utils_data_types::point(vec2(m_widget_lines.at(i).interpolate(0.1f)), &m_widget_lines.at(i)));
+			points.push_back(utils_data_types::point(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
 		}
 	}
 	m_points.push_back(points);
@@ -821,8 +821,8 @@ bool tf_editor_widget::create_centroid_boundaries() {
 			// Iterate over widgets, ignore the back widget as usual
 			for (int i = 0; i < 15; i += 4) {
 				for (int j = 0; j < 3; j++) {
-					const auto vec_left = m_widget_lines.at(i + j).interpolate(utils_functions::calc_boundary(centroid_boundary_values.at(boundary_index)));
-					const auto vec_right = m_widget_lines.at(i + j).interpolate(utils_functions::calc_boundary(centroid_boundary_values.at(boundary_index + 1)));
+					const auto vec_left = m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index));
+					const auto vec_right = m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1));
 
 					// Push back two vectors for the corresponding widget line
 					strip_coordinates.push_back(vec_left);
@@ -859,12 +859,12 @@ bool tf_editor_widget::create_centroid_boundaries() {
 			const auto id_left = m_interacted_centroid_ids[i] * 2;
 			const auto id_right = m_interacted_centroid_ids[i] * 2 + 1;
 			// Update the other centroids belonging to the widget as well
-			m_strip_border_points[centroid_layer][id_left] = line->interpolate(utils_functions::calc_boundary(boundary_left));
-			m_strip_border_points[centroid_layer][id_right] = line->interpolate(utils_functions::calc_boundary(boundary_right));
+			m_strip_border_points[centroid_layer][id_left] = line->interpolate(boundary_left);
+			m_strip_border_points[centroid_layer][id_right] = line->interpolate(boundary_right);
 
 			// Create points out of the newly updated centroids 
-			const auto nearest_val_one = utils_data_types::point({ line->interpolate(utils_functions::calc_boundary(nearest_value_left)), line });
-			const auto nearest_val_two = utils_data_types::point({ line->interpolate(utils_functions::calc_boundary(nearest_value_right)), line });
+			const auto nearest_val_one = utils_data_types::point({ line->interpolate(nearest_value_left), line });
+			const auto nearest_val_two = utils_data_types::point({ line->interpolate(nearest_value_right), line });
 			m_nearest_boundary_values[centroid_layer][id_left] = nearest_val_one;
 			m_nearest_boundary_values[centroid_layer][id_right] = nearest_val_two;
 		}
@@ -980,8 +980,9 @@ void tf_editor_widget::set_point_positions() {
 	}
 
 	const auto set_points = [&](int index_row, int index_col, int pos_1, int pos_2) {
-		m_points[index_row][index_col + pos_1].move_along_line(m_points[index_row][index_col].get_relative_line_position());
-		m_points[index_row][index_col + pos_2].move_along_line(m_points[index_row][index_col].get_relative_line_position());
+		const auto relative_position = (m_points[index_row][index_col].get_relative_line_position() - 0.1f) / 0.8f;
+		m_points[index_row][index_col + pos_1].move_along_line(relative_position);
+		m_points[index_row][index_col + pos_2].move_along_line(relative_position);
 		m_interacted_centroid_ids[2] = index_col + pos_1;
 		m_interacted_centroid_ids[3] = index_col + pos_2;
 	};
