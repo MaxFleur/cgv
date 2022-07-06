@@ -56,7 +56,6 @@ protected:
 	line_geometry m_line_geometry_relations;
 	// widget boundaries
 	line_geometry m_line_geometry_widgets;
-	line_geometry m_line_geometry_nearest_values;
 	line_geometry m_line_geometry_strip_borders;
 
 	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 1, vec2, position);
@@ -122,8 +121,6 @@ private:
 
 	void create_centroid_strips();
 
-	void create_nearest_value_lines(int index);
-
 	void create_strip_borders(int index);
 
 	void set_point_positions();
@@ -145,7 +142,6 @@ private:
 	cgv::glutil::line2d_style m_line_style_relations;
 	cgv::glutil::line2d_style m_line_style_widgets;
 	cgv::glutil::line2d_style m_line_style_polygons;
-	cgv::glutil::line2d_style m_line_style_nearest_values;
 	cgv::glutil::line2d_style m_line_style_strip_borders;
 
 	cgv::glutil::shape2d_style m_draggable_style;
@@ -156,9 +152,8 @@ private:
 	std::vector<utils_data_types::line> m_widget_lines;
 	std::vector<utils_data_types::polygon> m_widget_polygons;
 
-	// Boundaries of the centroids and the nearest values to these boundaries
+	// Boundaries of the centroid points
 	std::vector<std::vector<vec2>> m_strip_border_points;
-	std::vector<std::vector<utils_data_types::point>> m_nearest_boundary_values;
 
 	std::vector<std::string> m_protein_names;
 

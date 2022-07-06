@@ -55,7 +55,6 @@ void tf_editor_widget::clear(cgv::render::context& ctx) {
 	m_line_renderer.destruct(ctx);
 	m_line_geometry_relations.destruct(ctx);
 	m_line_geometry_widgets.destruct(ctx);
-	m_line_geometry_nearest_values.destruct(ctx);
 	m_line_geometry_strip_borders.destruct(ctx);
 
 	m_font.destruct(ctx);
@@ -318,16 +317,6 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 		glDisable(GL_PRIMITIVE_RESTART);
 
 		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-			// Nearest value lines
-			m_line_style_nearest_values.fill_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
-			create_nearest_value_lines(i);
-
-			line_prog.enable(ctx);
-			content_canvas.set_view(ctx, line_prog);
-			m_line_style_nearest_values.apply(ctx, line_prog);
-			line_prog.disable(ctx);
-			m_line_renderer.render(ctx, PT_LINES, m_line_geometry_nearest_values);
-
 			// Strip borders
 			m_line_style_strip_borders.border_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
 			create_strip_borders(i);
@@ -413,14 +402,6 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_line_style_polygons.use_fill_color = false;
 	m_line_style_polygons.apply_gamma = false;
 	m_line_style_polygons.fill_color = rgba(1.0f, 0.0f, 0.0f, line_alpha);
-
-	m_line_style_nearest_values.use_blending = true;
-	m_line_style_nearest_values.use_fill_color = true;
-	m_line_style_nearest_values.border_color = rgba{ 1.0f, 1.0f, 1.0f, 1.0f };
-	m_line_style_nearest_values.border_width = 2.0f;
-	m_line_style_nearest_values.ring_width = 2.5f;
-	m_line_style_nearest_values.width = 7.0f;
-	m_line_style_nearest_values.apply_gamma = false;
 
 	m_line_style_strip_borders.use_blending = true;
 	m_line_style_strip_borders.use_fill_color = false;
@@ -771,34 +752,21 @@ bool tf_editor_widget::create_centroid_boundaries() {
 	float relative_position;
 	float boundary_left;
 	float boundary_right;
-	float nearest_value_left;
-	float nearest_value_right;
 
 	const auto calculate_values = [&](int i, int protein_index) {
-
 		// Get the relative position of the centroid and it's left and right boundary
 		relative_position = m_shared_data_ptr->centroids.at(i).centroids[protein_index];
 		boundary_left = relative_position - (m_shared_data_ptr->centroids.at(i).widths[protein_index] / 2.0f);
 		boundary_right = relative_position + (m_shared_data_ptr->centroids.at(i).widths[protein_index] / 2.0f);
-
-		// Now calculate the positions of the nearest values to the boundaries
-		boundary_left < m_min[protein_index] ?
-			nearest_value_left = m_min[protein_index] :
-			// In every other case, search for the nearest value
-			nearest_value_left = utils_functions::search_nearest_boundary_value(relative_position, boundary_left, protein_index, true, data);
-		boundary_right > m_max[protein_index] ?
-			nearest_value_right = m_max[protein_index] :
-			nearest_value_right = utils_functions::search_nearest_boundary_value(relative_position, boundary_right, protein_index, false, data);
 	};
+
 	// The case where all values have to be drawn
 	if (m_create_all_values) {
 		m_strip_border_points.clear();
-		m_nearest_boundary_values.clear();
 
 		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
 			// For each centroid, we want to create the lines of the boundaries
 			std::vector<float> centroid_boundary_values;
-			std::vector<float> centroid_nearest_values;
 
 			// Each widget has three points which will always generate the same values, 
 			// so do less calculations by doing only every 4th point
@@ -809,14 +777,11 @@ bool tf_editor_widget::create_centroid_boundaries() {
 				// Store the values
 				centroid_boundary_values.push_back(boundary_left);
 				centroid_boundary_values.push_back(boundary_right);
-				centroid_nearest_values.push_back(nearest_value_left);
-				centroid_nearest_values.push_back(nearest_value_right);
 			}
 
 			// Now the strips
 			int boundary_index = 0;
 			std::vector<vec2> strip_coordinates;
-			std::vector<utils_data_types::point> nearest_boundary_coordinates;
 
 			// Iterate over widgets, ignore the back widget as usual
 			for (int i = 0; i < 15; i += 4) {
@@ -827,18 +792,11 @@ bool tf_editor_widget::create_centroid_boundaries() {
 					// Push back two vectors for the corresponding widget line
 					strip_coordinates.push_back(vec_left);
 					strip_coordinates.push_back(vec_right);
-
-					// Apply the nearest values to these vectors and store them
-					const auto nearest_value_left = utils_data_types::point({ vec_left, &m_widget_lines.at(i + j) });
-					const auto nearest_value_right = utils_data_types::point({ vec_right, &m_widget_lines.at(i + j) });
-					nearest_boundary_coordinates.push_back(nearest_value_left);
-					nearest_boundary_coordinates.push_back(nearest_value_right);
 				}
 				boundary_index += 2;
 			}
 
 			m_strip_border_points.push_back(strip_coordinates);
-			m_nearest_boundary_values.push_back(nearest_boundary_coordinates);
 		}
 		m_create_all_values = false;
 
@@ -861,12 +819,6 @@ bool tf_editor_widget::create_centroid_boundaries() {
 			// Update the other centroids belonging to the widget as well
 			m_strip_border_points[centroid_layer][id_left] = line->interpolate(boundary_left);
 			m_strip_border_points[centroid_layer][id_right] = line->interpolate(boundary_right);
-
-			// Create points out of the newly updated centroids 
-			const auto nearest_val_one = utils_data_types::point({ line->interpolate(nearest_value_left), line });
-			const auto nearest_val_two = utils_data_types::point({ line->interpolate(nearest_value_right), line });
-			m_nearest_boundary_values[centroid_layer][id_left] = nearest_val_one;
-			m_nearest_boundary_values[centroid_layer][id_right] = nearest_val_two;
 		}
 		return true;
 	}
@@ -924,23 +876,6 @@ void tf_editor_widget::create_centroid_strips() {
 			strip_index += 24;
 		}
 		m_strips_created = true;
-	}
-}
-
-void tf_editor_widget::create_nearest_value_lines(int index) {
-	// if there are no values yet, do not do anything
-	if (m_nearest_boundary_values.at(index).empty()) {
-		return;
-	}
-	m_line_geometry_nearest_values.clear();
-
-	for (int i = 0; i < m_nearest_boundary_values.at(index).size(); i++) {
-		// Make sure that the lines are drawn so that their longer end is inside the widget
-		auto draw_left = i >= 2 && i <= 11 || i == 22 || i == 23 ? false : true;
-		const auto line = utils_functions::create_nearest_boundary_line(m_nearest_boundary_values.at(index).at(i), draw_left);
-
-		m_line_geometry_nearest_values.add(line.a);
-		m_line_geometry_nearest_values.add(line.b);
 	}
 }
 
