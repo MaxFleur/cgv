@@ -1,3 +1,5 @@
+/** BEGIN - MFLEURY **/
+
 #pragma once
 
 #include <chrono>
@@ -20,3 +22,5 @@ namespace utils_functions
 		interacted_centroid_ids[3] = index + 2;
 	}
 }
+
+/** END - MFLEURY **/

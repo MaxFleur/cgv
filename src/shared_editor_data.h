@@ -1,3 +1,5 @@
+/** BEGIN - MFLEURY **/
+
 #pragma once
 
 #include "utils_data_types.h"
@@ -10,3 +12,5 @@ public:
 };
 
 typedef std::shared_ptr<shared_data> shared_data_ptr;
+
+/** END - MFLEURY **/

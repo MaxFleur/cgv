@@ -67,8 +67,6 @@ viewer::viewer() : application_plugin("Viewer") {
 	// default filter and clamp parameters are ok
 	dataset.gradient_tex = texture("flt32[R,G,B,A]");
 
-	m_shared_data_ptr = std::make_shared<shared_data>();
-
 	tf_editor_ptr = register_overlay<cgv::glutil::color_map_editor>("TF Editor");
 	tf_editor_ptr->set_opacity_support(true);
 	tf_editor_ptr->set_visibility(false);
@@ -77,6 +75,9 @@ viewer::viewer() : application_plugin("Viewer") {
 
 	sstyle.radius = 0.0003f;
 
+	/** BEGIN - MFLEURY **/
+	m_shared_data_ptr = std::make_shared<shared_data>();
+
 	tf_editor_w_ptr = register_overlay<tf_editor_widget>("PCP Overlay");
 	tf_editor_w_ptr->set_shared_data(m_shared_data_ptr);
 	
@@ -84,6 +85,7 @@ viewer::viewer() : application_plugin("Viewer") {
 	sp_ptr->set_shared_data(m_shared_data_ptr);
 	sp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
 	sp_ptr->set_visibility(false);
+	/** END - MFLEURY **/
 }
 
 void viewer::clear(cgv::render::context& ctx) {
@@ -352,6 +354,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 
 	fbc.ensure(ctx);
 
+	/** BEGIN - MFLEURY **/
 	if (tf_editor_ptr && tf_editor_ptr->was_updated()) {
 		update_tf_texture(ctx);
 		fh.has_unsaved_changes = true;
@@ -363,6 +366,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 
 		on_set(&m_shared_data_ptr->centroids);
 	}
+	/** END - MFLEURY **/
 }
 
 void viewer::draw(cgv::render::context& ctx) {
@@ -496,6 +500,7 @@ void viewer::draw(cgv::render::context& ctx) {
 			vr.set_gradient_texture(&dataset.gradient_tex);
 			vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
 
+			/** BEGIN - MFLEURY **/
 			auto& vol_prog = vr.ref_prog();
 			vol_prog.enable(ctx);
 
@@ -512,6 +517,7 @@ void viewer::draw(cgv::render::context& ctx) {
 				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
 			}
 			vol_prog.disable(ctx);
+			/** END - MFLEURY **/
 
 			vr.render(ctx, 0, 0);
 		} else {
@@ -609,6 +615,7 @@ void viewer::create_gui() {
 		end_tree_node(sarcomere_style);
 	}
 
+	/** BEGIN - MFLEURY **/
 	if (begin_tree_node("TF Editor - Lines", tf_editor_w_ptr, false)) {
 		add_member_control(this, "", m_shared_data_ptr->centroids, "");
 		align("\a");
@@ -623,6 +630,7 @@ void viewer::create_gui() {
 		align("\b");
 		end_tree_node(sp_ptr);
 	}
+	/** END - MFLEURY **/
 
 	add_member_control(this, "Show", show_sarcomeres, "check");
 	//add_member_control(this, "Clip", clip_sarcomeres, "check");
@@ -672,6 +680,7 @@ void viewer::create_pcp()
 		}
 	}
 
+	/** BEGIN - MFLEURY **/
 	if (tf_editor_w_ptr)
 		tf_editor_w_ptr->set_data(data);
 	tf_editor_w_ptr->set_names(dataset.stain_names);
@@ -680,6 +689,7 @@ void viewer::create_pcp()
 		sp_ptr->set_data(data);
 		sp_ptr->set_names(dataset.stain_names);
 	}
+	/** END - MFLEURY **/
 }
 
 bool viewer::read_data_set(context& ctx, const std::string& filename) {

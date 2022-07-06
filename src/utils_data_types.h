@@ -1,3 +1,5 @@
+/** BEGIN - MFLEURY **/
+
 #pragma once
 
 #include <cgv_glutil/overlay.h>
@@ -122,3 +124,5 @@ struct line
 		}
 	};
 }
+
+/** END - MFLEURY **/

@@ -101,18 +101,12 @@ protected:
 	cone_render_style sarcomere_style;
 	cgv::glutil::cone_render_data<> sarcomeres_rd;
 
-	tf_editor_widget_ptr tf_editor_w_ptr = nullptr;
-	sp_overlay_ptr sp_ptr = nullptr;
-
 	gridtree gtree;
 	float gridtree_error_threshold = 0.08f;
 
 	void generate_tree_boxes() {
 
-		//tree_boxes_rd.clear();
-
 		if(gtree.levels.size() > 0) {
-			//const auto& nodes = oct.levels.back();
 
 			std::cout << "Extracting octree leaf nodes... ";
 			cgv::utils::stopwatch s(true);
@@ -122,9 +116,6 @@ protected:
 			std::cout << "done (" << s.get_elapsed_time() << "s)" << std::endl;
 
 			std::cout << "Extracted " << nodes.size() << " leaf nodes." << std::endl;
-			//for(const auto& n : nodes) {
-			//	create_box(n.a, n.b);
-			//}
 
 			float total_volume = static_cast<float>(dataset.resolution.x() * dataset.resolution.y() * dataset.resolution.z());
 
@@ -135,8 +126,6 @@ protected:
 				vec4 var = n.stats.get_variance();
 				vec4 dev = n.stats.get_standard_deviation();
 
-				//vec4 mi = n.stats.get_minimum();
-				//vec4 ma = n.stats.get_maximum();
 				vec4 mi = avg - dev;
 				vec4 ma = avg + dev;
 
@@ -275,6 +264,11 @@ public:
 
 	void create_gui();
 
+/** BEGIN - MFLEURY **/
 private:
 	shared_data_ptr m_shared_data_ptr;
+
+	tf_editor_widget_ptr tf_editor_w_ptr = nullptr;
+	sp_overlay_ptr sp_ptr = nullptr;
+/** END - MFLEURY **/
 };

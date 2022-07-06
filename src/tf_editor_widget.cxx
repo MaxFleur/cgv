@@ -1,3 +1,5 @@
+/** BEGIN - MFLEURY **/
+
 #include "tf_editor_widget.h"
 
 #include <cgv/gui/animate.h>
@@ -1016,3 +1018,5 @@ void tf_editor_widget::scroll_centroid_width(int x, int y, bool negative_change)
 		post_redraw();
 	}
 }
+
+/** END - MFLEURY **/

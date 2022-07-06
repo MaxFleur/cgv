@@ -1,3 +1,5 @@
+/** BEGIN - MFLEURY **/
+
 #pragma once
 
 #include <cgv_glutil/frame_buffer_container.h>
@@ -191,3 +193,5 @@ private:
 };
 
 typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;
+
+/** END - MFLEURY **/
