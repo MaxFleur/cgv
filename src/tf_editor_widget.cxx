@@ -101,7 +101,11 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 
 		// Set width if a scroll is done
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
-			scroll_centroid_width(mpos.x(), mpos.y(), me.get_dy() > 0 ? true : false);
+			const auto modifiers = e.get_modifiers();
+			const auto negative_change = me.get_dy() > 0 ? true : false;
+			const auto shift_pressed = modifiers & cgv::gui::EM_SHIFT ? true : false;
+
+			scroll_centroid_width(mpos.x(), mpos.y(), negative_change, shift_pressed);
 		}
 
 		bool handled = false;
@@ -1005,14 +1009,18 @@ void tf_editor_widget::find_clicked_centroid(int x, int y) {
 	}
 }
 
-void tf_editor_widget::scroll_centroid_width(int x, int y, bool negative_change) {
+void tf_editor_widget::scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed) {
 	auto found = false;
 	int found_index;
 	// Search through all polygons
 	for (int i = 0; i < m_widget_polygons.size(); i++) {
 		// If we found a polygon, update the corresponding width
 		if (m_widget_polygons.at(i).is_point_in_polygon(x, y)) {
-			const auto change = negative_change ? -0.02f : 0.02f;
+			// Stronger change for pressed shift
+			auto change = shift_pressed ? 0.05 : 0.02;
+			if (negative_change) {
+				change *= -1.0f;
+			}
 			auto& width = m_shared_data_ptr->centroids[m_clicked_centroid_id].widths[i];
 			width += change;
 			width = cgv::math::clamp(width, 0.0f, 1.0f);
