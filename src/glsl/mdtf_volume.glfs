@@ -206,6 +206,7 @@ vec3 safe_normalize(vec3 v) {
 float gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, vec4 gaussian_width) {
 
 	// construct a matrix with diagonal components set to the given value
+	// TODO: we should divide the width by two (e.g. 2.0 / gaussian_width[i]) to better fit the gaussian curve to the selected widgets
 	mat4 K;
 	K[0] = vec4(1.0 / gaussian_width[0], 0.0, 0.0, 0.0);
 	K[1] = vec4(0.0, 1.0 / gaussian_width[1], 0.0, 0.0);
@@ -367,7 +368,7 @@ void main()
 		alpha_scale *= size_scale; 
 		alpha_scale *= -exp(-step_size * scale_adjust) + 1.0;
 #endif
-
+/** MFleury begin **/
 		vec3 color_sum = vec3(0.0);
 		float alpha_sum = 0.0;
 		for (int i = 0; i < centroid_values_size; i++) {

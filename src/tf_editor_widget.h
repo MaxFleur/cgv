@@ -42,6 +42,8 @@ protected:
 	/// alpha value of individual lines in plot
 	float line_alpha = 0.0001f;
 
+	bool other_threshold = false;
+
 	/// renderer for the 2d plot lines
 	cgv::glutil::generic_renderer m_line_renderer;
 	// strips renderer
@@ -49,11 +51,12 @@ protected:
 
 	/// define a geometry class holding only 2d position values
 	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
+	DEFINE_GENERIC_RENDER_DATA_CLASS(plot_line_geometry, 2, vec2, position, rgba, color);
 	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 2, vec2, position, rgba, color);
 	polygon_geometry m_strips;
 
 	// The lines for the relations between the widgets
-	line_geometry m_line_geometry_relations;
+	plot_line_geometry m_line_geometry_relations;
 	// widget boundaries
 	line_geometry m_line_geometry_widgets;
 	line_geometry m_line_geometry_strip_borders;

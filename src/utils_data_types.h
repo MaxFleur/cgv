@@ -19,7 +19,6 @@ struct line
 		vec2 interpolate(float value, bool clamp_enabled = true) const {
 			// Clamp so the value stays inside the boundaries
 			if (clamp_enabled) {
-				// TODO: should the value really be clamped instead of being remapped?
 				value = cgv::math::clamp(value, 0.0f, 1.0f);
 				value = cgv::math::lerp(0.1f, 0.9f, value);
 			}

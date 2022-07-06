@@ -181,7 +181,7 @@ void viewer::on_set(void* member_ptr) {
 	if (member_ptr == &input_path) {
 
 #ifdef CGV_FORCE_STATIC
-		std::string base_path = cgv::base::ref_prog_path_prefix() + "/" + input_path + "/";
+		std::string base_path = cgv::base::ref_prog_path_prefix() + input_path;
 #else
 		std::string base_path = QUOTE_SYMBOL_VALUE(INPUT_DIR);
 		base_path += "/" + input_path;// +"/";
@@ -367,7 +367,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 
 void viewer::draw(cgv::render::context& ctx) {
 
-	if (!view_ptr || !dataset.loaded || !tf_editor_ptr)
+	if(!view_ptr || !dataset.loaded || !tf_editor_ptr)
 		return;
 
 	vec3 eye_pos = view_ptr->get_eye();
@@ -801,6 +801,7 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 	create_length_histogram();
 	create_segment_render_data();
 
+#ifndef _DEBUG
 	std::cout << "Building gridtree... ";
 	cgv::utils::stopwatch s0(true);
 
@@ -811,6 +812,7 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 	gtree.print_info();
 
 	generate_tree_boxes();
+#endif
 
 	create_pcp();
 	//create_selected_segment_render_data();
