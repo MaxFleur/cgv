@@ -94,7 +94,6 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
 		ivec2 mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
-
 		// Search for points if LMB is pressed
 		if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
 			find_clicked_centroid(mpos.x(), mpos.y());
@@ -102,6 +101,7 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 
 		// Set width if a scroll is done
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
+			// TODO: make sure the user cannot scroll the width below zero
 			scroll_centroid_width(mpos.x(), mpos.y(), me.get_dy() > 0 ? true : false);
 		}
 
@@ -235,6 +235,8 @@ void tf_editor_widget::init_frame(cgv::render::context& ctx) {
 				on_set(&m_text_ids[i]);
 			}
 		}
+
+		has_damage = true;
 	}
 }
 
@@ -358,6 +360,7 @@ void tf_editor_widget::create_gui() {
 	// add controls for parameters
 	add_member_control(this, "Threshold", threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "Line Alpha", line_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "other_threshold", other_threshold, "check");
 
 	// Create new centroids
 	auto const add_centroid_button = add_button("Add centroid");
@@ -389,7 +392,7 @@ void tf_editor_widget::create_gui() {
 void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 
 	m_line_style_relations.use_blending = true;
-	m_line_style_relations.use_fill_color = true;
+	m_line_style_relations.use_fill_color = false;
 	m_line_style_relations.apply_gamma = false;
 	m_line_style_relations.fill_color = rgba(rgb(0.0f), line_alpha);
 	m_line_style_relations.width = 1.0f;
@@ -492,31 +495,48 @@ void tf_editor_widget::update_content() {
 		vec4& v = data[i];
 
 		// calculate the average to allow filtering with the given threshold
-		const auto avg = (v[0] + v[1] + v[2] + v[3]) * 0.25f;
+		auto avg = (v[0] + v[1] + v[2] + v[3]) * 0.25f;
 
-		if(avg > threshold) {
+		bool force = false;
+		if(other_threshold) {
+			force =
+				v[0] > threshold ||
+				v[1] > threshold ||
+				v[2] > threshold ||
+				v[3] > threshold;
+		}
+
+		if(avg > threshold || force) {
 			// Get the minimum and maximum value for each protein
 			m_min = cgv::math::min(m_min, v);
 			m_max = cgv::math::max(m_max, v);
 
+			//rgba col = gtf(centroid, v);
+			// example for adding color
+			rgba col(rgb(0.0f), line_alpha);
+			/*if(mode == EXTENDET_MODE) {
+				col = ...gtf();
+			}
+			*/
+
 			// Left to right
-			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]));
-			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_text_ids[1]]));
+			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_text_ids[1]]), col);
 			// Left to center
-			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_text_ids[0]]));
-			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_text_ids[3]]));
+			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_text_ids[0]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_text_ids[3]]), col);
 			// Left to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_text_ids[0]]));
-			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_text_ids[2]]));
+			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_text_ids[0]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_text_ids[2]]), col);
 			// Right to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_text_ids[1]]));
-			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_text_ids[2]]));
+			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_text_ids[1]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_text_ids[2]]), col);
 			// Right to center
-			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_text_ids[1]]));
-			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_text_ids[3]]));
+			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_text_ids[1]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_text_ids[3]]), col);
 			// Bottom to center
-			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_text_ids[2]]));
-			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_text_ids[3]]));
+			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_text_ids[2]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_text_ids[3]]), col);
 		}
 	}
 	// content was updated, so redraw
@@ -814,6 +834,14 @@ bool tf_editor_widget::create_centroid_boundaries() {
 		for (int i = 1; i < 4; i++) {
 			// Get the overall centroid layer and the parent line
 			const auto centroid_layer = m_interacted_centroid_ids[0];
+			/* TODO: it crashes on the following line when:
+				the overlay has been resized (open Overlay in the GUI and select an option from the stretch dropdown) and
+				update was clicked and
+				a centroid point handle has been right-clicked and
+				the user tries to scroll
+
+				maybe some data gets lost or points not re-initialized correctly after resizing?
+			*/
 			auto& line = m_points[centroid_layer][m_interacted_centroid_ids[i]].m_parent_line;
 
 			const auto id_left = m_interacted_centroid_ids[i] * 2;
