@@ -56,8 +56,11 @@ protected:
 	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 2, vec2, position, rgba, color);
 	polygon_geometry m_strips;
 
+	DEFINE_GENERIC_RENDER_DATA_CLASS(relation_line_geometry, 2, vec2, position, rgba, color);
+
 	// The lines for the relations between the widgets
-	line_geometry m_line_geometry_relations;
+	relation_line_geometry m_line_geometry_relations;
+
 	// widget boundaries
 	line_geometry m_line_geometry_widgets;
 	line_geometry m_line_geometry_strip_borders;
@@ -135,11 +138,21 @@ private:
 
 	void end_drag() {
 		m_interacted_points.clear();
+
+		if (vis_mode == VM_GTF) {
+			update_content();
+			return;
+		}
 		has_damage = true;
 		post_redraw();
 	}
 
 private:
+
+	enum VisualizationMode {
+		VM_QUADSTRIP = 0,
+		VM_GTF = 1
+	} vis_mode;
 
 	shared_data_ptr m_shared_data_ptr;
 
@@ -171,10 +184,6 @@ private:
 
 	// ids used for the texts inside the widgets
 	int m_text_ids[4] = { 0, 1, 2, 3 };
-
-	// minimum and maximum values of the current visualized data range
-	vec4 m_min;
-	vec4 m_max;
 
 	// Store the indices of to be updated centroids if a point has been interacted with
 	int m_interacted_centroid_ids[4];

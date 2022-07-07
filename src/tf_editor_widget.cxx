@@ -78,17 +78,12 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 
 	if (et == cgv::gui::EID_KEY) {
 		cgv::gui::key_event& ke = (cgv::gui::key_event&)e;
-		cgv::gui::KeyAction ka = ke.get_action();
+		if (ke.get_key() == 'M') {
+			vis_mode == VM_QUADSTRIP ? vis_mode = VM_GTF : vis_mode = VM_QUADSTRIP;
+			update_content();
 
-		/*
-		ka is one of:
-		cgv::gui::[
-		KA_PRESS,
-		KA_RELEASE,
-		KA_REPEAT
-		]
-		*/
-		return false;
+			return true;
+		}
 	}
 	else if (et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
@@ -134,6 +129,10 @@ void tf_editor_widget::on_set(void* member_ptr) {
 				m_labels.set_text(i, m_protein_names[m_text_ids[i]]);
 			break;
 		}
+	}
+
+	if (member_ptr == &vis_mode) {
+		update_content();
 	}
 
 	// look for updated centroid data
@@ -312,16 +311,18 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	if (update_pressed) {
 		create_centroid_strips();
 
-		auto& line_prog_polygon = m_polygon_renderer.ref_prog();
-		line_prog_polygon.enable(ctx);
-		content_canvas.set_view(ctx, line_prog_polygon);
-		line_prog_polygon.disable(ctx);
+		if (vis_mode == VM_QUADSTRIP) {
+			auto& line_prog_polygon = m_polygon_renderer.ref_prog();
+			line_prog_polygon.enable(ctx);
+			content_canvas.set_view(ctx, line_prog_polygon);
+			line_prog_polygon.disable(ctx);
 
-		// draw the lines from the given geometry with offset and count
-		glEnable(GL_PRIMITIVE_RESTART);
-		glPrimitiveRestartIndex(0xFFFFFFFF);
-		m_polygon_renderer.render(ctx, PT_TRIANGLE_STRIP, m_strips);
-		glDisable(GL_PRIMITIVE_RESTART);
+			// draw the lines from the given geometry with offset and count
+			glEnable(GL_PRIMITIVE_RESTART);
+			glPrimitiveRestartIndex(0xFFFFFFFF);
+			m_polygon_renderer.render(ctx, PT_TRIANGLE_STRIP, m_strips);
+			glDisable(GL_PRIMITIVE_RESTART);
+		}
 
 		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
 			// Strip borders
@@ -364,6 +365,8 @@ void tf_editor_widget::create_gui() {
 	add_member_control(this, "Threshold", threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "Line Alpha", line_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "other_threshold", other_threshold, "check");
+
+	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Quadstrip Mode, GTF Mode");
 
 	// Create new centroids
 	auto const add_centroid_button = add_button("Add centroid");
@@ -490,9 +493,6 @@ void tf_editor_widget::update_content() {
 	total_count = 0;
 	m_line_geometry_relations.clear();
 
-	m_min = std::numeric_limits<float>::max();
-	m_max = -std::numeric_limits<float>::max();
-
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
 		vec4& v = data[i];
@@ -510,28 +510,37 @@ void tf_editor_widget::update_content() {
 		}
 
 		if(avg > threshold || force) {
-			// Get the minimum and maximum value for each protein
-			m_min = cgv::math::min(m_min, v);
-			m_max = cgv::math::max(m_max, v);
+
+			rgb color_rgb(0.0f);
+			
+			if (vis_mode == VM_GTF) {
+				for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+					const auto& centroid = m_shared_data_ptr->centroids.at(i);
+
+					auto alpha = utils_functions::gaussian_transfer_function(v, centroid.centroids, centroid.widths);
+					color_rgb += alpha * rgb{ centroid.color.R(), centroid.color.G(), centroid.color.B() };
+				}
+			}
+			rgba col(color_rgb, line_alpha);
 
 			// Left to right
-			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]));
-			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_text_ids[1]]));
+			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_text_ids[1]]), col);
 			// Left to center
-			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_text_ids[0]]));
-			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_text_ids[3]]));
+			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_text_ids[0]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_text_ids[3]]), col);
 			// Left to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_text_ids[0]]));
-			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_text_ids[2]]));
+			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_text_ids[0]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_text_ids[2]]), col);
 			// Right to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_text_ids[1]]));
-			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_text_ids[2]]));
+			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_text_ids[1]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_text_ids[2]]), col);
 			// Right to center
-			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_text_ids[1]]));
-			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_text_ids[3]]));
+			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_text_ids[1]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_text_ids[3]]), col);
 			// Bottom to center
-			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_text_ids[2]]));
-			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_text_ids[3]]));
+			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_text_ids[2]]), col);
+			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_text_ids[3]]), col);
 		}
 	}
 	// content was updated, so redraw
@@ -853,47 +862,50 @@ void tf_editor_widget::create_centroid_strips() {
 		if (!create_centroid_boundaries()) {
 			return;
 		}
-		m_strips.clear();
-		m_line_geometry_strip_borders.clear();
+		if (vis_mode == VM_QUADSTRIP) {
+			m_strips.clear();
+			m_line_geometry_strip_borders.clear();
 
-		int strip_index = 0;
+			int strip_index = 0;
 
-		// Add four points to the strip, because every strip is between two widgets with two points each
-		const auto add_points_to_strips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
-			m_strips.add(m_strip_border_points.at(i).at(strip_id_1), color);
-			m_strips.add(m_strip_border_points.at(i).at(strip_id_2), color);
-			m_strips.add(m_strip_border_points.at(i).at(strip_id_3), color);
-			m_strips.add(m_strip_border_points.at(i).at(strip_id_4), color);
-		};
-		// Add indices for the strips
-		const auto add_indices_to_strips = [&](int offset_start, int offset_end) {
-			for (int i = offset_start; i < offset_end; i++) {
-				m_strips.add_idx(strip_index + i);
+			// Add four points to the strip, because every strip is between two widgets with two points each
+			const auto add_points_to_strips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
+				m_strips.add(m_strip_border_points.at(i).at(strip_id_1), color);
+				m_strips.add(m_strip_border_points.at(i).at(strip_id_2), color);
+				m_strips.add(m_strip_border_points.at(i).at(strip_id_3), color);
+				m_strips.add(m_strip_border_points.at(i).at(strip_id_4), color);
+			};
+			// Add indices for the strips
+			const auto add_indices_to_strips = [&](int offset_start, int offset_end) {
+				for (int i = offset_start; i < offset_end; i++) {
+					m_strips.add_idx(strip_index + i);
+				}
+				// If done, end this strip
+				m_strips.add_idx(0xFFFFFFFF);
+			};
+
+			// Now strips themselves
+			for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+				const auto color = m_shared_data_ptr->centroids.at(i).color;
+
+				add_points_to_strips(0, 1, 10, 11, i, color);
+				add_indices_to_strips(0, 4);
+				add_points_to_strips(3, 2, 19, 18, i, color);
+				add_indices_to_strips(4, 8);
+				add_points_to_strips(5, 4, 13, 12, i, color);
+				add_indices_to_strips(8, 12);
+				add_points_to_strips(7, 6, 17, 16, i, color);
+				add_indices_to_strips(12, 16);
+				add_points_to_strips(9, 8, 21, 20, i, color);
+				add_indices_to_strips(16, 20);
+				add_points_to_strips(14, 15, 22, 23, i, color);
+				add_indices_to_strips(20, 24);
+
+				strip_index += 24;
 			}
-			// If done, end this strip
-			m_strips.add_idx(0xFFFFFFFF);
-		};
 
-		// Now strips themselves
-		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-			const auto color = m_shared_data_ptr->centroids.at(i).color;
-
-			add_points_to_strips(0, 1, 10, 11, i, color);
-			add_indices_to_strips(0, 4);
-			add_points_to_strips(3, 2, 19, 18, i, color);
-			add_indices_to_strips(4, 8);
-			add_points_to_strips(5, 4, 13, 12, i, color);
-			add_indices_to_strips(8, 12);
-			add_points_to_strips(7, 6, 17, 16, i, color);
-			add_indices_to_strips(12, 16);
-			add_points_to_strips(9, 8, 21, 20, i, color);
-			add_indices_to_strips(16, 20);
-			add_points_to_strips(14, 15, 22, 23, i, color);
-			add_indices_to_strips(20, 24);
-
-			strip_index += 24;
+			m_strips_created = true;
 		}
-		m_strips_created = true;
 	}
 }
 
