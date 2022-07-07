@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <random>
 
+#include <omp.h>
+
 #include <cgv/base/find_action.h>
 #include <cgv/defines/quote.h>
 #include <cgv/gui/key_event.h>
@@ -20,21 +22,7 @@
 
 #include "utils_data_types.h"
 
-#include <omp.h>
 
-/* NOTES
-
-2 outliers in sarcomere data.
-Line 208 - segment with exactly the same start and end position:
-27.758682 32.809229 0.726667  27.758682 32.809229 0.726667
-
-Line 1508 - very long segment:
-30.760116 8.898412 1.560000  28.921811 26.641564 0.240000
-Sarcomere render data idx 3012 (unsorted)
-
-*/
-
-// TODO: blur has wrappping problems (try for radius = 8)
 
 viewer::viewer() : application_plugin("Viewer") {
 
@@ -55,9 +43,7 @@ viewer::viewer() : application_plugin("Viewer") {
 
 	show_sallimus_dots = true;
 	show_sarcomeres = true;
-	clip_sallimus_dots = true;
-	clip_sarcomeres = true;
-
+	
 	fbc.add_attachment("depth", "[D]");
 	fbc.add_attachment("color", "flt32[R,G,B,A]");
 
@@ -70,10 +56,6 @@ viewer::viewer() : application_plugin("Viewer") {
 	tf_editor_ptr = register_overlay<cgv::glutil::color_map_editor>("TF Editor");
 	tf_editor_ptr->set_opacity_support(true);
 	tf_editor_ptr->set_visibility(false);
-
-	length_histogram_po_ptr = register_overlay<plot_overlay>("Length Histogram Overlay");
-
-	sstyle.radius = 0.0003f;
 
 	/** BEGIN - MFLEURY **/
 	m_shared_data_ptr = std::make_shared<shared_data>();
@@ -103,8 +85,6 @@ void viewer::clear(cgv::render::context& ctx) {
 	sarcomeres_rd.destruct(ctx);
 
 	bounding_box_rd.destruct(ctx);
-	voxel_boxes_rd.destruct(ctx);
-	sample_points_rd.destruct(ctx);
 }
 
 bool viewer::self_reflect(cgv::reflect::reflection_handler& rh) {
@@ -131,22 +111,29 @@ bool viewer::handle_event(cgv::gui::event& e) {
 		*/
 		if (ka == cgv::gui::KA_PRESS) {
 			unsigned short key = ke.get_key();
+
+			bool handled = false;
+
 			switch (ke.get_key()) {
 			case 'T':
-				if (tf_editor_ptr) {
-					tf_editor_ptr->set_visibility(!tf_editor_ptr->is_visible());
-					post_redraw();
-					return true;
-				}
-				break;
-			case 'H':
-				if (length_histogram_po_ptr) {
-					length_histogram_po_ptr->set_visibility(!length_histogram_po_ptr->is_visible());
-					post_redraw();
-					return true;
+				if(volume_mode == VM_4_CHANNEL) {
+					if(tf_editor_ptr) {
+						tf_editor_ptr->toggle_visibility();
+						handled = true;
+					}
+				} else {
+					if(tf_editor_w_ptr) {
+						tf_editor_w_ptr->toggle_visibility();
+						handled = true;
+					}
 				}
 				break;
 			default: break;
+			}
+
+			if(handled) {
+				post_redraw();
+				return true;
 			}
 		}
 
@@ -200,7 +187,7 @@ void viewer::on_set(void* member_ptr) {
 	}
 
 	IFSET(blur_radius) {
-		blur_radius = cgv::math::clamp(blur_radius, 0u, 8u);
+		blur_radius = cgv::math::clamp(blur_radius, 0u, 64u);
 		if (prepare_btn)
 			prepare_btn->set("color", "0xff6666");
 	}
@@ -258,7 +245,18 @@ void viewer::on_set(void* member_ptr) {
 			ctrl->set("text_color", fh.has_unsaved_changes ? cgv::gui::theme_info::instance().warning_hex() : "");
 	}
 
-	IFSET(use_mdtf_volume_renderer) {
+	IFSET(volume_mode) {
+		if(volume_mode == VM_4_CHANNEL) {
+			if(tf_editor_w_ptr && tf_editor_w_ptr->is_visible()) {
+				tf_editor_w_ptr->set_visibility(false);
+				tf_editor_ptr->set_visibility(true);
+			}
+		} else {
+			if(tf_editor_ptr && tf_editor_ptr->is_visible()) {
+				tf_editor_ptr->set_visibility(false);
+				tf_editor_w_ptr->set_visibility(true);
+			}
+		}
 		post_recreate_gui();
 	}
 
@@ -287,8 +285,6 @@ bool viewer::init(cgv::render::context& ctx) {
 	ref_cone_renderer(ctx, 1);
 	ref_box_wire_renderer(ctx, 1);
 
-	// TODO: image readers are not yet registered in the init method when using exe builds
-
 	bool success = true;
 	success &= shaders.load_shaders(ctx);
 
@@ -296,44 +292,11 @@ bool viewer::init(cgv::render::context& ctx) {
 	success &= sarcomeres_rd.init(ctx);
 
 	success &= bounding_box_rd.init(ctx);
-	success &= voxel_boxes_rd.init(ctx);
-	success &= sample_points_rd.init(ctx);
-
+	
 	success &= init_tf_texture(ctx);
 
 	bounding_box_rd.add(vec3(0.0f), vec3(1.0f), rgb(0.5f, 0.5f, 0.5f));
 	bounding_box_rd.add(vec3(0.0f), vec3(1.0f), rgb(1.0f, 0.0f, 0.0f));
-
-	// init plot styles
-	if (length_histogram_po_ptr) {
-		auto& plot = length_histogram_po_ptr->ref_plot();
-
-		// setup doamin
-		auto* domain = plot.get_domain_config_ptr();
-		domain->title = "length histogram";
-		// set the reference size to adjust the sizing of all visual elements
-		domain->reference_size = 0.0035f;
-		domain->fill = false;
-
-		if (domain->axis_configs.size() > 1) {
-			// fisrt axis config is x-axis
-			auto& x_axis = domain->axis_configs[0];
-			x_axis.secondary_ticks.type = cgv::plot::TickType::TT_NONE;
-			// second axis config is y-axis
-			auto& y_axis = domain->axis_configs[1];
-			y_axis.secondary_ticks.type = cgv::plot::TickType::TT_NONE;
-		}
-
-		// add a sub plot and alter its style
-		plot.add_sub_plot("length histogram");
-		plot.set_sub_plot_colors(0, rgb(0.1f, 0.3f, 0.7f));
-		auto& cfg = plot.ref_sub_plot_config(0);
-		cfg.show_points = false;
-		cfg.show_lines = false;
-		cfg.show_bars = true;
-		cfg.bar_outline_width = 0.0f;
-		cfg.bar_percentual_width = 1.0f;
-	}
 
 	ctx.set_bg_clr_idx(0);
 	return success;
@@ -343,11 +306,6 @@ void viewer::init_frame(cgv::render::context& ctx) {
 
 	if (!view_ptr) {
 		if (view_ptr = find_view_as_node()) {
-			// set plot font faces
-			// only works after the plot has been initialized
-			if (length_histogram_po_ptr)
-				length_histogram_po_ptr->ref_plot().set_label_font(30.0f, cgv::media::font::FontFaceAttributes::FFA_REGULAR, "Arial");
-
 			ensure_selected_in_tab_group_parent();
 		}
 	}
@@ -390,62 +348,60 @@ void viewer::draw(cgv::render::context& ctx) {
 	bool draw_plot = false;
 	bool draw_segment_bbox = false;
 
-	if (view_mode == VM_VOLUME) {
-		clip_box_transform = volume_transform;
+	clip_box_transform = volume_transform;
 
-		if (seg_idx > -1 && seg_idx < dataset.sarcomere_segments.size()) {
-			draw_plot = true;
-			draw_segment_bbox = true;
+	if (seg_idx > -1 && seg_idx < dataset.sarcomere_segments.size()) {
+		draw_plot = true;
+		draw_segment_bbox = true;
 
-			const auto& seg = dataset.sarcomere_segments[seg_idx];
-			if (segment_visibility == VO_SELECTED) {
-				offset = 2 * seg_idx;
-				count = 2;
-			}
-
-			if (use_aligned_segment_box) {
-				vec3 box_translate = seg.box.get_center();
-				box_translate.z() *= dataset.scaled_size.z();
-				box_translate -= vec3(0.5f, 0.5f, 0.5f * dataset.scaled_size.z());
-
-				vec3 box_extent = seg.box.get_extent() * dataset.scaled_size;
-				segment_box_transform = cgv::math::translate4(box_translate) * cgv::math::scale4(box_extent);
-			}
-			else {
-				mat4 T = cgv::math::translate4(0.5f * (seg.a + seg.b));
-
-				vec3 dir = normalize(seg.b - seg.a);
-				vec3 ref_dir = vec3(0.0f, 0.0f, 1.0f);
-
-				if (abs(dot(dir, ref_dir)) > 0.999f) {
-					ref_dir = vec3(1.0f, 0.0f, 0.0f);
-					std::swap(dir, ref_dir);
-				}
-
-				vec3 ortho = normalize(cross(dir, ref_dir));
-				vec3 third = cross(dir, ortho);
-
-				mat4 R;
-				R.identity();
-				R.set_col(0, vec4(dir, 0.0f));
-				R.set_col(1, vec4(ortho, 0.0f));
-				R.set_col(2, vec4(third, 0.0f));
-
-				vec3 extent(
-					length(seg.a - seg.b) + 0.02f,
-					0.04f,
-					0.2f
-				);
-				extent *= dataset.scaled_size;
-
-				mat4 S = cgv::math::scale4(extent);
-
-				segment_box_transform = T * R * S;
-			}
-
-			if (volume_visibility == VO_SELECTED)
-				clip_box_transform = segment_box_transform;
+		const auto& seg = dataset.sarcomere_segments[seg_idx];
+		if (segment_visibility == VO_SELECTED) {
+			offset = 2 * seg_idx;
+			count = 2;
 		}
+
+		if (use_aligned_segment_box) {
+			vec3 box_translate = seg.box.get_center();
+			box_translate.z() *= dataset.scaled_size.z();
+			box_translate -= vec3(0.5f, 0.5f, 0.5f * dataset.scaled_size.z());
+
+			vec3 box_extent = seg.box.get_extent() * dataset.scaled_size;
+			segment_box_transform = cgv::math::translate4(box_translate) * cgv::math::scale4(box_extent);
+		}
+		else {
+			mat4 T = cgv::math::translate4(0.5f * (seg.a + seg.b));
+
+			vec3 dir = normalize(seg.b - seg.a);
+			vec3 ref_dir = vec3(0.0f, 0.0f, 1.0f);
+
+			if (abs(dot(dir, ref_dir)) > 0.999f) {
+				ref_dir = vec3(1.0f, 0.0f, 0.0f);
+				std::swap(dir, ref_dir);
+			}
+
+			vec3 ortho = normalize(cross(dir, ref_dir));
+			vec3 third = cross(dir, ortho);
+
+			mat4 R;
+			R.identity();
+			R.set_col(0, vec4(dir, 0.0f));
+			R.set_col(1, vec4(ortho, 0.0f));
+			R.set_col(2, vec4(third, 0.0f));
+
+			vec3 extent(
+				length(seg.a - seg.b) + 0.02f,
+				0.04f,
+				0.2f
+			);
+			extent *= dataset.scaled_size;
+
+			mat4 S = cgv::math::scale4(extent);
+
+			segment_box_transform = T * R * S;
+		}
+
+		if (volume_visibility == VO_SELECTED)
+			clip_box_transform = segment_box_transform;
 	}
 
 	fbc.enable(ctx);
@@ -462,12 +418,6 @@ void viewer::draw(cgv::render::context& ctx) {
 		if (show_sarcomeres)
 			sarcomeres_rd.render(ctx, ref_cone_renderer(ctx), sarcomere_style, offset, count);
 	}
-
-	// render voxel bounding boxes and sample points
-	if (show_sample_points)
-		sample_points_rd.render(ctx, ref_sphere_renderer(ctx), sstyle);
-	if (show_sample_voxels)
-		voxel_boxes_rd.render(ctx, ref_box_wire_renderer(ctx), bwstyle);
 
 	ctx.pop_modelview_matrix();
 
@@ -490,7 +440,20 @@ void viewer::draw(cgv::render::context& ctx) {
 		ctx.push_modelview_matrix();
 		ctx.mul_modelview_matrix(clip_box_transform);
 
-		if(use_mdtf_volume_renderer) {
+		if(volume_mode == VM_4_CHANNEL) {
+			vstyle.clip_box_transform = clip_box_transform;
+			vstyle.volume_transform = volume_transform;
+
+			auto& vr = ref_special_volume_renderer(ctx);
+			vr.set_render_style(vstyle);
+			vr.set_volume_texture(&dataset.volume_tex);
+			vr.set_transfer_function_texture(&tf_tex);
+			vr.set_gradient_texture(&dataset.gradient_tex);
+			vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
+
+			vr.render(ctx, 0, 0);
+		} else {
+			/** BEGIN - MFLEURY **/
 			mdtf_vstyle.clip_box_transform = clip_box_transform;
 			mdtf_vstyle.volume_transform = volume_transform;
 
@@ -500,7 +463,6 @@ void viewer::draw(cgv::render::context& ctx) {
 			vr.set_gradient_texture(&dataset.gradient_tex);
 			vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
 
-			/** BEGIN - MFLEURY **/
 			auto& vol_prog = vr.ref_prog();
 			vol_prog.enable(ctx);
 
@@ -517,21 +479,9 @@ void viewer::draw(cgv::render::context& ctx) {
 				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
 			}
 			vol_prog.disable(ctx);
+
+			vr.render(ctx, 0, 0);
 			/** END - MFLEURY **/
-
-			vr.render(ctx, 0, 0);
-		} else {
-			vstyle.clip_box_transform = clip_box_transform;
-			vstyle.volume_transform = volume_transform;
-
-			auto& vr = ref_special_volume_renderer(ctx);
-			vr.set_render_style(vstyle);
-			vr.set_volume_texture(&dataset.volume_tex);
-			vr.set_transfer_function_texture(&tf_tex);
-			vr.set_gradient_texture(&dataset.gradient_tex);
-			vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
-
-			vr.render(ctx, 0, 0);
 		}
 
 		ctx.pop_modelview_matrix();
@@ -564,107 +514,104 @@ void viewer::create_gui() {
 		end_tree_node(blur_radius);
 	}
 
-	add_member_control(this, "Use MDTF Volume Renderer", use_mdtf_volume_renderer, "check");
+	add_member_control(this, "Volume Mode", volume_mode, "dropdown", "enums='4-Channel, Multi-Dimensional'");
 
-	if(use_mdtf_volume_renderer) {
-		if(begin_tree_node("Volume Rendering", mdtf_vstyle, false)) {
-			align("\a");
-			add_gui("vstyle", mdtf_vstyle);
-			align("\b");
-			end_tree_node(mdtf_vstyle);
-		}
-	} else {
+	if(volume_mode == VM_4_CHANNEL) {
 		if(begin_tree_node("Volume Rendering", vstyle, false)) {
 			align("\a");
 			add_gui("vstyle", vstyle);
 			align("\b");
 			end_tree_node(vstyle);
 		}
-	}
-	
-	if (begin_tree_node("Transfer Functions", tf_editor_ptr, false)) {
-		align("\a");
 
-		std::string filter = "XML Files (xml):*.xml|All Files:*.*";
-		add_gui("File", fh.file_name, "file_name", "title='Open Transfer Function';filter='" + filter + "';save=false;w=136;small_icon=true;align_gui=' '" + (fh.has_unsaved_changes ? ";text_color=" + cgv::gui::theme_info::instance().warning_hex() : ""));
-		add_gui("save_file_name", fh.save_file_name, "file_name", "title='Save Transfer Function';filter='" + filter + "';save=true;control=false;small_icon=true");
+		add_decorator("", "separator");
 
-		for (size_t i = 0; i < dataset.stain_names.size(); ++i) {
-			add_member_control(this, "", dataset.stain_names[i], "string", "w=168", " ");
-			connect_copy(add_button("@1edit", "w=20;")->click, cgv::signal::rebind(this, &viewer::edit_transfer_function, cgv::signal::_c<size_t>(i)));
+		if(begin_tree_node("Transfer Functions", tf_editor_ptr, false, "active=false")) {
+			align("\a");
+
+			std::string filter = "XML Files (xml):*.xml|All Files:*.*";
+			add_gui("File", fh.file_name, "file_name", "title='Open Transfer Function';filter='" + filter + "';save=false;w=136;small_icon=true;align_gui=' '" + (fh.has_unsaved_changes ? ";text_color=" + cgv::gui::theme_info::instance().warning_hex() : ""));
+			add_gui("save_file_name", fh.save_file_name, "file_name", "title='Save Transfer Function';filter='" + filter + "';save=true;control=false;small_icon=true");
+
+			for(size_t i = 0; i < dataset.stain_names.size(); ++i) {
+				add_member_control(this, "", dataset.stain_names[i], "string", "w=168", " ");
+				connect_copy(add_button("@1edit", "w=20;")->click, cgv::signal::rebind(this, &viewer::edit_transfer_function, cgv::signal::_c<size_t>(i)));
+			}
+
+			inline_object_gui(tf_editor_ptr);
+			align("\b");
+			end_tree_node(tf_editor_ptr);
+		}
+	} else {
+		/** BEGIN - MFLEURY **/
+		if(begin_tree_node("Volume Rendering", mdtf_vstyle, false)) {
+			align("\a");
+			add_gui("vstyle", mdtf_vstyle);
+			align("\b");
+			end_tree_node(mdtf_vstyle);
 		}
 
-		inline_object_gui(tf_editor_ptr);
-		align("\b");
-		end_tree_node(tf_editor_ptr);
+		add_decorator("", "separator");
+
+		if(begin_tree_node("TF Editor - Lines", tf_editor_w_ptr, false)) {
+			add_member_control(this, "", m_shared_data_ptr->centroids, "");
+			align("\a");
+			inline_object_gui(tf_editor_w_ptr);
+			align("\b");
+			end_tree_node(tf_editor_w_ptr);
+		}
+
+		if(begin_tree_node("SP", sp_ptr, false)) {
+			align("\a");
+			inline_object_gui(sp_ptr);
+			align("\b");
+			end_tree_node(sp_ptr);
+		}
+		/** END - MFLEURY **/
 	}
+	add_decorator("", "separator");
 
-	if (begin_tree_node("Sallimus dots", sallimus_dots_style, false)) {
+	if(begin_tree_node("Sarcomere Visualization", dataset.sarcomere_count, false)) {
 		align("\a");
-		add_gui("", sallimus_dots_style);
+
+		if(begin_tree_node("Sallimus dots", sallimus_dots_style, false)) {
+			align("\a");
+			add_gui("", sallimus_dots_style);
+			align("\b");
+			end_tree_node(sallimus_dots_style);
+		}
+		add_member_control(this, "Show", show_sallimus_dots, "check");
+
+		if(begin_tree_node("Sarcomeres", sarcomere_style, false)) {
+			align("\a");
+			add_gui("", sarcomere_style);
+			align("\b");
+			end_tree_node(sarcomere_style);
+		}
+		add_member_control(this, "Show", show_sarcomeres, "check");
+
+		add_member_control(this, "Align Box", use_aligned_segment_box, "check");
+
+		add_member_control(this, "Show Volume", volume_visibility, "dropdown", "enums='None, Selected, All'");
+		add_member_control(this, "Show Segments", segment_visibility, "dropdown", "enums='None, Selected, All'");
+
+		add_decorator("Segment Selection", "heading", "level=3");
+		add_view("Sarcomere Count", dataset.sarcomere_count);
+		add_member_control(this, "Segment", seg_idx, "value_slider", "min=-1;step=1;max=" + (dataset.loaded ? std::to_string(dataset.sarcomere_count - 1) : "100"));
+		add_member_control(this, "", seg_idx, "wheel", "min=-1;step=0.25;max=100");
+
 		align("\b");
-		end_tree_node(sallimus_dots_style);
-	}
-	add_member_control(this, "Show", show_sallimus_dots, "check");
-	//add_member_control(this, "Clip", clip_sallimus_dots, "check");
-
-	if (begin_tree_node("Sarcomeres", sarcomere_style, false)) {
-		align("\a");
-		add_gui("", sarcomere_style);
-		align("\b");
-		end_tree_node(sarcomere_style);
-	}
-
-	/** BEGIN - MFLEURY **/
-	if (begin_tree_node("TF Editor - Lines", tf_editor_w_ptr, false)) {
-		add_member_control(this, "", m_shared_data_ptr->centroids, "");
-		align("\a");
-		inline_object_gui(tf_editor_w_ptr);
-		align("\b");
-		end_tree_node(tf_editor_w_ptr);
-	}
-
-	if (begin_tree_node("SP", sp_ptr, false)) {
-		align("\a");
-		inline_object_gui(sp_ptr);
-		align("\b");
-		end_tree_node(sp_ptr);
-	}
-	/** END - MFLEURY **/
-
-	add_member_control(this, "Show", show_sarcomeres, "check");
-	//add_member_control(this, "Clip", clip_sarcomeres, "check");
-
-	add_member_control(this, "Align Box", use_aligned_segment_box, "check");
-
-	add_member_control(this, "Show Volume", volume_visibility, "dropdown", "enums='None, Selected, All'");
-	add_member_control(this, "Show Segments", segment_visibility, "dropdown", "enums='None, Selected, All'");
-
-	add_member_control(this, "Show Sample Voxels", show_sample_voxels, "check");
-	add_member_control(this, "Show Sample Points", show_sample_points, "check");
-
-	add_decorator("Segment Selection", "heading", "level=3");
-	add_member_control(this, "View Mode", view_mode, "dropdown", "enums='Volume, Small Multiples'");
-	add_member_control(this, "Segment", seg_idx, "value_slider", "min=-1;step=1;max=100");
-	add_member_control(this, "", seg_idx, "wheel", "min=-1;step=0.25;max=100");
-
-	// add a view for the sarcomere count that gets updated after loading a data set
-	add_view("Sarcomere Count", dataset.sarcomere_count);
-
-	if (begin_tree_node("Histogram", length_histogram_po_ptr, false)) {
-		align("\a");
-		inline_object_gui(length_histogram_po_ptr);
-		align("\b");
-		end_tree_node(length_histogram_po_ptr);
 	}
 }
 
-void viewer::create_pcp()
+void viewer::extract_voxel_values()
 {
-
 	ivec3 volume_resolution(1024, 1024, dataset.num_slices);
 
+	size_t voxel_count = volume_resolution.x() * volume_resolution.y() * volume_resolution.z();
+
 	std::vector<vec4> data;
+	data.reserve(voxel_count);
 
 	for (unsigned z = 0; z < volume_resolution.z(); ++z) {
 		for (unsigned y = 0; y < volume_resolution.y(); ++y) {
@@ -680,10 +627,30 @@ void viewer::create_pcp()
 		}
 	}
 
+	/*typedef cgv::math::fvec<uint8_t, 4> u8vec4;
+	std::vector<u8vec4> data8;
+	data8.reserve(voxel_count);
+
+	for(unsigned z = 0; z < volume_resolution.z(); ++z) {
+		for(unsigned y = 0; y < volume_resolution.y(); ++y) {
+			for(unsigned x = 0; x < volume_resolution.x(); ++x) {
+				u8vec4 v(
+					static_cast<uint8_t>(dataset.raw_data.get<unsigned char>(0, z, y, x)),
+					static_cast<uint8_t>(dataset.raw_data.get<unsigned char>(1, z, y, x)),
+					static_cast<uint8_t>(dataset.raw_data.get<unsigned char>(2, z, y, x)),
+					static_cast<uint8_t>(dataset.raw_data.get<unsigned char>(3, z, y, x))
+				);
+
+				data8.push_back(v);
+			}
+		}
+	}*/
+
 	/** BEGIN - MFLEURY **/
-	if (tf_editor_w_ptr)
+	if(tf_editor_w_ptr) {
 		tf_editor_w_ptr->set_data(data);
-	tf_editor_w_ptr->set_names(dataset.stain_names);
+		tf_editor_w_ptr->set_names(dataset.stain_names);
+	}
 
 	if (sp_ptr) {
 		sp_ptr->set_data(data);
@@ -785,30 +752,15 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 	sallimus_dots_fn = parent_path + sallimus_dots_fn;
 	sarcomeres_fn = parent_path + sarcomeres_fn;
 
-	//std::string data_set_file_name = "63x-z4-edge2.tif";
-	//std::string data_set_file_name = "40hr_A/100x-z2.5-mid2_decon_image_aberration_corrected.tif";
-
 	dataset.loaded = read_image_slices(ctx, slices_fn);
 	if (dataset.loaded)
 		dataset.prepared = prepare_dataset();
 
-	// TODO: this is left in for compatibility reasons but is actually not needed anymore, since we read sallimus locations from the sarcomeres
-	if (read_sallimus_dots(sallimus_dots_fn))
-		create_sallimus_dots_geometry();
-	else
-		std::cout << "Error: Could not read sallimus dot locations from " << sallimus_dots_fn << std::endl;
-
-	if (read_sarcomeres(sarcomeres_fn)) {
-		// TODO: extract sarcomeres geometry was called after update, which overrides the color we put in the update method
-		// now I switched the order of these methods
+	if (read_sarcomeres(sarcomeres_fn))
 		extract_sarcomere_segments();
-		//update_sarcomeres_geometry();
-	}
-	else {
+	else
 		std::cout << "Error: Could not read sarcomeres from " << sarcomeres_fn << std::endl;
-	}
 
-	create_length_histogram();
 	create_segment_render_data();
 
 #ifndef _DEBUG
@@ -823,9 +775,12 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 
 	generate_tree_boxes();
 #endif
+	std::cout << "Extracting voxel values ...";
+	cgv::utils::stopwatch s(true);
 
-	create_pcp();
-	//create_selected_segment_render_data();
+	extract_voxel_values();
+
+	std::cout << "done (" << s.get_elapsed_time() << "s)" << std::endl;
 
 	// transfer function is optional
 	if (transfer_function_fn == "") {
@@ -897,6 +852,13 @@ bool viewer::read_image_slices(context& ctx, const std::string& filename) {
 	dataset.scaled_size = dataset.volume_scaling * vec3(dataset.slice_width, dataset.slice_width, dataset.stack_height);
 
 	std::cout << "done (" << s.get_elapsed_time() << "s)" << std::endl;
+
+	if(!dataset.raw_image_slices.empty()) {
+		const auto& fmt = *dataset.raw_image_slices[0].get_format();
+		const auto& type_id = fmt.get_component_type();
+		std::cout << "Image Component Type: " << cgv::type::info::get_type_name(type_id) << std::endl << std::endl;
+	}
+
 	return true;
 }
 
@@ -1150,8 +1112,7 @@ bool viewer::prepare_dataset() {
 #pragma omp parallel for
 		for (int i = 0; i < data_views->size(); ++i) {
 			data_view copy(dataset.raw_image_slices[i]);
-			//fast_gaussian_blur(m1dv, blur_radius); // with intermediary float conversion
-			fast_gaussian_bluru(copy, blur_radius); // without intermediary float conversion and correct integer rounding
+			fast_gaussian_blur(copy, blur_radius);
 			(*data_views)[i] = copy;
 		}
 		std::cout << "done (" << s1.get_elapsed_time() << "s)" << std::endl;
@@ -1465,7 +1426,7 @@ std::vector<unsigned> gauss_boxes(unsigned n, unsigned r) {
 	return radii;
 }
 
-void box_blur_horizontal(data_view& src, data_view& dst, unsigned r) {
+/*void box_blur_horizontal(data_view& src, data_view& dst, unsigned r) {
 
 	const data_format* df_ptr = src.get_format();
 	unsigned w = df_ptr->get_width();
@@ -1579,6 +1540,162 @@ void viewer::fast_gaussian_blur(cgv::data::data_view& dv, unsigned radius) {
 	box_blur_vertical(temp, dv, box_radii[1]);
 	box_blur_horizontal(dv, temp, box_radii[2]);
 	box_blur_vertical(temp, dv, box_radii[2]);
+}*/
+
+void viewer::fast_gaussian_blur(cgv::data::data_view& dv, unsigned radius) {
+
+	if(radius == 0) return;
+
+	const auto& fmt = *dv.get_format();
+	const auto& type_id = fmt.get_component_type();
+
+	switch(type_id) {
+	case cgv::type::info::TI_UINT8:  fast_gaussian_blur_impl<cgv::type::uint8_type,  cgv::type::int32_type>(dv, radius); break;
+	case cgv::type::info::TI_UINT16: fast_gaussian_blur_impl<cgv::type::uint16_type, cgv::type::int32_type>(dv, radius); break;
+	case cgv::type::info::TI_UINT32: fast_gaussian_blur_impl<cgv::type::uint32_type, cgv::type::flt32_type>(dv, radius); break;
+	case cgv::type::info::TI_UINT64: fast_gaussian_blur_impl<cgv::type::uint64_type, cgv::type::flt32_type>(dv, radius); break;
+	case cgv::type::info::TI_FLT32:  fast_gaussian_blur_impl<cgv::type::flt32_type,  cgv::type::flt32_type>(dv, radius); break;
+	case cgv::type::info::TI_FLT64:  fast_gaussian_blur_impl<cgv::type::flt64_type,  cgv::type::flt64_type>(dv, radius); break;
+	default: std::cout << "Warning: Could not find implementation of fast_gaussian_blur that matches the given component type." << std::endl; break;
+	}
+}
+
+template<typename T>
+inline T box_blur_normalize_value(T& v, T& norm, T& norm_half) {
+	return v * norm;
+}
+
+inline cgv::type::int32_type box_blur_normalize_value(cgv::type::int32_type& v, cgv::type::int32_type& norm, cgv::type::int32_type& norm_half) {
+	return (v + norm_half) / norm;
+}
+
+template<typename T>
+inline void box_blur_get_normalization_factors(unsigned& r, T& norm, T& norm_half) {
+	T _r = static_cast<T>(r);
+	norm = (T)1 / (_r + _r + (T)1);
+	norm_half = norm / (T)2;
+}
+
+inline void box_blur_get_normalization_factors(unsigned& r, cgv::type::int32_type& norm, cgv::type::int32_type& norm_half) {
+	cgv::type::int32_type _r = static_cast<cgv::type::int32_type>(r);
+	norm = _r + _r + (cgv::type::int32_type)1;
+	norm_half = norm / (cgv::type::int32_type)2;
+}
+
+// TODO: don't forget to round when using floating point accumulation with integer source values
+// dst_ptr[ti] = static_cast<unsigned char>(round(val * iarr));
+template<typename S, typename T>
+void box_blur_horizontal(const S* src_ptr, S* dst_ptr, unsigned w, unsigned h, unsigned r) {
+
+	T norm, norm_half;
+	box_blur_get_normalization_factors(r, norm, norm_half);
+
+	for(unsigned y = 0; y < h; ++y) {
+		unsigned ti = y * w;
+		unsigned li = ti;
+		unsigned ri = ti + r;
+
+		T fv = static_cast<T>(src_ptr[ti]);
+		T lv = static_cast<T>(src_ptr[ti + w - 1]);
+		T val = static_cast<T>(r + 1) * fv;
+
+		for(int j = 0; j < r; ++j)
+			val += static_cast<T>(src_ptr[ti + j]);
+
+		for(int j = 0; j <= r; ++j) {
+			val += static_cast<T>(src_ptr[ri]) - fv;
+			dst_ptr[ti] = static_cast<S>(box_blur_normalize_value(val, norm, norm_half));
+
+			++ri;
+			++ti;
+		}
+
+		for(int j = r + 1; j < w - r; ++j) {
+			val += static_cast<T>(src_ptr[ri]);
+			val -= static_cast<T>(src_ptr[li]);
+			dst_ptr[ti] = static_cast<S>(box_blur_normalize_value(val, norm, norm_half));
+
+			++li;
+			++ri;
+			++ti;
+		}
+
+		for(int j = w - r; j < w; ++j) {
+			val += lv - static_cast<T>(src_ptr[li]);
+			dst_ptr[ti] = static_cast<S>(box_blur_normalize_value(val, norm, norm_half));
+
+			++li;
+			++ti;
+		}
+	}
+}
+
+template<typename S, typename T>
+void box_blur_vertical(const S* src_ptr, S* dst_ptr, unsigned w, unsigned h, unsigned r) {
+
+		T norm, norm_half;
+		box_blur_get_normalization_factors(r, norm, norm_half);
+
+		for(unsigned x = 0; x < w; ++x) {
+			unsigned ti = x;
+			unsigned li = ti;
+			unsigned ri = ti + r * w;
+
+			T fv = static_cast<T>(src_ptr[ti]);
+			T lv = static_cast<T>(src_ptr[ti + w * (h - 1)]);
+			T val = static_cast<T>(r + 1) * fv;
+
+			for(int j = 0; j < r; ++j)
+				val += static_cast<T>(src_ptr[ti + j * w]);
+
+			for(int j = 0; j <= r; ++j) {
+				val += static_cast<T>(src_ptr[ri]) - fv;
+				dst_ptr[ti] = static_cast<S>(box_blur_normalize_value(val, norm, norm_half));
+
+				ri += w;
+				ti += w;
+			}
+
+			for(int j = r + 1; j < h - r; ++j) {
+				val += static_cast<T>(src_ptr[ri]);
+				val -= static_cast<T>(src_ptr[li]);
+				dst_ptr[ti] = static_cast<S>(box_blur_normalize_value(val, norm, norm_half));
+
+				li += w;
+				ri += w;
+				ti += w;
+			}
+
+			for(int j = h - r; j < h; ++j) {
+				val += lv - static_cast<T>(src_ptr[li]);
+				dst_ptr[ti] = static_cast<S>(box_blur_normalize_value(val, norm, norm_half));
+
+				li += w;
+				ti += w;
+			}
+		}
+	}
+
+template<typename S, typename T>
+void viewer::fast_gaussian_blur_impl(cgv::data::data_view& dv, unsigned radius) {
+
+	std::vector<unsigned> box_radii = gauss_boxes(3u, radius);
+
+	data_view temp(dv.get_format());
+
+	const data_format* df_ptr = dv.get_format();
+	unsigned w = df_ptr->get_width();
+	unsigned h = df_ptr->get_height();
+
+	S* src_ptr = dv.get_ptr<S>();
+	S* dst_ptr = temp.get_ptr<S>();
+
+	box_blur_horizontal<S, T>(src_ptr, dst_ptr, w, h, box_radii[0]);
+	box_blur_vertical<S, T>(dst_ptr, src_ptr, w, h, box_radii[0]);
+	box_blur_horizontal<S, T>(src_ptr, dst_ptr, w, h, box_radii[1]);
+	box_blur_vertical<S, T>(dst_ptr, src_ptr, w, h, box_radii[1]);
+	box_blur_horizontal<S, T>(src_ptr, dst_ptr, w, h, box_radii[2]);
+	box_blur_vertical<S, T>(dst_ptr, src_ptr, w, h, box_radii[2]);
 }
 
 void box_blur_horizontalu(data_view& src, data_view& dst, unsigned r) {
@@ -1651,7 +1768,7 @@ void box_blur_verticalu(data_view& src, data_view& dst, unsigned r) {
 		unsigned ri = ti + r * w;
 
 		int fv = src_ptr[ti];
-		int lv = src_ptr[ti + h - 1];
+		int lv = src_ptr[ti + w*(h - 1)];
 		int val = (r + 1) * fv;
 
 		for (int j = 0; j < r; ++j)
@@ -1739,46 +1856,6 @@ std::vector<unsigned> viewer::histogram(cgv::data::data_view& dv) {
 	}
 
 	return hist;
-}
-
-// TODO: new method that fills the plot from the overlay with a histogram of sarcomere segment lengths
-void viewer::create_length_histogram() {
-
-	const auto& segments = dataset.sarcomere_segments;
-
-	if (segments.size() < 2)
-		return;
-
-	// sarcomeres are already sorted by theri length so we can just take the first and last element to get the limits
-	float min_len = segments.front().length;
-	float max_len = segments.back().length;
-
-	size_t buckets = 128;
-	float step = (max_len - min_len) / static_cast<float>(buckets);
-
-	length_histogram.clear();
-	length_histogram.resize(buckets, vec2(0.0f, 0.0f));
-
-	for (size_t i = 0; i < buckets; ++i)
-		length_histogram[i].x() = static_cast<float>(i) * step;
-
-	for (const auto& segment : segments) {
-		float b = (segment.length - min_len) / step;
-		int bi = static_cast<int>(floor(b));
-		bi = cgv::math::clamp(bi, 0, static_cast<int>(buckets) - 1);
-		length_histogram[bi].y() += 1.0f;
-	}
-
-	// lastly connect the data to the plot
-	if (length_histogram_po_ptr) {
-		auto& plot = length_histogram_po_ptr->ref_plot();
-
-		plot.set_sub_plot_attribute(0, 0, &length_histogram[0][0], length_histogram.size(), sizeof(vec2));
-		plot.set_sub_plot_attribute(0, 1, &length_histogram[0][1], length_histogram.size(), sizeof(vec2));
-
-		plot.adjust_domain_to_data();
-		plot.adjust_tick_marks();
-	}
 }
 
 // fills the spheres for the sallimus dots

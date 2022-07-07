@@ -32,9 +32,9 @@ using namespace cgv::render;
 
 class viewer : public cgv::glutil::application_plugin {
 protected:
-	enum ViewMode {
-		VM_VOLUME = 0,
-		VM_SMALL_MULTIPLES = 1,
+	enum VolumeMode {
+		VM_4_CHANNEL = 0, // 4-channel transfer function
+		VM_MULTI_DIMENSIONAL = 1, // multi-dimensional transfer function
 	};
 
 	enum VisibilityOption {
@@ -47,28 +47,21 @@ protected:
 	view* view_ptr = nullptr;
 	/// store a pointer to the transfer function editor
 	cgv::glutil::color_map_editor_ptr tf_editor_ptr = nullptr;
-	/// store a pointer to the plot overlay
-	cgv::data::ref_ptr<plot_overlay> length_histogram_po_ptr = nullptr;
-
+	
 	std::string input_path;
 
-	ViewMode view_mode = VM_VOLUME;
+	VolumeMode volume_mode = VM_MULTI_DIMENSIONAL;
 	bool use_aligned_segment_box = true;
 	VisibilityOption volume_visibility = VO_ALL;
-	VisibilityOption segment_visibility = VO_ALL;
+	VisibilityOption segment_visibility = VO_NONE;
 	bool show_sallimus_dots;
 	bool show_sarcomeres;
-	bool show_sample_points = false;
-	bool show_sample_voxels = false;
-
-	bool clip_sallimus_dots;
-	bool clip_sarcomeres;
+	
 	int seg_idx = -1;
 
 	sliced_volume_data_set dataset;
 	special_volume_render_style vstyle;
 	mdtf_volume_render_style mdtf_vstyle;
-	bool use_mdtf_volume_renderer = true;
 
 	struct {
 		std::vector<unsigned> hist0;
@@ -84,15 +77,9 @@ protected:
 	cgv::glutil::frame_buffer_container fbc;
 	cgv::glutil::shader_library shaders;
 
-	cgv::glutil::box_wire_render_data<> bounding_box_rd, voxel_boxes_rd;
+	cgv::glutil::box_wire_render_data<> bounding_box_rd;
 	box_wire_render_style bwstyle;
 
-	cgv::glutil::sphere_render_data<> sample_points_rd;
-	sphere_render_style sstyle;
-
-	// plot length histogram data
-	std::vector<vec2> length_histogram;
-	
 	std::vector<vec3> sallimus_dots;
 	sphere_render_style sallimus_dots_style;
 	cgv::glutil::sphere_render_data<> sallimus_dots_rd;
@@ -149,7 +136,7 @@ protected:
 		post_redraw();
 	}
 
-	void create_pcp();
+	void extract_voxel_values();
 
 	bool read_data_set(context& ctx, const std::string& filename);
 	bool read_image_slices(context& ctx, const std::string& filename);
@@ -170,13 +157,15 @@ protected:
 	void fast_gaussian_blur(cgv::data::data_view& dv, unsigned size);
 	void fast_gaussian_bluru(cgv::data::data_view& dv, unsigned size);
 	void multiply(cgv::data::data_view& dv, float x);
+
+	template<typename S, typename T>
+	void fast_gaussian_blur_impl(cgv::data::data_view& dv, unsigned size);
+
 	std::vector<unsigned> histogram(cgv::data::data_view& dv);
 
-	void create_length_histogram();
 	void create_sallimus_dots_geometry();
 	void create_sarcomeres_geometry();
 	void create_segment_render_data();
-	//void create_selected_segment_render_data();
 
 	struct {
 		/// file name of loaded transfer functions
