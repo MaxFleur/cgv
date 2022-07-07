@@ -78,8 +78,9 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 
 	if (et == cgv::gui::EID_KEY) {
 		cgv::gui::key_event& ke = (cgv::gui::key_event&)e;
-		if (ke.get_key() == 'M') {
+		if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == 'M') {
 			vis_mode == VM_QUADSTRIP ? vis_mode = VM_GTF : vis_mode = VM_QUADSTRIP;
+			on_set(&vis_mode);
 			update_content();
 
 			return true;
