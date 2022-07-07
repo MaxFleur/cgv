@@ -126,8 +126,8 @@ void tf_editor_widget::on_set(void* member_ptr) {
 	for (int i = 0; i < 4; i++) {
 		if (member_ptr == &m_text_ids[i]) {
 			m_text_ids[i] = cgv::math::clamp(m_text_ids[i], 0, 3);
-			if (m_protein_names.size() > 3 && m_labels.size() > 1)
-				m_labels.set_text(i, m_protein_names[m_text_ids[i]]);
+			if (m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3 && m_labels.size() > 1)
+				m_labels.set_text(i, m_data_set_ptr->stain_names[m_text_ids[i]]);
 			break;
 		}
 	}
@@ -225,19 +225,7 @@ void tf_editor_widget::init_frame(cgv::render::context& ctx) {
 
 		m_point_handles.set_constraint(domain);
 
-		// Set the font texts
-		if (m_font.is_initialized()) {
-			m_labels.clear();
-
-			m_labels.add_text("0", ivec2(domain.size().x() * 0.27f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
-			m_labels.add_text("1", ivec2(domain.size().x() * 0.73f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
-			m_labels.add_text("2", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.18f), cgv::render::TA_NONE);
-			m_labels.add_text("3", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.48f), cgv::render::TA_NONE);
-
-			for (int i = 0; i < 4; i++) {
-				on_set(&m_text_ids[i]);
-			}
-		}
+		create_labels();
 
 		has_damage = true;
 	}
@@ -481,10 +469,29 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	viewport_canvas.disable_current_shader(ctx);
 }
 
+void tf_editor_widget::create_labels() {
+
+	m_labels.clear();
+
+	// Set the font texts
+	if(m_font.is_initialized()) {
+		m_labels.add_text("0", ivec2(domain.size().x() * 0.27f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
+		m_labels.add_text("1", ivec2(domain.size().x() * 0.73f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
+		m_labels.add_text("2", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.18f), cgv::render::TA_NONE);
+		m_labels.add_text("3", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.48f), cgv::render::TA_NONE);
+
+		for(int i = 0; i < 4; i++) {
+			on_set(&m_text_ids[i]);
+		}
+	}
+}
+
 void tf_editor_widget::update_content() {
 	
-	if(data.empty())
+	if(!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
+
+	const auto& data = m_data_set_ptr->voxel_data;
 
 	if (!update_pressed) {
 		update_pressed = true;
@@ -499,7 +506,7 @@ void tf_editor_widget::update_content() {
 
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
-		vec4& v = data[i];
+		const vec4& v = data[i];
 
 		// calculate the average to allow filtering with the given threshold
 		auto avg = (v[0] + v[1] + v[2] + v[3]) * 0.25f;
@@ -522,9 +529,16 @@ void tf_editor_widget::update_content() {
 					const auto& centroid = m_shared_data_ptr->centroids.at(i);
 
 					auto alpha = utils_functions::gaussian_transfer_function(v, centroid.centroids, centroid.widths);
+					alpha *= centroid.color.alpha();
+
 					color_rgb += alpha * rgb{ centroid.color.R(), centroid.color.G(), centroid.color.B() };
 				}
 			}
+
+			color_rgb.R() = cgv::math::clamp(color_rgb.R(), 0.0f, 1.0f);
+			color_rgb.G() = cgv::math::clamp(color_rgb.G(), 0.0f, 1.0f);
+			color_rgb.B() = cgv::math::clamp(color_rgb.B(), 0.0f, 1.0f);
+
 			rgba col(color_rgb, line_alpha);
 
 			// Left to right

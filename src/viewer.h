@@ -136,8 +136,6 @@ protected:
 		post_redraw();
 	}
 
-	void extract_voxel_values();
-
 	bool read_data_set(context& ctx, const std::string& filename);
 	bool read_image_slices(context& ctx, const std::string& filename);
 	bool read_sallimus_dots(const std::string& filename);

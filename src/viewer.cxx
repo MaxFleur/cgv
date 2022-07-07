@@ -505,7 +505,7 @@ void viewer::draw(cgv::render::context& ctx) {
 void viewer::create_gui() {
 	add_decorator("Myofibril Viewer", "heading", "level=2");
 
-	if (begin_tree_node("Data Set", blur_radius, true)) {
+	if (begin_tree_node("Data Set", blur_radius, false)) {
 		align("\a");
 		add_member_control(this, "Blur Radius", blur_radius, "value_slider", "min=0;max=8;step=1;ticks=true");
 		prepare_btn = add_button("Filter");
@@ -526,7 +526,7 @@ void viewer::create_gui() {
 
 		add_decorator("", "separator");
 
-		if(begin_tree_node("Transfer Functions", tf_editor_ptr, false, "active=false")) {
+		if(begin_tree_node("Transfer Functions", tf_editor_ptr, true, "active=false")) {
 			align("\a");
 
 			std::string filter = "XML Files (xml):*.xml|All Files:*.*";
@@ -553,7 +553,7 @@ void viewer::create_gui() {
 
 		add_decorator("", "separator");
 
-		if(begin_tree_node("TF Editor - Lines", tf_editor_w_ptr, false)) {
+		if(begin_tree_node("TF Editor - Lines", tf_editor_w_ptr, true)) {
 			add_member_control(this, "", m_shared_data_ptr->centroids, "");
 			align("\a");
 			inline_object_gui(tf_editor_w_ptr);
@@ -602,61 +602,6 @@ void viewer::create_gui() {
 
 		align("\b");
 	}
-}
-
-void viewer::extract_voxel_values()
-{
-	ivec3 volume_resolution(1024, 1024, dataset.num_slices);
-
-	size_t voxel_count = volume_resolution.x() * volume_resolution.y() * volume_resolution.z();
-
-	std::vector<vec4> data;
-	data.reserve(voxel_count);
-
-	for (unsigned z = 0; z < volume_resolution.z(); ++z) {
-		for (unsigned y = 0; y < volume_resolution.y(); ++y) {
-			for (unsigned x = 0; x < volume_resolution.x(); ++x) {
-
-				float v0 = static_cast<float>(dataset.raw_data.get<unsigned char>(0, z, y, x));
-				float v1 = static_cast<float>(dataset.raw_data.get<unsigned char>(1, z, y, x));
-				float v2 = static_cast<float>(dataset.raw_data.get<unsigned char>(2, z, y, x));
-				float v3 = static_cast<float>(dataset.raw_data.get<unsigned char>(3, z, y, x));
-
-				data.push_back(vec4(v0, v1, v2, v3) / 255.0f);
-			}
-		}
-	}
-
-	/*typedef cgv::math::fvec<uint8_t, 4> u8vec4;
-	std::vector<u8vec4> data8;
-	data8.reserve(voxel_count);
-
-	for(unsigned z = 0; z < volume_resolution.z(); ++z) {
-		for(unsigned y = 0; y < volume_resolution.y(); ++y) {
-			for(unsigned x = 0; x < volume_resolution.x(); ++x) {
-				u8vec4 v(
-					static_cast<uint8_t>(dataset.raw_data.get<unsigned char>(0, z, y, x)),
-					static_cast<uint8_t>(dataset.raw_data.get<unsigned char>(1, z, y, x)),
-					static_cast<uint8_t>(dataset.raw_data.get<unsigned char>(2, z, y, x)),
-					static_cast<uint8_t>(dataset.raw_data.get<unsigned char>(3, z, y, x))
-				);
-
-				data8.push_back(v);
-			}
-		}
-	}*/
-
-	/** BEGIN - MFLEURY **/
-	if(tf_editor_w_ptr) {
-		tf_editor_w_ptr->set_data(data);
-		tf_editor_w_ptr->set_names(dataset.stain_names);
-	}
-
-	if (sp_ptr) {
-		sp_ptr->set_data(data);
-		sp_ptr->set_names(dataset.stain_names);
-	}
-	/** END - MFLEURY **/
 }
 
 bool viewer::read_data_set(context& ctx, const std::string& filename) {
@@ -778,9 +723,17 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 	std::cout << "Extracting voxel values ...";
 	cgv::utils::stopwatch s(true);
 
-	extract_voxel_values();
+	dataset.extract_voxel_values();
 
 	std::cout << "done (" << s.get_elapsed_time() << "s)" << std::endl;
+
+	/** BEGIN - MFLEURY **/
+	if(tf_editor_w_ptr)
+		tf_editor_w_ptr->set_data_set(&dataset);
+
+	if(sp_ptr)
+		sp_ptr->set_data_set(&dataset);
+	/** END - MFLEURY **/
 
 	// transfer function is optional
 	if (transfer_function_fn == "") {
@@ -1142,6 +1095,7 @@ bool viewer::prepare_dataset() {
 	}
 	std::cout << "done (" << s1.get_elapsed_time() << "s)" << std::endl;
 
+	// TODO: maybe convert to float values before putting in to the texture
 	dataset.raw_data = tex_data;
 
 	std::cout << "Creating volume texture... ";

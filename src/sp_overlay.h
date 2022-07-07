@@ -10,6 +10,7 @@
 #include <cgv_glutil/msdf_gl_font_renderer.h>
 #include <plot/plot2d.h>
 
+#include "sliced_volume_data_set.h"
 #include "shared_editor_data.h"
 #include "utils_data_types.h"
 
@@ -47,10 +48,6 @@ protected:
 	/// rectangle defining the draw area of the actual plot
 	cgv::glutil::rect domain;
 
-	/// stores the data of the 4 protein stains
-	std::vector<vec4> data;
-	/// stores the names of the 4 protein stains
-	std::vector<std::string> names;
 	/// keeps track of the amount of points that have been rendred so-far
 	int total_count = 0;
 	/// threshold that is applied to protein desnity samples before plotting
@@ -58,9 +55,11 @@ protected:
 	/// alpha value of individual points in plot
 	float alpha = 0.1f;
 	/// point radius
-	float radius = 4.0f;
+	float radius = 2.0f;
 	/// point blur amount
-	float blur = 2.0f;
+	float blur = 0.5f;
+
+	const int label_space = 20;
 
 	/// the protein stain indices for the corresponding scatter plot axis
 	int x_idx = 0;
@@ -89,6 +88,8 @@ protected:
 
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
+	/// create the label texts
+	void create_labels();
 	/// update the overlay content (called by a button in the gui)
 	void update_content();
 
@@ -111,8 +112,11 @@ public:
 	
 	void create_gui();
 	
-	void set_data(std::vector<vec4>& data) { this->data = data; }
-	void set_names(std::vector<std::string>& names) { this->names = names; }
+	void set_data_set(sliced_volume_data_set* data_set_ptr) {
+		m_data_set_ptr = data_set_ptr;
+		create_labels();
+	}
+
 	void set_shared_data(shared_data_ptr data_ptr) { m_shared_data_ptr = data_ptr; }
 
 private:
@@ -124,6 +128,9 @@ private:
 	void add_centroids();
 
 private:
+
+	/// store a pointer to the data set
+	sliced_volume_data_set* m_data_set_ptr = nullptr;
 
 	shared_data_ptr m_shared_data_ptr;
 

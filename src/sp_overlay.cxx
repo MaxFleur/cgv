@@ -73,14 +73,14 @@ void sp_overlay::on_set(void* member_ptr) {
 
 	if(member_ptr == &x_idx) {
 		x_idx = cgv::math::clamp(x_idx, 0, 3);
-		if(names.size() > 3 && labels.size() > 1)
-			labels.set_text(0, names[x_idx]);
+		if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3 && labels.size() > 1)
+			labels.set_text(0, m_data_set_ptr->stain_names[x_idx]);
 	}
 
 	if(member_ptr == &y_idx) {
 		y_idx = cgv::math::clamp(y_idx, 0, 3);
-		if(names.size() > 3 && labels.size() > 1)
-			labels.set_text(1, names[y_idx]);
+		if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3 && labels.size() > 1)
+			labels.set_text(1, m_data_set_ptr->stain_names[y_idx]);
 	}
 
 	has_damage = true;
@@ -120,7 +120,6 @@ void sp_overlay::init_frame(cgv::render::context& ctx) {
 		ivec2 overlay_size = get_overlay_size();
 		
 		// calculate the new domain size
-		int label_space = 20;
 		domain.set_pos(ivec2(13) + label_space); // 13 pixel padding (inner space from border) + 20 pixel space for labels
 		domain.set_size(overlay_size - 2 * ivec2(13) - label_space); // scale size to fit in leftover inner space
 
@@ -132,20 +131,9 @@ void sp_overlay::init_frame(cgv::render::context& ctx) {
 		content_canvas.set_resolution(ctx, overlay_size);
 		viewport_canvas.set_resolution(ctx, get_viewport_size());
 
-		if(font.is_initialized()) {
-			labels.clear();
+		create_labels();
 
-			const auto x = domain.pos().x() + 100;
-			const auto y = domain.pos().y() - label_space / 2;
-
-			labels.add_text("Myosin", ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-			labels.add_text("Salimus", ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-			labels.add_text("Obscurin", ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
-
-			labels.add_text("Actin", ivec2(x, domain.box.get_center().y() * 0.35f), cgv::render::TA_NONE);
-			labels.add_text("Obscurin", ivec2(x, domain.box.get_center().y()), cgv::render::TA_NONE);
-			labels.add_text("Salimus", ivec2(x, domain.box.get_center().y() * 1.65f), cgv::render::TA_NONE);
-		}
+		has_damage = true;
 	}
 }
 
@@ -224,7 +212,7 @@ void sp_overlay::draw_content(cgv::render::context& ctx) {
 		font_prog.enable(ctx);
 		content_canvas.set_view(ctx, font_prog);
 		font_prog.disable(ctx);
-		font_renderer.render(ctx, get_overlay_size(), labels, 0, 3);
+		font_renderer.render(ctx, get_overlay_size(), labels, 3, 6);
 		
 		// restore the previous view matrix
 		content_canvas.pop_modelview_matrix(ctx);
@@ -386,10 +374,36 @@ void sp_overlay::init_styles(cgv::render::context& ctx) {
 	viewport_canvas.disable_current_shader(ctx);
 }
 
+void sp_overlay::create_labels() {
+	
+	labels.clear();
+
+	std::vector<std::string> texts = { "0", "1", "2", "3" };
+
+	if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3) {
+		texts = m_data_set_ptr->stain_names;
+	}
+
+	if(font.is_initialized()) {
+		const auto x = domain.pos().x() + 100;
+		const auto y = domain.pos().y() - label_space / 2;
+
+		labels.add_text(texts[0], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+		labels.add_text(texts[1], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+		labels.add_text(texts[2], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+
+		labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+		labels.add_text(texts[2], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+		labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+	}
+}
+
 void sp_overlay::update_content() {
 
-	if(data.empty())
+	if(!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
+
+	const auto& data = m_data_set_ptr->voxel_data;
 
 	// reset previous total count and point geometry
 	total_count = 0;

@@ -72,4 +72,37 @@ struct sliced_volume_data_set : public cgv::render::render_types {
 
 		return s;
 	}
+
+	std::vector<vec4> voxel_data;
+
+	template<typename T>
+	void extract_voxel_values_impl(size_t voxel_count, float max_value) {
+
+		const T* raw_data_ptr = raw_data.get_ptr<T>();
+
+		for(size_t i = 0; i < 4 * voxel_count; i += 4) {
+			voxel_data.push_back(vec4(
+				static_cast<float>(raw_data_ptr[i + 0]) / max_value,
+				static_cast<float>(raw_data_ptr[i + 1]) / max_value,
+				static_cast<float>(raw_data_ptr[i + 2]) / max_value,
+				static_cast<float>(raw_data_ptr[i + 3]) / max_value
+			));
+		}
+	}
+
+	void extract_voxel_values() {
+		
+		size_t voxel_count = resolution.x() * resolution.y() * resolution.z();
+		
+		voxel_data.clear();
+		voxel_data.reserve(voxel_count);
+
+		const auto& type_id = raw_data.get_format()->get_component_type();
+
+		switch(type_id) {
+		case cgv::type::info::TI_UINT8: extract_voxel_values_impl<cgv::type::uint8_type>(voxel_count, 255.0f); break;
+		case cgv::type::info::TI_UINT16: extract_voxel_values_impl<cgv::type::uint16_type>(voxel_count, 65535.0f); break;
+		default: std::cout << "Warning: Could not find implementation of extract_voxel_values that matches the given component type." << std::endl; break;
+		}
+	}
 };

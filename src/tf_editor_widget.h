@@ -10,6 +10,7 @@
 #include <cgv_glutil/2d/shape2d_styles.h>
 #include <plot/plot2d.h>
 
+#include "sliced_volume_data_set.h"
 #include "shared_editor_data.h"
 #include "utils_data_types.h"
 
@@ -35,8 +36,6 @@ protected:
 	/// rectangle defining the draw area of the actual plot
 	cgv::glutil::rect domain;
 
-	/// stores the data of the 4 protein stains
-	std::vector<vec4> data;
 	/// keeps track of the amount of lines that have been rendred so-far
 	int total_count = 0;
 	/// threshold that is applied to protein desnity samples before plotting
@@ -80,6 +79,8 @@ protected:
 
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
+	/// create the label texts
+	void create_labels();
 	/// update the overlay content (called by a button in the gui)
 	void update_content();
 
@@ -102,8 +103,11 @@ public:
 	
 	void create_gui();
 	
-	void set_data(std::vector<vec4>& data) { this->data = data; }
-	void set_names(std::vector<std::string>& names) { m_protein_names = names; }
+	void set_data_set(sliced_volume_data_set* data_set_ptr) {
+		m_data_set_ptr = data_set_ptr;
+		create_labels();
+	}
+
 	void set_shared_data(shared_data_ptr data_ptr) { m_shared_data_ptr = data_ptr; }
 
 	bool was_updated;
@@ -154,6 +158,9 @@ private:
 		VM_GTF = 1
 	} vis_mode;
 
+	/// store a pointer to the data set
+	sliced_volume_data_set* m_data_set_ptr = nullptr;
+
 	shared_data_ptr m_shared_data_ptr;
 
 	cgv::glutil::line2d_style m_line_style_relations;
@@ -171,8 +178,6 @@ private:
 
 	// Boundaries of the centroid points
 	std::vector<std::vector<vec2>> m_strip_border_points;
-
-	std::vector<std::string> m_protein_names;
 
 	std::vector<std::vector<utils_data_types::point>> m_points;
 	cgv::glutil::draggables_collection<utils_data_types::point*> m_point_handles;
