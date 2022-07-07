@@ -254,7 +254,7 @@ void tf_editor_widget::draw(cgv::render::context& ctx) {
 	// redraw the contents if they are damaged (i.e. they need to change)
 	if(has_damage)
 		draw_content(ctx);
-
+	
 	// draw frame buffer texture to screen using a rectangle shape
 	viewport_canvas.enable_shader(ctx, "rectangle");
 	// enable the color attachment from the offline frame buffer as a texture
@@ -266,7 +266,7 @@ void tf_editor_widget::draw(cgv::render::context& ctx) {
 	viewport_canvas.draw_shape(ctx, get_overlay_position(), get_overlay_size());
 	fbc.disable_attachment(ctx, "color");
 	viewport_canvas.disable_current_shader(ctx);
-
+	
 	// make sure to re-enable the depth test after we are done
 	glEnable(GL_DEPTH_TEST);
 }
@@ -310,6 +310,8 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 
 	// Now create the centroid boundaries and strips, if the update button was pressed
 	if (update_pressed) {
+		// TODO: update_pressed is never reset to false
+
 		create_centroid_strips();
 
 		if (vis_mode == VM_QUADSTRIP) {
@@ -399,7 +401,7 @@ void tf_editor_widget::create_gui() {
 void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 
 	m_line_style_relations.use_blending = true;
-	m_line_style_relations.use_fill_color = false;
+	m_line_style_relations.use_fill_color = true;
 	m_line_style_relations.apply_gamma = false;
 	m_line_style_relations.fill_color = rgba(rgb(0.0f), line_alpha);
 	m_line_style_relations.width = 1.0f;
@@ -420,6 +422,7 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	m_line_style_strip_borders.border_width = 1.5f;
 	m_line_style_strip_borders.apply_gamma = false;
 
+	// TODO: the polygon does not use a line style
 	auto& line_prog = m_polygon_renderer.ref_prog();
 	line_prog.enable(ctx);
 	m_line_style_polygons.apply(ctx, line_prog);
@@ -449,7 +452,7 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	plot_rect_style.use_texture = true;
 	auto& rectangle_prog = content_canvas.enable_shader(ctx, "rectangle");
 	plot_rect_style.apply(ctx, rectangle_prog);
-	viewport_canvas.disable_current_shader(ctx);
+	content_canvas.disable_current_shader(ctx);
 
 	cgv::glutil::shape2d_style text_style;
 	text_style.fill_color = rgba(rgb(0.0f), 1.0f);
