@@ -401,7 +401,7 @@ void tf_editor_widget::create_gui() {
 void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 
 	m_line_style_relations.use_blending = true;
-	m_line_style_relations.use_fill_color = true;
+	m_line_style_relations.use_fill_color = false;
 	m_line_style_relations.apply_gamma = false;
 	m_line_style_relations.fill_color = rgba(rgb(0.0f), line_alpha);
 	m_line_style_relations.width = 1.0f;
