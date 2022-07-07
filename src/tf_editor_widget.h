@@ -199,9 +199,6 @@ private:
 	// Has a point been dragged?
 	bool m_interacted_id_set = false;
 
-	// Has the update button been pressed?
-	bool update_pressed = false;
-
 	// Has a point been clicked?
 	bool m_is_point_clicked = false;
 	// Id of the centroid layer whose point was clicked

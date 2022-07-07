@@ -296,37 +296,34 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	// then arrows on top
 	draw_arrows(ctx);
 
-	// Now create the centroid boundaries and strips, if the update button was pressed
-	if (update_pressed) {
-		// TODO: update_pressed is never reset to false
+	// Now create the centroid boundaies and strips
+	create_centroid_strips();
 
-		create_centroid_strips();
+	if (vis_mode == VM_QUADSTRIP) {
+		auto& line_prog_polygon = m_polygon_renderer.ref_prog();
+		line_prog_polygon.enable(ctx);
+		content_canvas.set_view(ctx, line_prog_polygon);
+		line_prog_polygon.disable(ctx);
 
-		if (vis_mode == VM_QUADSTRIP) {
-			auto& line_prog_polygon = m_polygon_renderer.ref_prog();
-			line_prog_polygon.enable(ctx);
-			content_canvas.set_view(ctx, line_prog_polygon);
-			line_prog_polygon.disable(ctx);
-
-			// draw the lines from the given geometry with offset and count
-			glEnable(GL_PRIMITIVE_RESTART);
-			glPrimitiveRestartIndex(0xFFFFFFFF);
-			m_polygon_renderer.render(ctx, PT_TRIANGLE_STRIP, m_strips);
-			glDisable(GL_PRIMITIVE_RESTART);
-		}
-
-		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-			// Strip borders
-			m_line_style_strip_borders.border_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
-			create_strip_borders(i);
-
-			line_prog.enable(ctx);
-			content_canvas.set_view(ctx, line_prog);
-			m_line_style_strip_borders.apply(ctx, line_prog);
-			line_prog.disable(ctx);
-			m_line_renderer.render(ctx, PT_LINES, m_line_geometry_strip_borders);
-		}
+		// draw the lines from the given geometry with offset and count
+		glEnable(GL_PRIMITIVE_RESTART);
+		glPrimitiveRestartIndex(0xFFFFFFFF);
+		m_polygon_renderer.render(ctx, PT_TRIANGLE_STRIP, m_strips);
+		glDisable(GL_PRIMITIVE_RESTART);
 	}
+
+	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+		// Strip borders
+		m_line_style_strip_borders.border_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
+		create_strip_borders(i);
+
+		line_prog.enable(ctx);
+		content_canvas.set_view(ctx, line_prog);
+		m_line_style_strip_borders.apply(ctx, line_prog);
+		line_prog.disable(ctx);
+		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_strip_borders);
+	}
+
 	
 	// then labels
 	auto& font_prog = m_font_renderer.ref_prog();
@@ -492,10 +489,6 @@ void tf_editor_widget::update_content() {
 		return;
 
 	const auto& data = m_data_set_ptr->voxel_data;
-
-	if (!update_pressed) {
-		update_pressed = true;
-	}
 
 	m_create_all_values = true;
 	m_interacted_id_set = false;
