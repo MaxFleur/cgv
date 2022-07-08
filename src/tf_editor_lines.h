@@ -12,7 +12,7 @@
 
 #include "sliced_volume_data_set.h"
 #include "shared_editor_data.h"
-#include "utils_data_types.h"
+#include "tf_editor_shared_data_types.h"
 
 /* This class provides the editor of the transfer function. The values are synchronized with the GUI */
 class tf_editor_lines : public cgv::glutil::overlay {
@@ -50,25 +50,18 @@ protected:
 	// strips renderer
 	cgv::glutil::generic_renderer m_polygon_renderer;
 
-	/// define a geometry class holding only 2d position values
-	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
-	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 2, vec2, position, rgba, color);
-	polygon_geometry m_strips;
+	tf_editor_shared_data_types::polygon_geometry m_strips;
 
-	DEFINE_GENERIC_RENDER_DATA_CLASS(relation_line_geometry, 2, vec2, position, rgba, color);
+	tf_editor_shared_data_types::relation_line_geometry m_line_geometry_relations;
 
-	// The lines for the relations between the widgets
-	relation_line_geometry m_line_geometry_relations;
+	// widget boundaries and strip border lines
+	tf_editor_shared_data_types::line_geometry m_line_geometry_widgets;
+	tf_editor_shared_data_types::line_geometry m_line_geometry_strip_borders;
 
-	// widget boundaries
-	line_geometry m_line_geometry_widgets;
-	line_geometry m_line_geometry_strip_borders;
-
-	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 1, vec2, position);
 	// If a centroid is dragged, the size of the other centroids will decrease
 	// so we need two different geometries and styles as well
-	point_geometry m_point_geometry_interacted;
-	point_geometry m_point_geometry;
+	tf_editor_shared_data_types::point_geometry_draggable m_point_geometry_interacted;
+	tf_editor_shared_data_types::point_geometry_draggable m_point_geometry;
 
 	cgv::glutil::generic_renderer m_point_renderer;
 
@@ -173,16 +166,16 @@ private:
 
 	cgv::glutil::arrow2d_style m_arrow_style;
 
-	std::vector<utils_data_types::line> m_widget_lines;
-	std::vector<utils_data_types::polygon> m_widget_polygons;
+	std::vector<tf_editor_shared_data_types::line> m_widget_lines;
+	std::vector<tf_editor_shared_data_types::polygon> m_widget_polygons;
 
 	// Boundaries of the centroid points
 	std::vector<std::vector<vec2>> m_strip_border_points;
 
-	std::vector<std::vector<utils_data_types::point_line>> m_points;
-	cgv::glutil::draggables_collection<utils_data_types::point_line*> m_point_handles;
+	std::vector<std::vector<tf_editor_shared_data_types::point_line>> m_points;
+	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_line*> m_point_handles;
 
-	std::vector<utils_data_types::point_line*> m_interacted_points;
+	std::vector<tf_editor_shared_data_types::point_line*> m_interacted_points;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 1.0f };

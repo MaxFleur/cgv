@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include <chrono>
-#include <omp.h>
-
 #include <cgv_glutil/overlay.h>
 
-#include "utils_data_types.h"
+#include "tf_editor_shared_data_types.h"
 
 namespace utils_functions
 {

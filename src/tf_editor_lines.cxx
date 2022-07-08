@@ -566,14 +566,14 @@ void tf_editor_lines::init_widgets() {
 	m_widget_polygons.clear();
 
 	const auto add_lines = [&](vec2 v_0, vec2 v_1, vec2 v_2, vec2 v_3, bool invert = true) {
-		m_widget_lines.push_back(utils_data_types::line({ v_0, v_1 }));
-		invert ? m_widget_lines.push_back(utils_data_types::line({ v_2, v_1 })) : m_widget_lines.push_back(utils_data_types::line({ v_1, v_2 }));
-		invert ? m_widget_lines.push_back(utils_data_types::line({ v_3, v_2 })) : m_widget_lines.push_back(utils_data_types::line({ v_2, v_3 }));
-		m_widget_lines.push_back(utils_data_types::line({ v_3, v_0 }));
+		m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_0, v_1 }));
+		invert ? m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_2, v_1 })) : m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_1, v_2 }));
+		invert ? m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_3, v_2 })) : m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_2, v_3 }));
+		m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_3, v_0 }));
 	};
 
 	const auto add_points_to_polygon = [&](vec2 v_0, vec2 v_1, vec2 v_2, vec2 v_3) {
-		utils_data_types::polygon p;
+		tf_editor_shared_data_types::polygon p;
 		p.points.push_back(v_0);
 		p.points.push_back(v_1);
 		p.points.push_back(v_2);
@@ -597,10 +597,10 @@ void tf_editor_lines::init_widgets() {
 	vec_1.set(sizeX * 0.77f, sizeY * 0.45f);
 	vec_2.set(sizeX * 0.65f, sizeY * 0.75f);
 	vec_3.set(sizeX * 0.7f, sizeY * 0.95f);
-	m_widget_lines.push_back(utils_data_types::line({ vec_1, vec_0 }));
-	m_widget_lines.push_back(utils_data_types::line({ vec_2, vec_1 }));
-	m_widget_lines.push_back(utils_data_types::line({ vec_3, vec_2 }));
-	m_widget_lines.push_back(utils_data_types::line({ vec_3, vec_0 }));
+	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_1, vec_0 }));
+	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_2, vec_1 }));
+	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_3, vec_2 }));
+	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_3, vec_0 }));
 	add_points_to_polygon(vec_0, vec_1, vec_2, vec_3);
 
 	// Bottom widget
@@ -615,11 +615,11 @@ void tf_editor_lines::init_widgets() {
 	vec_0.set(sizeX * 0.4f, sizeY * 0.4f);
 	vec_1.set(sizeX * 0.5f, sizeY * 0.6f);
 	vec_2.set(sizeX * 0.6f, sizeY * 0.4f);
-	m_widget_lines.push_back(utils_data_types::line({ vec_0, vec_1 }));
-	m_widget_lines.push_back(utils_data_types::line({ vec_1, vec_2 }));
-	m_widget_lines.push_back(utils_data_types::line({ vec_0, vec_2 }));
+	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_0, vec_1 }));
+	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_1, vec_2 }));
+	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_0, vec_2 }));
 
-	utils_data_types::polygon p;
+	tf_editor_shared_data_types::polygon p;
 	p.points.push_back(vec_0);
 	p.points.push_back(vec_1);
 	p.points.push_back(vec_2);
@@ -636,9 +636,9 @@ void tf_editor_lines::init_widgets() {
 			const auto boundary_right = m_widget_lines.at(i).interpolate(1.0f);
 
 			m_widget_lines.push_back(
-				utils_data_types::line({boundary_left - 5.0f * ortho_direction, boundary_left + 3.0f * ortho_direction}));
+				tf_editor_shared_data_types::line({boundary_left - 5.0f * ortho_direction, boundary_left + 3.0f * ortho_direction}));
 			m_widget_lines.push_back(
-				utils_data_types::line({boundary_right - 5.0f * ortho_direction, boundary_right + 3.0f * ortho_direction}));
+				tf_editor_shared_data_types::line({boundary_right - 5.0f * ortho_direction, boundary_right + 3.0f * ortho_direction}));
 		}
 	}
 
@@ -660,7 +660,7 @@ void tf_editor_lines::add_centroids() {
 	}
 
 	// Create a new centroid and store it
-	utils_data_types::centroid centr;
+	tf_editor_shared_data_types::centroid centr;
 	m_shared_data_ptr->centroids.push_back(centr);
 	add_centroid_draggables();
 	// Add a corresponding point for every centroid
@@ -679,13 +679,13 @@ void tf_editor_lines::add_centroids() {
 }
 
 void tf_editor_lines::add_centroid_draggables() {
-	std::vector<utils_data_types::point_line> points;
+	std::vector<tf_editor_shared_data_types::point_line> points;
 	// Add the new centroid points to the widget lines, start with the left side
 	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets
 		if ((i + 1) % 4 != 0) {
-			points.push_back(utils_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
+			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
 		}
 	}
 	m_points.push_back(points);

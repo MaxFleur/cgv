@@ -12,7 +12,7 @@
 
 #include "sliced_volume_data_set.h"
 #include "shared_editor_data.h"
-#include "utils_data_types.h"
+#include "tf_editor_shared_data_types.h"
 
 /*
 This class provides an example to render a scatter plot (SP), depicting 2 dimensions of the given 4 dimensional data.
@@ -73,17 +73,14 @@ protected:
 	cgv::glutil::generic_renderer m_draggables_renderer;
 
 	/// define a geometry class holding 2d positions and rgba colors for each point
-	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry_data, 2, vec2, position, rgba, color);
-	point_geometry_data m_point_geometry_data;
+	tf_editor_shared_data_types::point_geometry_data m_point_geometry_data;
 
-	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry_draggable, 1, vec2, position);
 	// If a centroid is dragged, the size of the other centroids will decrease
 	// so we need two different geometries and styles as well
-	point_geometry_draggable m_point_geometry_interacted;
-	point_geometry_draggable m_point_geometry;
+	tf_editor_shared_data_types::point_geometry_draggable m_point_geometry_interacted;
+	tf_editor_shared_data_types::point_geometry_draggable m_point_geometry;
 
-	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
-	line_geometry m_line_geometry_grid;
+	tf_editor_shared_data_types::line_geometry m_line_geometry_grid;
 
 	/// stores the actually used font (atlas)
 	cgv::glutil::msdf_font font;
@@ -148,17 +145,17 @@ private:
 
 	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
-	std::vector<utils_data_types::line> m_lines_grid;
+	std::vector<tf_editor_shared_data_types::line> m_lines_grid;
 
 	cgv::glutil::line2d_style m_line_style_grid;
 
 	cgv::glutil::shape2d_style m_draggable_style;
 	cgv::glutil::shape2d_style m_draggable_style_interacted;
 
-	std::vector<std::vector<utils_data_types::point_scatterplot>> m_points;
-	cgv::glutil::draggables_collection<utils_data_types::point_scatterplot*> m_point_handles;
+	std::vector<std::vector<tf_editor_shared_data_types::point_scatterplot>> m_points;
+	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
 
-	std::vector<utils_data_types::point_scatterplot*> m_interacted_points;
+	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_scatterplot> tf_editor_scatterplot_ptr;

@@ -499,30 +499,30 @@ void tf_editor_scatterplot::create_grid_lines() {
 	vec2 horiz_right{ sizeX * 1.05f, sizeY * 0.05f };
 	vec2 vert_down{ sizeX * 0.05f, sizeY * 0.05f };
 	vec2 vert_up{ sizeX * 0.05f, sizeY * 1.05f };
-	m_lines_grid.push_back(utils_data_types::line({ horiz_left, horiz_right }));
-	m_lines_grid.push_back(utils_data_types::line({ vert_down, vert_up }));
+	m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
+	m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
 
 	// Modify for all following positions
 	horiz_left.set(sizeX * 0.38f, sizeY * 0.05f);
 	horiz_right.set(sizeX * 0.38f, sizeY * 1.05f);
 	vert_down.set(sizeX * 0.05f, sizeY * 0.38f);
 	vert_up.set(sizeX * 1.05f, sizeY * 0.38f);
-	m_lines_grid.push_back(utils_data_types::line({ horiz_left, horiz_right }));
-	m_lines_grid.push_back(utils_data_types::line({ vert_down, vert_up }));
+	m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
+	m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
 
 	horiz_left.set(sizeX * 0.05f, sizeY * 0.71f);
 	horiz_right.set(sizeX * 0.71f, sizeY * 0.71f);
 	vert_down.set(sizeX * 0.71f, sizeY * 0.05f);
 	vert_up.set(sizeX * 0.71f, sizeY * 0.71f);
-	m_lines_grid.push_back(utils_data_types::line({ horiz_left, horiz_right }));
-	m_lines_grid.push_back(utils_data_types::line({ vert_down, vert_up }));
+	m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
+	m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
 
 	horiz_left.set(sizeX * 0.05f, sizeY * 1.05f);
 	horiz_right.set(sizeX * 0.38f, sizeY * 1.05f);
 	vert_down.set(sizeX * 1.05f, sizeY * 0.05f);
 	vert_up.set(sizeX * 1.05f, sizeY * 0.38f);
-	m_lines_grid.push_back(utils_data_types::line({ horiz_left, horiz_right }));
-	m_lines_grid.push_back(utils_data_types::line({ vert_down, vert_up }));
+	m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
+	m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
 }
 
 void tf_editor_scatterplot::add_grid_lines() {
@@ -540,7 +540,7 @@ void tf_editor_scatterplot::add_centroids() {
 	}
 
 	// Create a new centroid and store it
-	utils_data_types::centroid centr;
+	tf_editor_shared_data_types::centroid centr;
 	m_shared_data_ptr->centroids.push_back(centr);
 	add_centroid_draggables();
 	// Add a corresponding point for every centroid
@@ -557,17 +557,17 @@ void tf_editor_scatterplot::add_centroids() {
 }
 
 void tf_editor_scatterplot::add_centroid_draggables() {
-	std::vector<utils_data_types::point_scatterplot> points;
+	std::vector<tf_editor_shared_data_types::point_scatterplot> points;
 	const auto org = static_cast<vec2>(domain.pos());
 	const auto size = domain.size();
 
 	// Add the new centroid points to the scatter plot
-	points.push_back(utils_data_types::point_scatterplot(vec2(0.0f, 0.0f) * size + org, 0, 1));
-	points.push_back(utils_data_types::point_scatterplot(vec2(0.0f, 0.33f) * size + org, 0, 2));
-	points.push_back(utils_data_types::point_scatterplot(vec2(0.0f, 0.66f) * size + org, 0, 3));
-	points.push_back(utils_data_types::point_scatterplot(vec2(0.33f, 0.0f) * size + org, 1, 2));
-	points.push_back(utils_data_types::point_scatterplot(vec2(0.33f, 0.33f) * size + org, 1, 3));
-	points.push_back(utils_data_types::point_scatterplot(vec2(0.66f, 0.0f) * size + org, 2, 3));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.0f) * size + org, 0, 1));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.33f) * size + org, 0, 2));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.66f) * size + org, 0, 3));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.0f) * size + org, 1, 2));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.33f) * size + org, 1, 3));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.66f, 0.0f) * size + org, 2, 3));
 
 	m_points.push_back(points);
 }

@@ -10,10 +10,22 @@ typedef cgv::glutil::overlay::vec2 vec2;
 typedef cgv::glutil::overlay::vec4 vec4;
 typedef cgv::render::render_types::rgba rgba;
 
-namespace utils_data_types
+namespace tf_editor_shared_data_types
 {
+	// Simple line geometry
+	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
+	// Relation lines between widgets which might be drawn with a varying color
+	DEFINE_GENERIC_RENDER_DATA_CLASS(relation_line_geometry, 2, vec2, position, rgba, color);
 
-struct line
+	// Geometry of strips
+	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 2, vec2, position, rgba, color);
+
+	// Geometry for draggable points
+	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry_draggable, 1, vec2, position);
+	// Geometry for non draggable points containing data
+	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry_data, 2, vec2, position, rgba, color);
+
+	struct line
 	{
 		vec2 a;
 		vec2 b;
