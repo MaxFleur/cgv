@@ -121,6 +121,21 @@ struct line
 			}
 			return is_inside;
 		}
+
+		vec2 get_center() const {
+			vec2 c(0.0f);
+			for(const vec2& p : points)
+				c += p;
+			return c /= static_cast<float>(points.size());
+		}
+
+		// default constructor
+		polygon() {}
+
+		// construct from given vector of points
+		polygon(std::vector<vec2>& pnts) {
+			points = pnts;
+		}
 	};
 }
 

@@ -36,6 +36,8 @@ protected:
 	/// rectangle defining the draw area of the actual plot
 	cgv::glutil::rect domain;
 
+	/// whether the plot shall be reset and its framebuffer cleared
+	bool reset_plot = true;
 	/// keeps track of the amount of lines that have been rendred so-far
 	int total_count = 0;
 	/// threshold that is applied to protein desnity samples before plotting
