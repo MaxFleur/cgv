@@ -698,7 +698,7 @@ void tf_editor_lines::init_widgets() {
 
 	// Helper function to add a new line
 	const auto add_line = [&](vec2 v_0, vec2 v_1) {
-		m_widget_lines.push_back(utils_data_types::line({ v_0, v_1 }));
+		m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_0, v_1 }));
 	};
 
 	// Left widget
@@ -725,16 +725,12 @@ void tf_editor_lines::init_widgets() {
 	add_line(center[1], center[2]);
 
 	// Create a polygon out of each widget
-	m_widget_polygons.push_back(utils_data_types::polygon(left));
-	m_widget_polygons.push_back(utils_data_types::polygon(right));
-	m_widget_polygons.push_back(utils_data_types::polygon(bottom));
-	m_widget_polygons.push_back(utils_data_types::polygon(center));
-
-
+	m_widget_polygons.push_back(tf_editor_shared_data_types::polygon(left));
+	m_widget_polygons.push_back(tf_editor_shared_data_types::polygon(right));
+	m_widget_polygons.push_back(tf_editor_shared_data_types::polygon(bottom));
+	m_widget_polygons.push_back(tf_editor_shared_data_types::polygon(center));
 
 #else
-
-
 
 	const auto add_lines = [&](vec2 v_0, vec2 v_1, vec2 v_2, vec2 v_3, bool invert = true) {
 		m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_0, v_1 }));
