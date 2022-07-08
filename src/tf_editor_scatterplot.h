@@ -30,7 +30,7 @@ Even though only 2 dimensions are displayed, the filtering considers the all dim
 
 This example further demonstrates how to render 2d text. The text is used to display labels on the coordinate axes.
 */
-class sp_overlay : public cgv::glutil::overlay {
+class tf_editor_scatterplot : public cgv::glutil::overlay {
 protected:
 	/// whether we need to redraw the contents of this overlay
 	bool has_damage = true;
@@ -94,7 +94,7 @@ protected:
 	void update_content();
 
 public:
-	sp_overlay();
+	tf_editor_scatterplot();
 	std::string get_type_name() const { return "sp_overlay"; }
 
 	void clear(cgv::render::context& ctx);
@@ -141,6 +141,6 @@ private:
 	cgv::glutil::line2d_style m_line_style_grid;
 };
 
-typedef cgv::data::ref_ptr<sp_overlay> sp_overlay_ptr;
+typedef cgv::data::ref_ptr<tf_editor_scatterplot> tf_editor_scatterplot_ptr;
 
 #endif SP_OVERLAY_H

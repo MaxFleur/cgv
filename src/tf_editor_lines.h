@@ -15,7 +15,7 @@
 #include "utils_data_types.h"
 
 /* This class provides the editor of the transfer function. The values are synchronized with the GUI */
-class tf_editor_widget : public cgv::glutil::overlay {
+class tf_editor_lines : public cgv::glutil::overlay {
 protected:
 	/// whether we need to redraw the contents of this overlay
 	bool has_damage = true;
@@ -85,7 +85,7 @@ protected:
 	void update_content();
 
 public:
-	tf_editor_widget();
+	tf_editor_lines();
 	std::string get_type_name() const { return "pcp_overlay"; }
 
 	void clear(cgv::render::context& ctx);
@@ -205,6 +205,6 @@ private:
 	int m_clicked_centroid_id ;
 };
 
-typedef cgv::data::ref_ptr<tf_editor_widget> tf_editor_widget_ptr;
+typedef cgv::data::ref_ptr<tf_editor_lines> tf_editor_lines_ptr;
 
 /** END - MFLEURY **/

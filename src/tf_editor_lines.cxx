@@ -1,6 +1,6 @@
 /** BEGIN - MFLEURY **/
 
-#include "tf_editor_widget.h"
+#include "tf_editor_lines.h"
 
 #include <cgv/gui/animate.h>
 #include <cgv/gui/key_event.h>
@@ -10,7 +10,7 @@
 
 #include "utils_functions.h"
 
-tf_editor_widget::tf_editor_widget()
+tf_editor_lines::tf_editor_lines()
 {	
 	set_name("PCP Overlay");
 	// prevent the mouse events from reaching through this overlay to the underlying elements
@@ -44,11 +44,11 @@ tf_editor_widget::tf_editor_widget()
 	m_polygon_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::polygon);
 
 	// callbacks for the moving of centroids
-	m_point_handles.set_drag_callback(std::bind(&tf_editor_widget::set_point_positions, this));
-	m_point_handles.set_drag_end_callback(std::bind(&tf_editor_widget::end_drag, this));
+	m_point_handles.set_drag_callback(std::bind(&tf_editor_lines::set_point_positions, this));
+	m_point_handles.set_drag_end_callback(std::bind(&tf_editor_lines::end_drag, this));
 }
 
-void tf_editor_widget::clear(cgv::render::context& ctx) {
+void tf_editor_lines::clear(cgv::render::context& ctx) {
 	content_canvas.destruct(ctx);
 	viewport_canvas.destruct(ctx);
 	fbc.clear(ctx);
@@ -67,11 +67,11 @@ void tf_editor_widget::clear(cgv::render::context& ctx) {
 	m_point_geometry_interacted.destruct(ctx);
 }
 
-bool tf_editor_widget::self_reflect(cgv::reflect::reflection_handler& _rh) {
+bool tf_editor_lines::self_reflect(cgv::reflect::reflection_handler& _rh) {
 	return true;
 }
 
-bool tf_editor_widget::handle_event(cgv::gui::event& e) {
+bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 
 	// return true if the event gets handled and stopped here or false if you want to pass it to the next plugin
 	unsigned et = e.get_kind();
@@ -116,7 +116,7 @@ bool tf_editor_widget::handle_event(cgv::gui::event& e) {
 	return false;
 }
 
-void tf_editor_widget::on_set(void* member_ptr) {
+void tf_editor_lines::on_set(void* member_ptr) {
 	// react to changes of the line alpha parameter and update the styles
 	if(member_ptr == &line_alpha) {
 		if(auto ctx_ptr = get_context())
@@ -172,7 +172,7 @@ void tf_editor_widget::on_set(void* member_ptr) {
 	post_redraw();
 }
 
-bool tf_editor_widget::init(cgv::render::context& ctx) {
+bool tf_editor_lines::init(cgv::render::context& ctx) {
 
 	bool success = true;
 
@@ -199,7 +199,7 @@ bool tf_editor_widget::init(cgv::render::context& ctx) {
 	return success;
 }
 
-void tf_editor_widget::init_frame(cgv::render::context& ctx) {
+void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 
 	// react to changes in the overlay size
 	if(ensure_overlay_layout(ctx)) {
@@ -231,7 +231,7 @@ void tf_editor_widget::init_frame(cgv::render::context& ctx) {
 	}
 }
 
-void tf_editor_widget::draw(cgv::render::context& ctx) {
+void tf_editor_lines::draw(cgv::render::context& ctx) {
 
 	if(!show)
 		return;
@@ -259,7 +259,7 @@ void tf_editor_widget::draw(cgv::render::context& ctx) {
 	glEnable(GL_DEPTH_TEST);
 }
 
-void tf_editor_widget::draw_content(cgv::render::context& ctx) {
+void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 
 	// enable the OpenGL blend functionalities
 	glEnable(GL_BLEND);
@@ -343,12 +343,12 @@ void tf_editor_widget::draw_content(cgv::render::context& ctx) {
 	has_damage = !done;
 }
 
-void tf_editor_widget::create_gui() {
+void tf_editor_lines::create_gui() {
 
 	create_overlay_gui();
 
 	// add a button to trigger a content update by redrawing
-	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_widget::update_content));
+	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_lines::update_content));
 	// add controls for parameters
 	add_member_control(this, "Threshold", threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "Line Alpha", line_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
@@ -358,7 +358,7 @@ void tf_editor_widget::create_gui() {
 
 	// Create new centroids
 	auto const add_centroid_button = add_button("Add centroid");
-	connect_copy(add_centroid_button->click, rebind(this, &tf_editor_widget::add_centroids));
+	connect_copy(add_centroid_button->click, rebind(this, &tf_editor_lines::add_centroids));
 
 	// Add GUI controls for the centroid
 	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++ ) {
@@ -383,7 +383,7 @@ void tf_editor_widget::create_gui() {
 	}
 }
 
-void tf_editor_widget::init_styles(cgv::render::context& ctx) {
+void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 
 	m_line_style_relations.use_blending = true;
 	m_line_style_relations.use_fill_color = false;
@@ -466,7 +466,7 @@ void tf_editor_widget::init_styles(cgv::render::context& ctx) {
 	viewport_canvas.disable_current_shader(ctx);
 }
 
-void tf_editor_widget::create_labels() {
+void tf_editor_lines::create_labels() {
 
 	m_labels.clear();
 
@@ -483,7 +483,7 @@ void tf_editor_widget::create_labels() {
 	}
 }
 
-void tf_editor_widget::update_content() {
+void tf_editor_lines::update_content() {
 	
 	if(!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
@@ -559,7 +559,7 @@ void tf_editor_widget::update_content() {
 	post_redraw();
 }
 
-void tf_editor_widget::init_widgets() {
+void tf_editor_lines::init_widgets() {
 	m_widget_lines.clear();
 	m_widget_polygons.clear();
 
@@ -642,7 +642,7 @@ void tf_editor_widget::init_widgets() {
 
 }
 
-void tf_editor_widget::add_widget_lines() {
+void tf_editor_lines::add_widget_lines() {
 	m_line_geometry_widgets.clear();
 
 	for (const auto l : m_widget_lines) {
@@ -651,7 +651,7 @@ void tf_editor_widget::add_widget_lines() {
 	}
 }
 
-void tf_editor_widget::add_centroids() {
+void tf_editor_lines::add_centroids() {
 	// Hardcoded boundary, this might change later
 	if (m_shared_data_ptr->centroids.size() == 5) {
 		return;
@@ -676,7 +676,7 @@ void tf_editor_widget::add_centroids() {
 	post_redraw();
 }
 
-void tf_editor_widget::add_centroid_draggables() {
+void tf_editor_lines::add_centroid_draggables() {
 	std::vector<utils_data_types::point> points;
 	// Add the new centroid points to the widget lines, start with the left side
 	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
@@ -689,7 +689,7 @@ void tf_editor_widget::add_centroid_draggables() {
 	m_points.push_back(points);
 }
 
-bool tf_editor_widget::draw_plot(cgv::render::context& ctx) {
+bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 
 	// enable the offline plot frame buffer, so all things are drawn into its attached textures
 	fbc_plot.enable(ctx);
@@ -734,7 +734,7 @@ bool tf_editor_widget::draw_plot(cgv::render::context& ctx) {
 	return !run;
 }
 
-void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
+void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
 	for (int i = 0; i < m_shared_data_ptr->centroids.size(); ++i) {
 		// Clear for each centroid because colors etc might change
 		m_point_geometry.clear();
@@ -771,7 +771,7 @@ void tf_editor_widget::draw_draggables(cgv::render::context& ctx) {
 	}
 }
 
-void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
+void tf_editor_lines::draw_arrows(cgv::render::context& ctx) {
 	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
 	m_arrow_style.apply(ctx, arrow_prog);
 	
@@ -786,7 +786,7 @@ void tf_editor_widget::draw_arrows(cgv::render::context& ctx) {
 	content_canvas.disable_current_shader(ctx);
 }
 
-bool tf_editor_widget::create_centroid_boundaries() {
+bool tf_editor_lines::create_centroid_boundaries() {
 	float relative_position;
 	float boundary_left;
 	float boundary_right;
@@ -863,7 +863,7 @@ bool tf_editor_widget::create_centroid_boundaries() {
 	return false;
 }
 
-void tf_editor_widget::create_centroid_strips() {
+void tf_editor_lines::create_centroid_strips() {
 	// Don't do anything if there are no points yet
 	if (m_points.empty()) {
 		return;
@@ -920,7 +920,7 @@ void tf_editor_widget::create_centroid_strips() {
 	}
 }
 
-void tf_editor_widget::create_strip_borders(int index) {
+void tf_editor_lines::create_strip_borders(int index) {
 	// if there are no values yet, do not do anything
 	if (m_strip_border_points.at(index).empty()) {
 		return;
@@ -946,7 +946,7 @@ void tf_editor_widget::create_strip_borders(int index) {
 	add_indices_to_strip_borders(index, 15, 23);
 }
 
-void tf_editor_widget::set_point_positions() {
+void tf_editor_lines::set_point_positions() {
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
 	m_interacted_points.clear();
@@ -1002,7 +1002,7 @@ void tf_editor_widget::set_point_positions() {
 	post_redraw();
 }
 
-void tf_editor_widget::find_clicked_centroid(int x, int y) {
+void tf_editor_lines::find_clicked_centroid(int x, int y) {
 	const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y)};
 	auto found = false;
 	int found_index;
@@ -1032,7 +1032,7 @@ void tf_editor_widget::find_clicked_centroid(int x, int y) {
 	}
 }
 
-void tf_editor_widget::scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed) {
+void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed) {
 	auto found = false;
 	int found_index;
 	// Search through all polygons

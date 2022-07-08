@@ -23,8 +23,8 @@
 
 #include "plot_overlay.h"
 
-#include "tf_editor_widget.h"
-#include "sp_overlay.h"
+#include "tf_editor_lines.h"
+#include "tf_editor_scatterplot.h"
 
 #include "shared_editor_data.h"
 
@@ -255,7 +255,7 @@ public:
 private:
 	shared_data_ptr m_shared_data_ptr;
 
-	tf_editor_widget_ptr tf_editor_w_ptr = nullptr;
-	sp_overlay_ptr sp_ptr = nullptr;
+	tf_editor_lines_ptr m_editor_lines_ptr = nullptr;
+	tf_editor_scatterplot_ptr m_editor_scatterplot_ptr = nullptr;
 /** END - MFLEURY **/
 };

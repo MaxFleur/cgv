@@ -1,4 +1,4 @@
-#include "sp_overlay.h"
+#include "tf_editor_scatterplot.h"
 
 #include <cgv/gui/animate.h>
 #include <cgv/gui/key_event.h>
@@ -7,7 +7,7 @@
 #include <cgv_gl/gl/gl.h>
 #include <cgv_glutil/color_map.h>
 
-sp_overlay::sp_overlay() {
+tf_editor_scatterplot::tf_editor_scatterplot() {
 	
 	set_name("PCP Overlay");
 	// prevent the mouse events from reaching throug this overlay to the underlying elements
@@ -36,7 +36,7 @@ sp_overlay::sp_overlay() {
 	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 }
 
-void sp_overlay::clear(cgv::render::context& ctx) {
+void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 
 	// destruct all previously initialized members
 	content_canvas.destruct(ctx);
@@ -52,18 +52,18 @@ void sp_overlay::clear(cgv::render::context& ctx) {
 	font_renderer.destruct(ctx);
 }
 
-bool sp_overlay::self_reflect(cgv::reflect::reflection_handler& _rh) {
+bool tf_editor_scatterplot::self_reflect(cgv::reflect::reflection_handler& _rh) {
 
 	return true;
 }
 
-bool sp_overlay::handle_event(cgv::gui::event& e) {
+bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 
 	// return true if the event gets handled and stopped here or false if you want to pass it to the next plugin
 	return false;
 }
 
-void sp_overlay::on_set(void* member_ptr) {
+void tf_editor_scatterplot::on_set(void* member_ptr) {
 
 	// react to changes of the point alpha parameter and update the styles
 	if(member_ptr == &alpha || member_ptr == &blur) {
@@ -88,7 +88,7 @@ void sp_overlay::on_set(void* member_ptr) {
 	post_redraw();
 }
 
-bool sp_overlay::init(cgv::render::context& ctx) {
+bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	
 	bool success = true;
 
@@ -113,7 +113,7 @@ bool sp_overlay::init(cgv::render::context& ctx) {
 	return success;
 }
 
-void sp_overlay::init_frame(cgv::render::context& ctx) {
+void tf_editor_scatterplot::init_frame(cgv::render::context& ctx) {
 
 	// react to changes in the overlay size
 	if(ensure_overlay_layout(ctx)) {
@@ -137,7 +137,7 @@ void sp_overlay::init_frame(cgv::render::context& ctx) {
 	}
 }
 
-void sp_overlay::draw(cgv::render::context& ctx) {
+void tf_editor_scatterplot::draw(cgv::render::context& ctx) {
 
 	if(!show)
 		return;
@@ -165,7 +165,7 @@ void sp_overlay::draw(cgv::render::context& ctx) {
 	glEnable(GL_DEPTH_TEST);
 }
 
-void sp_overlay::draw_content(cgv::render::context& ctx) {
+void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 
 	// enable the OpenGL blend functionalities
 	glEnable(GL_BLEND);
@@ -272,12 +272,12 @@ void sp_overlay::draw_content(cgv::render::context& ctx) {
 	has_damage = run;
 }
 
-void sp_overlay::create_gui() {
+void tf_editor_scatterplot::create_gui() {
 
 	create_overlay_gui();
 
 	// add a button to trigger a content update by redrawing
-	connect_copy(add_button("Update")->click, rebind(this, &sp_overlay::update_content));
+	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_scatterplot::update_content));
 	// add controls for parameters
 	add_member_control(this, "Threshold", threshold, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "Alpha", alpha, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
@@ -291,7 +291,7 @@ void sp_overlay::create_gui() {
 
 	// Create new centroids
 	auto const add_centroid_button = add_button("Add centroid");
-	connect_copy(add_centroid_button->click, rebind(this, &sp_overlay::add_centroids));
+	connect_copy(add_centroid_button->click, rebind(this, &tf_editor_scatterplot::add_centroids));
 
 	// Add GUI controls for the centroid
 	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
@@ -313,7 +313,7 @@ void sp_overlay::create_gui() {
 	}
 }
 
-void sp_overlay::init_styles(cgv::render::context& ctx) {
+void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 
 	// configure style for the plot frame
 	cgv::glutil::shape2d_style frame_style;
@@ -374,7 +374,7 @@ void sp_overlay::init_styles(cgv::render::context& ctx) {
 	viewport_canvas.disable_current_shader(ctx);
 }
 
-void sp_overlay::create_labels() {
+void tf_editor_scatterplot::create_labels() {
 	
 	labels.clear();
 
@@ -398,7 +398,7 @@ void sp_overlay::create_labels() {
 	}
 }
 
-void sp_overlay::update_content() {
+void tf_editor_scatterplot::update_content() {
 
 	if(!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
@@ -485,7 +485,7 @@ void sp_overlay::update_content() {
 	post_redraw();
 }
 
-void sp_overlay::create_grid_lines() {
+void tf_editor_scatterplot::create_grid_lines() {
 	m_lines_grid.clear();
 
 	const auto sizeX = domain.size().x();
@@ -522,7 +522,7 @@ void sp_overlay::create_grid_lines() {
 	m_lines_grid.push_back(utils_data_types::line({ vert_down, vert_up }));
 }
 
-void sp_overlay::add_grid_lines() {
+void tf_editor_scatterplot::add_grid_lines() {
 	m_line_geometry_grid.clear();
 
 	for (const auto l : m_lines_grid) {
@@ -531,7 +531,7 @@ void sp_overlay::add_grid_lines() {
 	}
 }
 
-void sp_overlay::add_centroids() {
+void tf_editor_scatterplot::add_centroids() {
 	if (m_shared_data_ptr->centroids.size() == 5) {
 		return;
 	}

@@ -60,13 +60,13 @@ viewer::viewer() : application_plugin("Viewer") {
 	/** BEGIN - MFLEURY **/
 	m_shared_data_ptr = std::make_shared<shared_data>();
 
-	tf_editor_w_ptr = register_overlay<tf_editor_widget>("PCP Overlay");
-	tf_editor_w_ptr->set_shared_data(m_shared_data_ptr);
+	m_editor_lines_ptr = register_overlay<tf_editor_lines>("TF Lines Overlay");
+	m_editor_lines_ptr->set_shared_data(m_shared_data_ptr);
 	
-	sp_ptr = register_overlay<sp_overlay>("SP Overlay");
-	sp_ptr->set_shared_data(m_shared_data_ptr);
-	sp_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
-	sp_ptr->set_visibility(false);
+	m_editor_scatterplot_ptr = register_overlay<tf_editor_scatterplot>("TF Scatterplot Overlay");
+	m_editor_scatterplot_ptr->set_shared_data(m_shared_data_ptr);
+	m_editor_scatterplot_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
+	m_editor_scatterplot_ptr->set_visibility(false);
 	/** END - MFLEURY **/
 }
 
@@ -122,8 +122,8 @@ bool viewer::handle_event(cgv::gui::event& e) {
 						handled = true;
 					}
 				} else {
-					if(tf_editor_w_ptr) {
-						tf_editor_w_ptr->toggle_visibility();
+					if(m_editor_lines_ptr) {
+						m_editor_lines_ptr->toggle_visibility();
 						handled = true;
 					}
 				}
@@ -247,14 +247,14 @@ void viewer::on_set(void* member_ptr) {
 
 	IFSET(volume_mode) {
 		if(volume_mode == VM_4_CHANNEL) {
-			if(tf_editor_w_ptr && tf_editor_w_ptr->is_visible()) {
-				tf_editor_w_ptr->set_visibility(false);
+			if(m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
+				m_editor_lines_ptr->set_visibility(false);
 				tf_editor_ptr->set_visibility(true);
 			}
 		} else {
 			if(tf_editor_ptr && tf_editor_ptr->is_visible()) {
 				tf_editor_ptr->set_visibility(false);
-				tf_editor_w_ptr->set_visibility(true);
+				m_editor_lines_ptr->set_visibility(true);
 			}
 		}
 		post_recreate_gui();
@@ -319,8 +319,8 @@ void viewer::init_frame(cgv::render::context& ctx) {
 		on_set(&fh.has_unsaved_changes);
 	}
 
-	if (tf_editor_w_ptr->was_updated) {
-		tf_editor_w_ptr->was_updated = false;
+	if (m_editor_lines_ptr->was_updated) {
+		m_editor_lines_ptr->was_updated = false;
 
 		on_set(&m_shared_data_ptr->centroids);
 	}
@@ -553,19 +553,19 @@ void viewer::create_gui() {
 
 		add_decorator("", "separator");
 
-		if(begin_tree_node("TF Editor - Lines", tf_editor_w_ptr, true)) {
+		if(begin_tree_node("TF Editor - Lines", m_editor_lines_ptr, true)) {
 			add_member_control(this, "", m_shared_data_ptr->centroids, "");
 			align("\a");
-			inline_object_gui(tf_editor_w_ptr);
+			inline_object_gui(m_editor_lines_ptr);
 			align("\b");
-			end_tree_node(tf_editor_w_ptr);
+			end_tree_node(m_editor_lines_ptr);
 		}
 
-		if(begin_tree_node("SP", sp_ptr, false)) {
+		if(begin_tree_node("SP", m_editor_scatterplot_ptr, false)) {
 			align("\a");
-			inline_object_gui(sp_ptr);
+			inline_object_gui(m_editor_scatterplot_ptr);
 			align("\b");
-			end_tree_node(sp_ptr);
+			end_tree_node(m_editor_scatterplot_ptr);
 		}
 		/** END - MFLEURY **/
 	}
@@ -728,11 +728,11 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 	std::cout << "done (" << s.get_elapsed_time() << "s)" << std::endl;
 
 	/** BEGIN - MFLEURY **/
-	if(tf_editor_w_ptr)
-		tf_editor_w_ptr->set_data_set(&dataset);
+	if(m_editor_lines_ptr)
+		m_editor_lines_ptr->set_data_set(&dataset);
 
-	if(sp_ptr)
-		sp_ptr->set_data_set(&dataset);
+	if(m_editor_scatterplot_ptr)
+		m_editor_scatterplot_ptr->set_data_set(&dataset);
 	/** END - MFLEURY **/
 
 	// transfer function is optional
