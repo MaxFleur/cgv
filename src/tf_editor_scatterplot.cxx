@@ -434,6 +434,15 @@ void tf_editor_scatterplot::update_content() {
 	vec2 org = static_cast<vec2>(domain.pos());
 	vec2 size = domain.size();
 
+	const auto add_point = [&](vec2 pos, float x, float y) {
+		pos.set(x, y);
+		pos *= size;
+		pos += org;
+
+		// add one point
+		m_point_geometry_data.add(pos, rgba(rgb(0.0f), alpha));
+	};
+
 	// for each given sample of 4 protein densities, do:
 	for(size_t i = 0; i < data.size(); ++i) {
 		const vec4& v = data[i];
@@ -451,16 +460,7 @@ void tf_editor_scatterplot::update_content() {
 			for (int i = 1; i < 4; i++) {
 				vec2 pos(v[0], v[i]);
 
-				const auto x = pos.x();
-				const auto y = pos.y();
-
-				pos.set(x * 0.33f, (y / 3.0f) + offset);
-				pos *= size;
-				pos += org;
-
-				// add one point
-				m_point_geometry_data.add(pos, rgba(rgb(0.0f), alpha));
-
+				add_point(pos, pos.x() * 0.33f, (pos.y() / 3.0f) + offset);
 				offset += 0.33f;
 			}
 			// Second col
@@ -469,31 +469,13 @@ void tf_editor_scatterplot::update_content() {
 			for (int i = 1; i < 3; i++) {
 				vec2 pos(v[3], v[i]);
 
-				const auto x = pos.x();
-				const auto y = pos.y();
-
-				pos.set((x * 0.33f) + 0.33f, (y / 3.0f) + offset);
-				pos *= size;
-				pos += org;
-
-				// add one point
-				m_point_geometry_data.add(pos, rgba(rgb(0.0f), alpha));
-
+				add_point(pos, (pos.x() * 0.33f) + 0.33f, (pos.y() / 3.0f) + offset);
 				offset += 0.33f;
 			}
 			// Obscurin - Actin
 			vec2 pos(v[2], v[1]);
 
-			const auto x = pos.x();
-			const auto y = pos.y();
-
-			pos.set((x * 0.33f) + 0.66f, (y / 3.0f));
-			pos *= size;
-			pos += org;
-
-			// add one point
-			m_point_geometry_data.add(pos, rgba(rgb(0.0f), alpha));
-
+			add_point(pos, (pos.x() * 0.33f) + 0.66f, (pos.y() / 3.0f));
 			offset += 0.33f;
 		}
 	}
@@ -583,7 +565,7 @@ void tf_editor_scatterplot::add_centroid_draggables() {
 	points.push_back(utils_data_types::point_scatterplot(vec2(0.0f, 0.0f) * size + org, 0, 1));
 	points.push_back(utils_data_types::point_scatterplot(vec2(0.0f, 0.33f) * size + org, 0, 2));
 	points.push_back(utils_data_types::point_scatterplot(vec2(0.0f, 0.66f) * size + org, 0, 3));
-	points.push_back(utils_data_types::point_scatterplot(vec2( 0.33f, 0.0f) * size + org, 1, 2));
+	points.push_back(utils_data_types::point_scatterplot(vec2(0.33f, 0.0f) * size + org, 1, 2));
 	points.push_back(utils_data_types::point_scatterplot(vec2(0.33f, 0.33f) * size + org, 1, 3));
 	points.push_back(utils_data_types::point_scatterplot(vec2(0.66f, 0.0f) * size + org, 2, 3));
 
@@ -591,7 +573,6 @@ void tf_editor_scatterplot::add_centroid_draggables() {
 }
 
 void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
-	std::cout << "Calling!" << std::endl;
 	for (int i = 0; i < m_shared_data_ptr->centroids.size(); ++i) {
 		// Clear for each centroid because colors etc might change
 		m_point_geometry.clear();
