@@ -20,7 +20,9 @@ tf_editor_lines::tf_editor_lines()
 	set_overlay_alignment(AO_START, AO_END);
 	set_overlay_stretch(SO_NONE);
 	set_overlay_margin(ivec2(-3));
-	set_overlay_size(ivec2(600, 600));
+	// set the size with an aspect ratio that makes lets the editor nicely fit inside
+	// aspect ratio is w:h = 1:0.875
+	set_overlay_size(ivec2(600, 525));
 	
 	// add a color attachment to the content frame buffer with support for transparency (alpha)
 	fbc.add_attachment("color", "flt32[R,G,B,A]");
@@ -170,6 +172,7 @@ void tf_editor_lines::on_set(void* member_ptr) {
 		}
 	}
 
+	has_damage = true;
 	update_member(member_ptr);
 	post_redraw();
 }
@@ -229,7 +232,53 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 
 		create_labels();
 
+
+
+
+
+
+		
+		// update the point positions after a resize
+		// TODO: move to own method
+		if(m_shared_data_ptr && m_points.size() == m_shared_data_ptr->centroids.size()) {
+			for(size_t i = 0; i < m_points.size(); ++i) {
+				auto& points = m_points[i];
+				auto& centroid = m_shared_data_ptr->centroids[i];
+					
+				size_t idx = 0;
+				if(points.size() >= 4 * 3) {
+					for(int j = 0; j < 15; j++) {
+						// ignore the "back" lines of the widgets
+						if((j + 1) % 4 != 0) {
+							float c = centroid.centroids[j/4];
+
+							points[idx].pos = m_widget_lines.at(j).interpolate(c);
+							//points.push_back(utils_data_types::point(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
+							++idx;
+						}
+					}
+				}
+			}
+		}
+		
+		// update the quad positions after a resize
+		// TODO: move to own method? (maybe not needed)
+		m_strips_created = false;
+		m_create_all_values = true;
+
+
+
+
+
+
+
+
+
+
+
+
 		has_damage = true;
+		reset_plot = true;
 	}
 }
 
@@ -268,7 +317,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	// setup a suitable blend function for color and alpha values (following the over-operator)
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	
-	// first draw the plot (the method will check internally if it needs an update
+	// first draw the plot (the method will check internally if it needs an update)
 	bool done = draw_plot(ctx);
 
 	// enable the offline framebuffer
@@ -473,11 +522,21 @@ void tf_editor_lines::create_labels() {
 	m_labels.clear();
 
 	// Set the font texts
-	if(m_font.is_initialized()) {
-		m_labels.add_text("0", ivec2(domain.size().x() * 0.27f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
-		m_labels.add_text("1", ivec2(domain.size().x() * 0.73f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
-		m_labels.add_text("2", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.18f), cgv::render::TA_NONE);
-		m_labels.add_text("3", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.48f), cgv::render::TA_NONE);
+	if(m_font.is_initialized() && m_widget_polygons.size() > 3) {
+
+		vec2 centers[4];
+		for(int i = 0; i < 4; i++)
+			centers[i] = m_widget_polygons[m_text_ids[i]].get_center();
+		
+		m_labels.add_text("0", ivec2(centers[0]), cgv::render::TA_NONE, 60.0f);
+		m_labels.add_text("1", ivec2(centers[1]), cgv::render::TA_NONE, -60.0f);
+		m_labels.add_text("2", ivec2(centers[2]), cgv::render::TA_NONE, 0.0);
+		m_labels.add_text("3", ivec2(centers[3]), cgv::render::TA_NONE, 0.0f);
+
+		//m_labels.add_text("0", ivec2(domain.size().x() * 0.27f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
+		//m_labels.add_text("1", ivec2(domain.size().x() * 0.73f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
+		//m_labels.add_text("2", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.18f), cgv::render::TA_NONE);
+		//m_labels.add_text("3", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.48f), cgv::render::TA_NONE);
 
 		for(int i = 0; i < 4; i++) {
 			on_set(&m_text_ids[i]);
@@ -565,6 +624,118 @@ void tf_editor_lines::init_widgets() {
 	m_widget_lines.clear();
 	m_widget_polygons.clear();
 
+#define NEW_VERSION
+
+#ifdef NEW_VERSION
+	// Sizing constants for the widgets
+	const float a = 1.0f; // Distance from origin (center of central triangle) to its corners
+	const float b = 1.0f; // Orthogonal distance from center widget line to the outer widget line
+	const float c = 2.0f*sin(cgv::math::deg2rad(60.0f))*b; // distance between two opposing outer widget lines
+
+	// Constant rotation matrices
+	const mat2 R = cgv::math::rotate2(120.0f);
+	const mat2 R2 = cgv::math::rotate2(240.0f);
+	const mat2 R_half = cgv::math::rotate2(60.0f);
+	// Help vector
+	const vec2 up(0.0f, 1.0f);
+
+	// Final points
+	std::vector<vec2> center(3), left(4), bottom(4), right(4);
+
+	// Create center widget points
+	center[0] = a * up;
+	center[1] = R * center[0];
+	center[2] = R2 * center[0];
+
+	// Calculate help directions
+	vec2 b_dir = normalize(R_half * up);
+	vec2 c_dir = normalize(center[1]);
+
+	// Create left outer widget corners
+	left[1] = center[0] + b * b_dir;
+	left[2] = center[1] + b * b_dir;
+	left[0] = left[1] + c * up;
+	left[3] = left[2] + c * c_dir;
+
+	// Rotate corners of left widget to get the other outer widget points
+	for(size_t i = 0; i < 4; ++i) {
+		bottom[i] = R * left[i];
+		right[i] = R2 * left[i];
+	}
+
+	// Calculate the bounding box of all the corners
+	box2 box;
+
+	for(size_t i = 0; i < 3; ++i)
+		box.add_point(center[i]);
+
+	for(size_t i = 0; i < 4; ++i) {
+		box.add_point(left[i]);
+		box.add_point(bottom[i]);
+		box.add_point(right[i]);
+	}
+	
+	// Offset applied before scaling (in unit coordinates) to move the widget center of gravity to the origin
+	vec2 center_offset = -box.get_center();
+
+	// Offset applied after scaling (in pixel coordinates) to move the widgets to the center of the domain
+	vec2 offset = domain.box.get_center();
+
+	// Calculate a uniform scaling factor to fit the widget bounding box inside the domain
+	vec2 ext = box.get_extent();
+	// Factor to scale from unit to pixel coordinates
+	float scale = std::min(domain.size().x() / ext.x(), domain.size().y() / ext.y());
+
+	// Apply offsets and scale
+	for(size_t i = 0; i < 3; ++i)
+		center[i] = scale * (center[i] + center_offset) + offset;
+
+	for(size_t i = 0; i < 4; ++i) {
+		left[i] = scale * (left[i] + center_offset) + offset;
+		bottom[i] = scale * (bottom[i] + center_offset) + offset;
+		right[i] = scale * (right[i] + center_offset) + offset;
+	}
+
+	// Helper function to add a new line
+	const auto add_line = [&](vec2 v_0, vec2 v_1) {
+		m_widget_lines.push_back(utils_data_types::line({ v_0, v_1 }));
+	};
+
+	// Left widget
+	add_line(left[0], left[1]);
+	add_line(left[2], left[1]);
+	add_line(left[3], left[2]);
+	add_line(left[3], left[0]);
+	
+	// Right widget
+	add_line(right[1], right[0]);
+	add_line(right[2], right[1]);
+	add_line(right[3], right[2]);
+	add_line(right[3], right[0]);
+
+	// Bottom widget
+	add_line(bottom[0], bottom[1]);
+	add_line(bottom[1], bottom[2]);
+	add_line(bottom[2], bottom[3]);
+	add_line(bottom[3], bottom[0]);
+	
+	// Center widget, order: Left, right, bottom
+	add_line(center[1], center[0]);
+	add_line(center[0], center[2]);
+	add_line(center[1], center[2]);
+
+	// Create a polygon out of each widget
+	m_widget_polygons.push_back(utils_data_types::polygon(left));
+	m_widget_polygons.push_back(utils_data_types::polygon(right));
+	m_widget_polygons.push_back(utils_data_types::polygon(bottom));
+	m_widget_polygons.push_back(utils_data_types::polygon(center));
+
+
+
+#else
+
+
+
 	const auto add_lines = [&](vec2 v_0, vec2 v_1, vec2 v_2, vec2 v_3, bool invert = true) {
 		m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_0, v_1 }));
 		invert ? m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_2, v_1 })) : m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_1, v_2 }));
@@ -584,10 +755,10 @@ void tf_editor_lines::init_widgets() {
 	const auto sizeX = domain.size().x();
 	const auto sizeY = domain.size().y();
 	// Left widget
-	vec2 vec_0 {sizeX * 0.3f, sizeY * 0.95f};
-	vec2 vec_1 {sizeX * 0.35f, sizeY * 0.75f};
-	vec2 vec_2 {sizeX * 0.23f, sizeY * 0.45f};
-	vec2 vec_3 {sizeX * 0.1f, sizeY * 0.45f};
+	vec2 vec_0{ sizeX * 0.3f, sizeY * 0.95f };
+	vec2 vec_1{ sizeX * 0.35f, sizeY * 0.75f };
+	vec2 vec_2{ sizeX * 0.23f, sizeY * 0.45f };
+	vec2 vec_3{ sizeX * 0.1f, sizeY * 0.45f };
 	add_lines(vec_0, vec_1, vec_2, vec_3);
 	// Create a polygon out of each widget
 	add_points_to_polygon(vec_0, vec_1, vec_2, vec_3);
@@ -625,6 +796,8 @@ void tf_editor_lines::init_widgets() {
 	p.points.push_back(vec_2);
 	m_widget_polygons.push_back(p);
 
+#endif
+
 	// draw smaller boundaries on the relations borders
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets which basically is the 4th line, they don't need boundaries
@@ -641,7 +814,6 @@ void tf_editor_lines::init_widgets() {
 				tf_editor_shared_data_types::line({boundary_right - 5.0f * ortho_direction, boundary_right + 3.0f * ortho_direction}));
 		}
 	}
-
 }
 
 void tf_editor_lines::add_widget_lines() {
@@ -681,6 +853,8 @@ void tf_editor_lines::add_centroids() {
 void tf_editor_lines::add_centroid_draggables() {
 	std::vector<tf_editor_shared_data_types::point_line> points;
 	// Add the new centroid points to the widget lines, start with the left side
+	
+	// TODO: the following statement is not true anymore, because we now do it differently
 	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets
@@ -697,15 +871,16 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 	fbc_plot.enable(ctx);
 
 	// make sure to reset the color buffer if we update the content from scratch
-	if(total_count == 0) {
+	if(total_count == 0 || reset_plot) {
 		glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+		reset_plot = false;
 	}
 
 	// the amount of lines that will be drawn in each step
-	int count = 100000;
+	int count = 1000000;
 
-	// make sure to not draw more lines than available
+	// make sure not to draw more lines than available
 	if(total_count + count > m_line_geometry_relations.get_render_count())
 		count = m_line_geometry_relations.get_render_count() - total_count;
 	// draw the relations
