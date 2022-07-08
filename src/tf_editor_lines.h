@@ -179,10 +179,10 @@ private:
 	// Boundaries of the centroid points
 	std::vector<std::vector<vec2>> m_strip_border_points;
 
-	std::vector<std::vector<utils_data_types::point>> m_points;
-	cgv::glutil::draggables_collection<utils_data_types::point*> m_point_handles;
+	std::vector<std::vector<utils_data_types::point_line>> m_points;
+	cgv::glutil::draggables_collection<utils_data_types::point_line*> m_point_handles;
 
-	std::vector<utils_data_types::point*> m_interacted_points;
+	std::vector<utils_data_types::point_line*> m_interacted_points;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 1.0f };

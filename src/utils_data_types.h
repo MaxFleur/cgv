@@ -55,31 +55,13 @@ struct line
 
 	struct point : public cgv::glutil::draggable
 	{
-		line* m_parent_line;
-
-		point(const ivec2& pos, line* line)
+		point(const ivec2& pos)
 		{
-			m_parent_line = line;
 			this->pos = pos;
 			// Huger size so the point is easily clickable
 			size = vec2(6.0f);
 			position_is_center = true;
 			constraint_reference = CR_FULL_SIZE;
-		}
-
-		void update_val() {
-			pos = m_parent_line->get_intersection(pos);
-		}
-
-		// Move the point according to a relative position along the line
-		void move_along_line(float value) {
-			pos = m_parent_line->interpolate(value);
-		}
-
-		// Gets the relative position of the point along the line
-		// Upmost left value would be 0.0f, while upmost right would be 1.0f
-		float get_relative_line_position() {
-			return ( ( cgv::math::length(pos - m_parent_line->a) / m_parent_line->get_length()));
 		}
 
 		ivec2 get_render_position() const
@@ -97,6 +79,47 @@ struct line
 
 			float dist = length(mp - center());
 			return dist <= size.x();
+		}
+	};
+
+	struct point_line : point
+	{
+		line* m_parent_line;
+
+		point_line(const ivec2& pos, line* line) : point(pos)
+		{
+			m_parent_line = line;
+		}
+
+		void update_val() {
+			pos = m_parent_line->get_intersection(pos);
+		}
+
+		// Move the point according to a relative position along the line
+		void move_along_line(float value) {
+			pos = m_parent_line->interpolate(value);
+		}
+
+		// Gets the relative position of the point along the line
+		// Upmost left value would be 0.0f, while upmost right would be 1.0f
+		float get_relative_line_position() {
+			return ((cgv::math::length(pos - m_parent_line->a) / m_parent_line->get_length()));
+		}
+	};
+
+	struct point_scatterplot : point
+	{
+		int m_stain_first;
+		int m_stain_second;
+
+		point_scatterplot(const ivec2& pos, int stain_first, int stain_second) : point(pos)
+		{
+			m_stain_first = stain_first;
+			m_stain_second = stain_second;
+		}
+
+		void update_val() {
+			
 		}
 	};
 

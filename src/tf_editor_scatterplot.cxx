@@ -34,6 +34,7 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 
 	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
+	m_draggables_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 }
 
 void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
@@ -44,9 +45,12 @@ void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 	fbc.clear(ctx);
 
 	point_renderer.destruct(ctx);
-	points.destruct(ctx);
+	m_point_geometry_data.destruct(ctx);
+	m_point_geometry.destruct(ctx);
+	m_point_geometry_interacted.destruct(ctx);
 
 	m_line_renderer.destruct(ctx);
+	m_draggables_renderer.destruct(ctx);
 
 	font.destruct(ctx);
 	font_renderer.destruct(ctx);
@@ -99,6 +103,7 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	success &= point_renderer.init(ctx);
 	success &= font_renderer.init(ctx);
 	success &= m_line_renderer.init(ctx);
+	success &= m_draggables_renderer.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
 	if(success)
@@ -233,8 +238,8 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	int count = 50000;
 
 	// make sure to not draw more points than available
-	if(total_count + count > points.get_render_count())
-		count = points.get_render_count() - total_count;
+	if(total_count + count > m_point_geometry_data.get_render_count())
+		count = m_point_geometry_data.get_render_count() - total_count;
 
 	// get the shader program of the point renderer
 	auto& point_prog = point_renderer.ref_prog();
@@ -250,7 +255,9 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	// and we cannot enable a program that is already enabled.
 	point_prog.disable(ctx);
 	// draw the points from the given geometry with offset and count
-	point_renderer.render(ctx, PT_POINTS, points, total_count, count);
+	point_renderer.render(ctx, PT_POINTS, m_point_geometry_data, total_count, count);
+
+	draw_draggables(ctx);
 
 	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
 	fbc.disable(ctx);
@@ -263,7 +270,7 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 
 	// Stop the process if we have drawn all available points,
 	// otherwise request drawing of another frame.
-	bool run = total_count < points.get_render_count();
+	bool run = total_count < m_point_geometry_data.get_render_count();
 	if(run)
 		post_redraw();
 	else
@@ -300,16 +307,19 @@ void tf_editor_scatterplot::create_gui() {
 		// Color widget
 		add_member_control(this, "Color centroid", m_shared_data_ptr->centroids.at(i).color, "", "");
 		// Centroid parameters themselves
-		add_member_control(this, "Centroid myosin", m_shared_data_ptr->centroids.at(i).centroids[0], "value_slider",
+		add_member_control(this, "Centroid Myosin", m_shared_data_ptr->centroids.at(i).centroids[0], "value_slider",
 			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid actin", m_shared_data_ptr->centroids.at(i).centroids[1], "value_slider",
+		add_member_control(this, "Centroid Actin", m_shared_data_ptr->centroids.at(i).centroids[1], "value_slider",
 			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid obscurin", m_shared_data_ptr->centroids.at(i).centroids[2], "value_slider",
+		add_member_control(this, "Centroid Obscurin", m_shared_data_ptr->centroids.at(i).centroids[2], "value_slider",
 			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid sallimus", m_shared_data_ptr->centroids.at(i).centroids[3], "value_slider",
+		add_member_control(this, "Centroid Sallimus", m_shared_data_ptr->centroids.at(i).centroids[3], "value_slider",
 			"min=0.0;max=1.0;step=0.0001;ticks=true");
 		// Gaussian width
-		// add_member_control(this, "Gaussian width", m_shared_data_ptr->centroids.at(i).gaussian_width, "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Myosin", m_shared_data_ptr->centroids.at(i).widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Actin", m_shared_data_ptr->centroids.at(i).widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Obscurin", m_shared_data_ptr->centroids.at(i).widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Salimus", m_shared_data_ptr->centroids.at(i).widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 	}
 }
 
@@ -353,6 +363,17 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	text_style.border_width = 0.333f;
 	text_style.use_blending = true;
 	text_style.apply_gamma = false;
+
+	// draggables style
+	m_draggable_style.position_is_center = true;
+	m_draggable_style.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
+	m_draggable_style.border_width = 1.5f;
+	m_draggable_style.use_blending = true;
+
+	m_draggable_style_interacted.position_is_center = true;
+	m_draggable_style_interacted.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
+	m_draggable_style_interacted.border_width = 1.5f;
+	m_draggable_style_interacted.use_blending = true;
 	
 	auto& font_prog = font_renderer.ref_prog();
 	font_prog.enable(ctx);
@@ -407,7 +428,7 @@ void tf_editor_scatterplot::update_content() {
 
 	// reset previous total count and point geometry
 	total_count = 0;
-	points.clear();
+	m_point_geometry_data.clear();
 
 	// setup plot origin and sizes
 	vec2 org = static_cast<vec2>(domain.pos());
@@ -438,7 +459,7 @@ void tf_editor_scatterplot::update_content() {
 				pos += org;
 
 				// add one point
-				points.add(pos, rgba(rgb(0.0f), alpha));
+				m_point_geometry_data.add(pos, rgba(rgb(0.0f), alpha));
 
 				offset += 0.33f;
 			}
@@ -456,7 +477,7 @@ void tf_editor_scatterplot::update_content() {
 				pos += org;
 
 				// add one point
-				points.add(pos, rgba(rgb(0.0f), alpha));
+				m_point_geometry_data.add(pos, rgba(rgb(0.0f), alpha));
 
 				offset += 0.33f;
 			}
@@ -471,13 +492,13 @@ void tf_editor_scatterplot::update_content() {
 			pos += org;
 
 			// add one point
-			points.add(pos, rgba(rgb(0.0f), alpha));
+			m_point_geometry_data.add(pos, rgba(rgb(0.0f), alpha));
 
 			offset += 0.33f;
 		}
 	}
 
-	std::cout << "Drawing " << points.get_render_count() << " points" << std::endl;
+	std::cout << "Drawing " << m_point_geometry_data.get_render_count() << " points" << std::endl;
 
 	// tell the program that we need to update the content of this overlay
 	has_damage = true;
@@ -539,8 +560,70 @@ void tf_editor_scatterplot::add_centroids() {
 	// Create a new centroid and store it
 	utils_data_types::centroid centr;
 	m_shared_data_ptr->centroids.push_back(centr);
+	add_centroid_draggables();
+	// Add a corresponding point for every centroid
+	m_point_handles.clear();
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			m_point_handles.add(&m_points[i][j]);
+		}
+	}
 
 	has_damage = true;
 	post_recreate_gui();
 	post_redraw();
+}
+
+void tf_editor_scatterplot::add_centroid_draggables() {
+	std::vector<utils_data_types::point_scatterplot> points;
+	const auto org = static_cast<vec2>(domain.pos());
+	const auto size = domain.size();
+
+	// Add the new centroid points to the scatter plot
+	points.push_back(utils_data_types::point_scatterplot(vec2(0.0f, 0.0f) * size + org, 0, 1));
+	points.push_back(utils_data_types::point_scatterplot(vec2(0.0f, 0.33f) * size + org, 0, 2));
+	points.push_back(utils_data_types::point_scatterplot(vec2(0.0f, 0.66f) * size + org, 0, 3));
+	points.push_back(utils_data_types::point_scatterplot(vec2( 0.33f, 0.0f) * size + org, 1, 2));
+	points.push_back(utils_data_types::point_scatterplot(vec2(0.33f, 0.33f) * size + org, 1, 3));
+	points.push_back(utils_data_types::point_scatterplot(vec2(0.66f, 0.0f) * size + org, 2, 3));
+
+	m_points.push_back(points);
+}
+
+void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
+	std::cout << "Calling!" << std::endl;
+	for (int i = 0; i < m_shared_data_ptr->centroids.size(); ++i) {
+		// Clear for each centroid because colors etc might change
+		m_point_geometry.clear();
+		m_point_geometry_interacted.clear();
+
+		const auto color = m_shared_data_ptr->centroids.at(i).color;
+		// Apply color to the centroids, always do full opacity
+		m_draggable_style.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
+		m_draggable_style_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
+
+		for (int j = 0; j < m_points[i].size(); j++) {
+			// Add the points based on if they have been interacted with
+			std::find(m_interacted_points.begin(), m_interacted_points.end(), &m_points[i][j]) != m_interacted_points.end() ?
+				m_point_geometry_interacted.add(m_points[i][j].get_render_position()) :
+				m_point_geometry.add(m_points[i][j].get_render_position());
+		}
+
+		m_point_geometry.set_out_of_date();
+
+		// Draw 
+		shader_program& point_prog = m_draggables_renderer.ref_prog();
+		point_prog.enable(ctx);
+		content_canvas.set_view(ctx, point_prog);
+		m_draggable_style.apply(ctx, point_prog);
+		point_prog.set_attribute(ctx, "size", vec2(12.0f));
+		point_prog.disable(ctx);
+		m_draggables_renderer.render(ctx, PT_POINTS, m_point_geometry);
+
+		point_prog.enable(ctx);
+		m_draggable_style_interacted.apply(ctx, point_prog);
+		point_prog.set_attribute(ctx, "size", vec2(16.0f));
+		point_prog.disable(ctx);
+		m_draggables_renderer.render(ctx, PT_POINTS, m_point_geometry_interacted);
+	}
 }

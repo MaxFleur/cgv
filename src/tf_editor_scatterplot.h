@@ -69,10 +69,18 @@ protected:
 	cgv::glutil::generic_renderer point_renderer;
 	// renderer for grid lines
 	cgv::glutil::generic_renderer m_line_renderer;
+	// renderer for the draggables
+	cgv::glutil::generic_renderer m_draggables_renderer;
 
 	/// define a geometry class holding 2d positions and rgba colors for each point
-	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 2, vec2, position, rgba, color);
-	point_geometry points;
+	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry_data, 2, vec2, position, rgba, color);
+	point_geometry_data m_point_geometry_data;
+
+	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry_draggable, 1, vec2, position);
+	// If a centroid is dragged, the size of the other centroids will decrease
+	// so we need two different geometries and styles as well
+	point_geometry_draggable m_point_geometry_interacted;
+	point_geometry_draggable m_point_geometry;
 
 	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
 	line_geometry m_line_geometry_grid;
@@ -127,6 +135,10 @@ private:
 
 	void add_centroids();
 
+	void add_centroid_draggables();
+
+	void draw_draggables(cgv::render::context& ctx);
+
 private:
 
 	/// store a pointer to the data set
@@ -139,6 +151,14 @@ private:
 	std::vector<utils_data_types::line> m_lines_grid;
 
 	cgv::glutil::line2d_style m_line_style_grid;
+
+	cgv::glutil::shape2d_style m_draggable_style;
+	cgv::glutil::shape2d_style m_draggable_style_interacted;
+
+	std::vector<std::vector<utils_data_types::point_scatterplot>> m_points;
+	cgv::glutil::draggables_collection<utils_data_types::point_scatterplot*> m_point_handles;
+
+	std::vector<utils_data_types::point_scatterplot*> m_interacted_points;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_scatterplot> tf_editor_scatterplot_ptr;

@@ -63,6 +63,8 @@ void tf_editor_lines::clear(cgv::render::context& ctx) {
 	m_font_renderer.destruct(ctx);
 
 	m_polygon_renderer.destruct(ctx);
+
+	m_point_renderer.destruct(ctx);
 	m_point_geometry.destruct(ctx);
 	m_point_geometry_interacted.destruct(ctx);
 }
@@ -677,13 +679,13 @@ void tf_editor_lines::add_centroids() {
 }
 
 void tf_editor_lines::add_centroid_draggables() {
-	std::vector<utils_data_types::point> points;
+	std::vector<utils_data_types::point_line> points;
 	// Add the new centroid points to the widget lines, start with the left side
 	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets
 		if ((i + 1) % 4 != 0) {
-			points.push_back(utils_data_types::point(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
+			points.push_back(utils_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
 		}
 	}
 	m_points.push_back(points);

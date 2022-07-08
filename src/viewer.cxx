@@ -62,11 +62,11 @@ viewer::viewer() : application_plugin("Viewer") {
 
 	m_editor_lines_ptr = register_overlay<tf_editor_lines>("TF Lines Overlay");
 	m_editor_lines_ptr->set_shared_data(m_shared_data_ptr);
+	m_editor_lines_ptr->set_visibility(false);
 	
 	m_editor_scatterplot_ptr = register_overlay<tf_editor_scatterplot>("TF Scatterplot Overlay");
 	m_editor_scatterplot_ptr->set_shared_data(m_shared_data_ptr);
 	m_editor_scatterplot_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
-	m_editor_scatterplot_ptr->set_visibility(false);
 	/** END - MFLEURY **/
 }
 
