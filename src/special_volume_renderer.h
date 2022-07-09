@@ -45,12 +45,24 @@ namespace cgv { // @<
 			float size_scale;
 			/// opacity scaling parameter
 			float opacity_scale;
-			/// the blending mode used to combine the individual channel values
-			enum BlendMode {
-				BM_CHANNELS_ASCENDING = 0,
-				BM_CHANNELS_DESCENDING = 1,
-				BM_AVERAGE = 2,
-			} blend_mode;
+			/// the slicing mode used to enable aligned or oblique slicing
+			enum SliceMode {
+				SM_NONE = 0,
+				SM_ALIGNED = 1,
+				SM_OBLIQUE = 2,
+			} slice_mode;
+			///
+			bool slice_alpha_masked;
+			///
+			vec3 slice_position;
+			///
+			vec3 slice_normal;
+			///
+			vec3 slice_alpha;
+			///
+			float slice_color_boost;
+			
+
 			/// a bounding box used to define a subspace of the volume to be visualized
 			box3 clip_box;
 
