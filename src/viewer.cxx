@@ -30,8 +30,7 @@ viewer::viewer() : application_plugin("Viewer") {
 
 	vstyle.enable_depth_test = true;
 	vstyle.size_scale = 200.0f;
-	vstyle.blend_mode = special_volume_render_style::BM_AVERAGE;
-
+	
 	mdtf_vstyle.enable_depth_test = true;
 	mdtf_vstyle.size_scale = 200.0f;
 
@@ -67,7 +66,7 @@ viewer::viewer() : application_plugin("Viewer") {
 	m_editor_scatterplot_ptr = register_overlay<tf_editor_scatterplot>("TF Scatterplot Overlay");
 	m_editor_scatterplot_ptr->set_shared_data(m_shared_data_ptr);
 	m_editor_scatterplot_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
-
+	
 	/** END - MFLEURY **/
 }
 

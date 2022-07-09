@@ -56,7 +56,12 @@ namespace cgv {
 			opacity_scale = 1.0f;
 			enable_scale_adjustment = true;
 			size_scale = 50.0f;
-			blend_mode = BM_CHANNELS_ASCENDING;
+			slice_mode = SM_NONE;
+			slice_alpha_masked = false;
+			slice_position = vec3(0.5f);
+			slice_normal = vec3(1.0f);
+			slice_alpha = vec3(1.0f);
+			slice_color_boost = 1.0f;
 			clip_box = box3(vec3(0.0f), vec3(1.0f));
 			enable_lighting = false;
 			enable_depth_test = false;
@@ -159,10 +164,11 @@ namespace cgv {
 			shader_code::set_define(defines, "NUM_STEPS", vrs.integration_quality, special_volume_render_style::IQ_128);
 			shader_code::set_define(defines, "INTERPOLATION_MODE", vrs.interpolation_mode, special_volume_render_style::IP_LINEAR);
 			shader_code::set_define(defines, "ENABLE_NOISE_OFFSET", vrs.enable_noise_offset, true);
-			shader_code::set_define(defines, "BLEND_MODE", vrs.blend_mode, special_volume_render_style::BM_CHANNELS_ASCENDING);
 			shader_code::set_define(defines, "ENABLE_SCALE_ADJUSTMENT", vrs.enable_scale_adjustment, false);
 			shader_code::set_define(defines, "ENABLE_LIGHTING", vrs.enable_lighting, false);
 			shader_code::set_define(defines, "ENABLE_DEPTH_TEST", vrs.enable_depth_test, false);
+			shader_code::set_define(defines, "SLICE_MODE", vrs.slice_mode, special_volume_render_style::SM_NONE);
+			shader_code::set_define(defines, "SLICE_BLEND_MODE", vrs.slice_alpha_masked, false);
 		}
 		bool special_volume_renderer::build_shader_program(context& ctx, shader_program& prog, const shader_define_map& defines)
 		{
@@ -198,6 +204,13 @@ namespace cgv {
 
 			ref_prog().set_uniform(ctx, "combined_transform", inv(vrs.volume_transform) * vrs.clip_box_transform);
 			ref_prog().set_uniform(ctx, "combined_transform_inverse", inv(vrs.clip_box_transform) * vrs.volume_transform);
+
+			if(vrs.slice_mode != special_volume_render_style::SM_NONE) {
+				ref_prog().set_uniform(ctx, "slice_pos", vrs.slice_position);
+				ref_prog().set_uniform(ctx, "slice_normal", normalize(vrs.slice_normal));
+				ref_prog().set_uniform(ctx, "slice_alpha", vrs.slice_alpha);
+				ref_prog().set_uniform(ctx, "slice_color_boost", vrs.slice_color_boost);
+			}
 
 			glDisable(GL_DEPTH_TEST);
 
@@ -269,7 +282,13 @@ namespace cgv {
 				p->add_member_control(b, "Scale Adjustment", vrs_ptr->size_scale, "value_slider", "w=170;min=0.0;step=0.001;max=500.0;log=true;ticks=true", " ");
 				p->add_member_control(b, "", vrs_ptr->enable_scale_adjustment, "check", "w=30");
 				p->add_member_control(b, "Opacity Scale", vrs_ptr->opacity_scale, "value_slider", "min=0.0;step=0.001;max=1.0;ticks=true");
-				p->add_member_control(b, "Blend Mode", vrs_ptr->blend_mode, "dropdown", "enums=Channels Ascending,Chanels Descending,Average");
+
+				p->add_member_control(b, "Slice Mode", vrs_ptr->slice_mode, "dropdown", "enums=Disabled,Axis Aligned,Oblique");
+				p->add_member_control(b, "Alpha Mask", vrs_ptr->slice_alpha_masked, "check");
+				p->add_member_control(b, "Slice Position", vrs_ptr->slice_position[0], "value_slider", "min=0;max=1;step=0.001;ticks=true;");
+				p->add_member_control(b, "Slice Normal", vrs_ptr->slice_normal[0], "value_slider", "min=-1;max=1;step=0.001;ticks=true;");
+				p->add_member_control(b, "Slice Alpha", vrs_ptr->slice_alpha[0], "value_slider", "min=0;max=1;step=0.001;ticks=true;");
+				p->add_member_control(b, "Slice Color Boost", vrs_ptr->slice_color_boost, "value_slider", "min=0;max=10.0;step=0.001;log=true;ticks=true;");
 
 				p->add_member_control(b, "Lighting", vrs_ptr->enable_lighting, "check");
 				p->add_member_control(b, "Depth Test", vrs_ptr->enable_depth_test, "check");
