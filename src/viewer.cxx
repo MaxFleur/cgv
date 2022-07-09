@@ -60,13 +60,14 @@ viewer::viewer() : application_plugin("Viewer") {
 	/** BEGIN - MFLEURY **/
 	m_shared_data_ptr = std::make_shared<shared_data>();
 
-	m_editor_lines_ptr = register_overlay<tf_editor_lines>("TF Lines Overlay");
-	m_editor_lines_ptr->set_shared_data(m_shared_data_ptr);
-	
+	// m_editor_lines_ptr = register_overlay<tf_editor_lines>("TF Lines Overlay");
+	// m_editor_lines_ptr->set_shared_data(m_shared_data_ptr);
+	// m_editor_lines_ptr->set_visibility(false);
+
 	m_editor_scatterplot_ptr = register_overlay<tf_editor_scatterplot>("TF Scatterplot Overlay");
 	m_editor_scatterplot_ptr->set_shared_data(m_shared_data_ptr);
 	m_editor_scatterplot_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
-	m_editor_scatterplot_ptr->set_visibility(false);
+
 	/** END - MFLEURY **/
 }
 
@@ -254,7 +255,7 @@ void viewer::on_set(void* member_ptr) {
 		} else {
 			if(tf_editor_ptr && tf_editor_ptr->is_visible()) {
 				tf_editor_ptr->set_visibility(false);
-				m_editor_lines_ptr->set_visibility(true);
+				// m_editor_lines_ptr->set_visibility(true);
 			}
 		}
 		post_recreate_gui();
@@ -319,7 +320,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 		on_set(&fh.has_unsaved_changes);
 	}
 
-	if (m_editor_lines_ptr->was_updated) {
+	if (m_editor_lines_ptr && m_editor_lines_ptr->was_updated) {
 		m_editor_lines_ptr->was_updated = false;
 
 		on_set(&m_shared_data_ptr->centroids);

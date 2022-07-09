@@ -79,12 +79,56 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 		x_idx = cgv::math::clamp(x_idx, 0, 3);
 		if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3 && labels.size() > 1)
 			labels.set_text(0, m_data_set_ptr->stain_names[x_idx]);
-	}
-
-	if(member_ptr == &y_idx) {
+	} else if(member_ptr == &y_idx) {
 		y_idx = cgv::math::clamp(y_idx, 0, 3);
 		if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3 && labels.size() > 1)
 			labels.set_text(1, m_data_set_ptr->stain_names[y_idx]);
+	}
+
+	// look for updated centroid data
+	for (int i = 0; i < m_shared_data_ptr->centroids.size(); ++i) {
+		auto value = 0.0f;
+
+		for (int protein_id = 0; protein_id < 4; protein_id++) {
+			if (member_ptr == &m_shared_data_ptr->centroids.at(i).centroids[protein_id] ||
+				member_ptr == &m_shared_data_ptr->centroids.at(i).color ||
+				member_ptr == &m_shared_data_ptr->centroids.at(i).widths[protein_id]) {
+
+				// Move the according points if their position was changed
+				if (member_ptr == &m_shared_data_ptr->centroids.at(i).centroids[protein_id]) {
+					const auto org = static_cast<vec2>(domain.pos());
+					const auto size = domain.size();
+					value = m_shared_data_ptr->centroids.at(i).centroids[protein_id];
+
+					switch (protein_id) {
+					case 0:
+						m_points[i][0].pos.set(m_points[i][0].pos.x(), ((value * size.y()) / 3) + org.y());
+						m_points[i][1].pos.set(m_points[i][1].pos.x(), ((value * size.y()) / 3) + size.y() * 0.33f + org.y());
+						m_points[i][2].pos.set(m_points[i][2].pos.x(), ((value * size.y()) / 3) + size.y() * 0.66f + org.y());
+						break;
+					case 1:
+						m_points[i][2].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][2].pos.y());
+						m_points[i][3].pos.set(m_points[i][3].pos.x(), ((value * size.y()) / 3) + org.y());
+						m_points[i][4].pos.set(m_points[i][4].pos.x(), ((value * size.y()) / 3) + size.y() * 0.33f + org.y());
+						break;
+					case 2:
+						m_points[i][1].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][1].pos.y());
+						m_points[i][4].pos.set(((value * size.x()) / 3) + size.x() * 0.33f + org.x(), m_points[i][4].pos.y());
+						m_points[i][5].pos.set(m_points[i][5].pos.x(), ((value * size.y()) / 3) + org.y());
+						break;
+					case 3:
+						m_points[i][0].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][0].pos.y());
+						m_points[i][3].pos.set(((value * size.x()) / 3) + size.x() * 0.33f + org.x(), m_points[i][3].pos.y());
+						m_points[i][5].pos.set(((value * size.x()) / 3) + size.x() * 0.66f + org.x(), m_points[i][5].pos.y());
+						break;
+					}
+				}
+
+				// In all cases, we need to update
+				has_damage = true;
+				break;
+			}
+		}
 	}
 
 	has_damage = true;
@@ -562,11 +606,11 @@ void tf_editor_scatterplot::add_centroid_draggables() {
 	const auto size = domain.size();
 
 	// Add the new centroid points to the scatter plot
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.0f) * size + org, 0, 1));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.0f) * size + org, 0, 3));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.33f) * size + org, 0, 2));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.66f) * size + org, 0, 3));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.0f) * size + org, 1, 2));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.33f) * size + org, 1, 3));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.66f) * size + org, 0, 1));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.0f) * size + org, 1, 3));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.33f) * size + org, 1, 2));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.66f, 0.0f) * size + org, 2, 3));
 
 	m_points.push_back(points);
