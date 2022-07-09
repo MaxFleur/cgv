@@ -141,6 +141,14 @@ private:
 
 	void draw_draggables(cgv::render::context& ctx);
 
+	void set_point_positions();
+
+	void end_drag() {
+		m_interacted_points.clear();
+		has_damage = true;
+		post_redraw();
+	}
+
 private:
 
 	/// store a pointer to the data set
@@ -165,6 +173,14 @@ private:
 	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
 
 	bool reset_plot = true;
+
+	// Has a point been clicked?
+	bool m_is_point_clicked = false;
+
+	// Store the indices of to be updated centroids if a point has been interacted with
+	std::pair<int, int> m_interacted_point_id;
+	// Has a point been dragged?
+	bool m_interacted_id_set = false;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_scatterplot> tf_editor_scatterplot_ptr;

@@ -124,14 +124,25 @@ namespace tf_editor_shared_data_types
 		int m_stain_first;
 		int m_stain_second;
 
-		point_scatterplot(const ivec2& pos, int stain_first, int stain_second) : point(pos)
+		float x_min;
+		float x_max;
+		float y_min;
+		float y_max;
+
+		point_scatterplot(const ivec2& pos, int stain_first, int stain_second, float x_min, float x_max, float y_min, float y_max) : point(pos)
 		{
 			m_stain_first = stain_first;
 			m_stain_second = stain_second;
+
+			this->x_min = x_min;
+			this->x_max = x_max;
+			this->y_min = y_min;
+			this->y_max = y_max;
 		}
 
 		void update_val() {
-			
+			pos.x() = cgv::math::clamp(pos.x(), x_min, x_max);
+			pos.y() = cgv::math::clamp(pos.y(), y_min, y_max);
 		}
 	};
 

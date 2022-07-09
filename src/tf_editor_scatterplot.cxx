@@ -38,6 +38,10 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 
 	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 	m_draggables_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
+
+	// callbacks for the moving of centroids
+	m_point_handles.set_drag_callback(std::bind(&tf_editor_scatterplot::set_point_positions, this));
+	m_point_handles.set_drag_end_callback(std::bind(&tf_editor_scatterplot::end_drag, this));
 }
 
 void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
@@ -66,6 +70,20 @@ bool tf_editor_scatterplot::self_reflect(cgv::reflect::reflection_handler& _rh) 
 }
 
 bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
+	// return true if the event gets handled and stopped here or false if you want to pass it to the next plugin
+	unsigned et = e.get_kind();
+
+	if (et == cgv::gui::EID_MOUSE) {
+		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
+
+		bool handled = false;
+		handled |= m_point_handles.handle(e, last_viewport_size, container);
+
+		if (handled)
+			post_redraw();
+
+		return handled;
+	}
 
 	// return true if the event gets handled and stopped here or false if you want to pass it to the next plugin
 	return false;
@@ -579,12 +597,24 @@ void tf_editor_scatterplot::add_centroid_draggables() {
 	const auto size = domain.size();
 
 	// Add the new centroid points to the scatter plot
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.0f) * size + org, 0, 3));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.33f) * size + org, 0, 2));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.66f) * size + org, 0, 1));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.0f) * size + org, 1, 3));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.33f) * size + org, 1, 2));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.66f, 0.0f) * size + org, 2, 3));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.0f) * size + org, 0, 3, 
+																	org.x(), domain.size().x() * 0.33f + org.x(), 
+																	org.y(), domain.size().y() * 0.33f + org.y()));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.33f) * size + org, 0, 2,
+																	org.x(), domain.size().x() * 0.33f + org.x(),
+																	domain.size().y() * 0.33f + org.y(), domain.size().y() * 0.66f + org.y()));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.66f) * size + org, 0, 1,
+																	org.x(), domain.size().x() * 0.33f + org.x(),
+																	domain.size().y() * 0.66f + org.y(), domain.size().y() * 1.0f + org.y()));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.0f) * size + org, 1, 3,
+																	domain.size().x() * 0.33f + org.x(), domain.size().x() * 0.66f + org.x(),
+																	org.y(), domain.size().y() * 0.33f + org.y()));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.33f) * size + org, 1, 2,
+																	domain.size().x() * 0.33f + org.x(), domain.size().x() * 0.66f + org.x(),
+																	domain.size().y() * 0.33f + org.y(), domain.size().y() * 0.66f + org.y()));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.66f, 0.0f) * size + org, 2, 3,
+																	domain.size().x() * 0.66f + org.x(), domain.size().x() * 1.0f + org.x(),
+																	org.y(), domain.size().y() * 0.33f + org.y()));
 
 	m_points.push_back(points);
 }
@@ -670,4 +700,85 @@ void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 		point_prog.disable(ctx);
 		m_draggables_renderer.render(ctx, PT_POINTS, m_point_geometry_interacted);
 	}
+}
+
+void tf_editor_scatterplot::set_point_positions() {
+	// Update original value
+	m_point_handles.get_dragged()->update_val();
+	m_interacted_points.clear();
+
+	if (m_is_point_clicked) {
+		m_is_point_clicked = false;
+	}
+
+	const auto org = static_cast<vec2>(domain.pos());
+	const auto size = domain.size();
+
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			// Now the relating centroid point in the scatter plot has to be updated
+			if (&m_points[i][j] == m_point_handles.get_dragged()) {
+				m_interacted_points.push_back(&m_points[i][j]);
+				const auto& found_point = m_points[i][j];
+
+				m_interacted_point_id.first = i;
+				m_interacted_point_id.second = j;
+
+				if (found_point.m_stain_first == 0 && found_point.m_stain_second == 3) {
+					m_points[i][1].pos = vec2(found_point.pos.x(), m_points[i][1].pos.y());
+					m_points[i][2].pos = vec2(found_point.pos.x(), m_points[i][2].pos.y());
+
+					m_points[i][3].pos = vec2(m_points[i][3].pos.x(), found_point.pos.y());
+					m_points[i][5].pos = vec2(m_points[i][5].pos.x(), found_point.pos.y());
+				}
+				else if (found_point.m_stain_first == 0 && found_point.m_stain_second == 2) {
+					m_points[i][0].pos = vec2(found_point.pos.x(), m_points[i][0].pos.y());
+					m_points[i][2].pos = vec2(found_point.pos.x(), m_points[i][2].pos.y());
+
+					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.y());
+					m_points[i][5].pos = vec2(found_point.pos.y() + domain.size().x() * 0.33f, m_points[i][5].pos.y());
+				}
+
+				/*
+				else if (found_point.m_stain_first == 0 && found_point.m_stain_second == 1) {
+					m_points[i][0].pos = vec2(m_points[i][0].pos.x() + domain.size().x() * 0.33f, m_points[i][0].pos.y());
+					m_points[i][1].pos = vec2(m_points[i][1].pos.x() - domain.size().x() * 0.33f, m_points[i][1].pos.y());
+
+					m_points[i][3].pos = vec2(found_point.pos.x() + domain.size().x() * 0.33f, m_points[i][3].pos.y());
+					m_points[i][4].pos = vec2(found_point.pos.x() + domain.size().x() * 0.33f, m_points[i][4].pos.y());
+				}
+				else if (found_point.m_stain_first == 1 && found_point.m_stain_second == 3) {
+					m_points[i][0].pos = vec2(m_points[i][0].pos.x(), found_point.pos.y());
+					m_points[i][5].pos = vec2(m_points[i][5].pos.x(), found_point.pos.y());
+
+					m_points[i][2].pos = vec2(found_point.pos.x() - domain.size().x() * 0.33f, m_points[i][2].pos.y());
+					m_points[i][4].pos = vec2(found_point.pos.x(), m_points[i][4].pos.y());
+				}
+				else if (found_point.m_stain_first == 1 && found_point.m_stain_second == 2) {
+					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.y());
+					m_points[i][5].pos = vec2(m_points[i][5].pos.x(), found_point.pos.y() - domain.size().y() * 0.33f);
+
+					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.y() + domain.size().y() * 0.33f);
+					m_points[i][3].pos = vec2(found_point.pos.x(), m_points[i][3].pos.y());
+				}*/
+
+				// Remap to correct GUI vals
+				const auto offset_first = m_points[i][j].m_stain_first * 0.33f;
+				const auto offset_second = std::abs(m_points[i][j].m_stain_second - 3) * 0.33f;
+
+				const auto gui_value_first = (m_points[i][j].pos.y() - offset_first * domain.size().y()) / domain.size().y() * 0.33f + org.y();
+				m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_first] = gui_value_first;
+				update_member(&m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_first]);
+
+				const auto gui_value_second = (m_points[i][j].pos.x() - offset_second * domain.size().x()) / domain.size().x() * 0.33f + org.x();
+				m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_second] = gui_value_second;
+				update_member(&m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_second]);
+
+				m_interacted_id_set = true;
+			}
+		}
+	}
+
+	has_damage = true;
+	post_redraw();
 }
