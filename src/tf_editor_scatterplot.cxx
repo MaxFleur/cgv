@@ -124,24 +124,24 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 
 					switch (protein_id) {
 					case 0:
-						m_points[i][0].pos.set(m_points[i][0].pos.x(), ((value * size.y()) / 3) + org.y());
-						m_points[i][1].pos.set(m_points[i][1].pos.x(), ((value * size.y()) / 3) + size.y() * 0.33f + org.y());
-						m_points[i][2].pos.set(m_points[i][2].pos.x(), ((value * size.y()) / 3) + size.y() * 0.66f + org.y());
+						m_points[i][0].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][0].pos.y());
+						m_points[i][1].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][1].pos.y());
+						m_points[i][2].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][2].pos.y());
 						break;
 					case 1:
-						m_points[i][2].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][2].pos.y());
-						m_points[i][3].pos.set(m_points[i][3].pos.x(), ((value * size.y()) / 3) + org.y());
-						m_points[i][4].pos.set(m_points[i][4].pos.x(), ((value * size.y()) / 3) + size.y() * 0.33f + org.y());
+						m_points[i][2].pos.set(m_points[i][2].pos.x(), ((value * size.y()) / 3) + org.y() + size.y() * 0.66f);
+						m_points[i][3].pos.set(((value * size.x()) / 3) + org.x() + size.x() * 0.33f, m_points[i][3].pos.y());
+						m_points[i][4].pos.set(((value * size.x()) / 3) + org.x() + size.x() * 0.33f, m_points[i][4].pos.y());
 						break;
 					case 2:
-						m_points[i][1].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][1].pos.y());
-						m_points[i][4].pos.set(((value * size.x()) / 3) + size.x() * 0.33f + org.x(), m_points[i][4].pos.y());
-						m_points[i][5].pos.set(m_points[i][5].pos.x(), ((value * size.y()) / 3) + org.y());
+						m_points[i][1].pos.set(m_points[i][1].pos.x(), ((value * size.y()) / 3) + size.y() * 0.33f + org.y());
+						m_points[i][4].pos.set(m_points[i][4].pos.x(), ((value * size.y()) / 3) + size.y() * 0.33f + org.y());
+						m_points[i][5].pos.set(((value * size.x()) / 3) + org.x() + size.x() * 0.66f, m_points[i][5].pos.y());
 						break;
 					case 3:
-						m_points[i][0].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][0].pos.y());
-						m_points[i][3].pos.set(((value * size.x()) / 3) + size.x() * 0.33f + org.x(), m_points[i][3].pos.y());
-						m_points[i][5].pos.set(((value * size.x()) / 3) + size.x() * 0.66f + org.x(), m_points[i][5].pos.y());
+						m_points[i][0].pos.set(m_points[i][0].pos.x(), ((value * size.y()) / 3) + org.y());
+						m_points[i][3].pos.set(m_points[i][3].pos.x(), ((value * size.y()) / 3) + org.y());
+						m_points[i][5].pos.set(m_points[i][5].pos.x(), ((value * size.y()) / 3) + org.y());
 						break;
 					}
 				}
