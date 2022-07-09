@@ -347,7 +347,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	// then arrows on top
 	draw_arrows(ctx);
 
-	// Now create the centroid boundaies and strips
+	// Now create the centroid boundaries and strips
 	create_centroid_strips();
 
 	if (vis_mode == VM_QUADSTRIP) {

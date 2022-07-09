@@ -38,6 +38,9 @@ protected:
 	/// a frame buffer container, storing the offline frame buffer of this overlay content
 	cgv::glutil::frame_buffer_container fbc;
 
+	/// a frame buffer container, storing the offline frame buffer of the plot points
+	cgv::glutil::frame_buffer_container fbc_plot;
+
 	/// canvas to draw content into (same size as overlay)
 	cgv::glutil::canvas content_canvas;
 	/// canvas to draw overlay into (same size as viewport/main framebuffer)
@@ -66,7 +69,7 @@ protected:
 	int y_idx = 1;
 
 	/// renderer for the 2d plot points
-	cgv::glutil::generic_renderer point_renderer;
+	cgv::glutil::generic_renderer m_point_renderer;
 	// renderer for grid lines
 	cgv::glutil::generic_renderer m_line_renderer;
 	// renderer for the draggables
@@ -134,6 +137,8 @@ private:
 
 	void add_centroid_draggables();
 
+	bool draw_scatterplot(cgv::render::context& ctx);
+
 	void draw_draggables(cgv::render::context& ctx);
 
 private:
@@ -152,10 +157,14 @@ private:
 	cgv::glutil::shape2d_style m_draggable_style;
 	cgv::glutil::shape2d_style m_draggable_style_interacted;
 
+	cgv::glutil::shape2d_style m_point_style;
+
 	std::vector<std::vector<tf_editor_shared_data_types::point_scatterplot>> m_points;
 	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
 
 	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
+
+	bool reset_plot = true;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_scatterplot> tf_editor_scatterplot_ptr;

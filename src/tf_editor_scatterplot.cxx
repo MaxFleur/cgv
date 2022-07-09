@@ -24,6 +24,9 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	// change its size to be the same as the overlay
 	fbc.set_size(get_overlay_size());
 
+	fbc_plot.add_attachment("color", "flt32[R,G,B,A]");
+	fbc_plot.set_size(get_overlay_size());
+
 	// register a rectangle shader for the content canvas, to draw a frame around the plot
 	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
@@ -31,7 +34,7 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	viewport_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
-	point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
+	m_point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 
 	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 	m_draggables_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
@@ -43,8 +46,9 @@ void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 	content_canvas.destruct(ctx);
 	viewport_canvas.destruct(ctx);
 	fbc.clear(ctx);
+	fbc_plot.clear(ctx);
 
-	point_renderer.destruct(ctx);
+	m_point_renderer.destruct(ctx);
 	m_point_geometry_data.destruct(ctx);
 	m_point_geometry.destruct(ctx);
 	m_point_geometry_interacted.destruct(ctx);
@@ -142,9 +146,10 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 
 	// initialize the offline frame buffer, canvases and point renderer
 	success &= fbc.ensure(ctx);
+	success &= fbc_plot.ensure(ctx);
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
-	success &= point_renderer.init(ctx);
+	success &= m_point_renderer.init(ctx);
 	success &= font_renderer.init(ctx);
 	success &= m_line_renderer.init(ctx);
 	success &= m_draggables_renderer.init(ctx);
@@ -172,9 +177,13 @@ void tf_editor_scatterplot::init_frame(cgv::render::context& ctx) {
 		domain.set_pos(ivec2(13) + label_space); // 13 pixel padding (inner space from border) + 20 pixel space for labels
 		domain.set_size(overlay_size - 2 * ivec2(13) - label_space); // scale size to fit in leftover inner space
 
-		// udpate the offline frame buffer to the new size
+		// update the offline frame buffer to the new size
 		fbc.set_size(overlay_size);
 		fbc.ensure(ctx);
+
+		// udpate the offline plot frame buffer to the domain size
+		fbc_plot.set_size(overlay_size);
+		fbc_plot.ensure(ctx);
 
 		// set resolutions of the canvases
 		content_canvas.set_resolution(ctx, overlay_size);
@@ -183,6 +192,7 @@ void tf_editor_scatterplot::init_frame(cgv::render::context& ctx) {
 		create_labels();
 
 		has_damage = true;
+		reset_plot = true;
 	}
 }
 
@@ -220,52 +230,58 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	glEnable(GL_BLEND);
 	// setup a suitable blend function for color and alpha values (following the over-operator)
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+	// first draw the plot (the method will check internally if it needs an update)
+	bool done = draw_scatterplot(ctx);
 	
 	// enable the offline frame buffer, so all things are drawn into its attached textures
 	fbc.enable(ctx);
+	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 
-	// make sure to reset the color buffer if we update the content from scratch
-	if(total_count == 0) {
-		glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+	// draw the plot content from its own framebuffer texture
+	fbc_plot.enable_attachment(ctx, "color", 0);
+	auto& rectangle_prog = content_canvas.enable_shader(ctx, "rectangle");
+	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
+	content_canvas.disable_current_shader(ctx);
+	fbc_plot.disable_attachment(ctx, "color");
 
-		// also draw the plot domain frame...
-		content_canvas.enable_shader(ctx, "rectangle"); // enabling the shader via the canvas will directly set the view uniforms
-		content_canvas.draw_shape(ctx, domain.pos(), domain.size());
-		content_canvas.disable_current_shader(ctx);
+	// also draw the plot domain frame...
+	content_canvas.enable_shader(ctx, "rectangle"); // enabling the shader via the canvas will directly set the view uniforms
+	content_canvas.draw_shape(ctx, domain.pos(), domain.size());
+	content_canvas.disable_current_shader(ctx);
 
-		// ...and axis labels
-		// this is pretty much the same as for the generic renderer
-		auto& font_prog = font_renderer.ref_prog();
-		font_prog.enable(ctx);
-		content_canvas.set_view(ctx, font_prog);
-		font_prog.disable(ctx);
-		// draw the first label only
-		font_renderer.render(ctx, get_overlay_size(), labels, 0, 3);
-		//font_renderer.render(ctx, get_overlay_size(), labels, 1, 1);
-		//font_renderer.render(ctx, get_overlay_size(), labels, 2, 1);
+	// ...and axis labels
+	// this is pretty much the same as for the generic renderer
+	auto& font_prog = font_renderer.ref_prog();
+	font_prog.enable(ctx);
+	content_canvas.set_view(ctx, font_prog);
+	font_prog.disable(ctx);
+	// draw the first label only
+	font_renderer.render(ctx, get_overlay_size(), labels, 0, 3);
+	//font_renderer.render(ctx, get_overlay_size(), labels, 1, 1);
+	//font_renderer.render(ctx, get_overlay_size(), labels, 2, 1);
 
-		// save the current view matrix
-		content_canvas.push_modelview_matrix();
-		// Rotate the view, so the second label is drawn sideways.
-		// Objects are rotated around the origin, so we first need to move the text to the origin.
-		// Transformations are applied in reverse order:
-		//  3 - move text to origin
-		//  2 - rotate 90 degrees
-		//  1 - move text back to its position
-		//content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(labels.ref_texts()[1].position));	// 1
-		content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(90.0f));							// 2
-		content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(vec2(0.0f, -40.0f)));	// 3
+	// save the current view matrix
+	content_canvas.push_modelview_matrix();
+	// Rotate the view, so the second label is drawn sideways.
+	// Objects are rotated around the origin, so we first need to move the text to the origin.
+	// Transformations are applied in reverse order:
+	//  3 - move text to origin
+	//  2 - rotate 90 degrees
+	//  1 - move text back to its position
+	//content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(labels.ref_texts()[1].position));	// 1
+	content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(90.0f));							// 2
+	content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(vec2(0.0f, -40.0f)));	// 3
 
-		// now render the second label
-		font_prog.enable(ctx);
-		content_canvas.set_view(ctx, font_prog);
-		font_prog.disable(ctx);
-		font_renderer.render(ctx, get_overlay_size(), labels, 3, 6);
+	// now render the second label
+	font_prog.enable(ctx);
+	content_canvas.set_view(ctx, font_prog);
+	font_prog.disable(ctx);
+	font_renderer.render(ctx, get_overlay_size(), labels, 3, 6);
 		
-		// restore the previous view matrix
-		content_canvas.pop_modelview_matrix(ctx);
-	}
+	// restore the previous view matrix
+	content_canvas.pop_modelview_matrix(ctx);
 
 	create_grid_lines();
 	add_grid_lines();
@@ -278,49 +294,14 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	line_prog.disable(ctx);
 	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_grid);
 
-	// the amount of points that will be drawn in each step
-	int count = 50000;
-
-	// make sure to not draw more points than available
-	if(total_count + count > m_point_geometry_data.get_render_count())
-		count = m_point_geometry_data.get_render_count() - total_count;
-
-	// get the shader program of the point renderer
-	auto& point_prog = point_renderer.ref_prog();
-	// enable before we change anything
-	point_prog.enable(ctx);
-	// Sets uniforms of the point shader program according to the content canvas,
-	// which are needed to calculate pixel coordinates.
-	content_canvas.set_view(ctx, point_prog);
-
-	point_prog.set_attribute(ctx, "size", vec2(radius));
-
-	// Disable, since the renderer will enable and disable its shader program automatically
-	// and we cannot enable a program that is already enabled.
-	point_prog.disable(ctx);
-	// draw the points from the given geometry with offset and count
-	point_renderer.render(ctx, PT_POINTS, m_point_geometry_data, total_count, count);
-
 	draw_draggables(ctx);
 
-	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
 	fbc.disable(ctx);
 
 	// don't forget to disable blending
 	glDisable(GL_BLEND);
 
-	// accumulate the total amount of so-far drawn points
-	total_count += count;
-
-	// Stop the process if we have drawn all available points,
-	// otherwise request drawing of another frame.
-	bool run = total_count < m_point_geometry_data.get_render_count();
-	if(run)
-		post_redraw();
-	else
-		std::cout << "done" << std::endl;
-
-	has_damage = run;
+	has_damage = !done;
 }
 
 void tf_editor_scatterplot::create_gui() {
@@ -381,24 +362,18 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	content_canvas.disable_current_shader(ctx);
 
 	// configure style for the plot points
-	cgv::glutil::shape2d_style point_style;
-	point_style.use_blending = true;
-	point_style.use_fill_color = false;
-	point_style.apply_gamma = false;
-	point_style.position_is_center = true;
-	point_style.feather_width = blur;
+	m_point_style.use_blending = true;
+	m_point_style.use_fill_color = false;
+	m_point_style.apply_gamma = false;
+	m_point_style.position_is_center = true;
+	m_point_style.fill_color = rgba(rgb(0.0f), alpha);
+	m_point_style.feather_width = blur;
 
 	m_line_style_grid.use_blending = true;
 	m_line_style_grid.use_fill_color = true;
 	m_line_style_grid.apply_gamma = false;
 	m_line_style_grid.fill_color = m_color_gray;
 	m_line_style_grid.width = 3.0f;
-
-	// as the point style does not change during rendering, we can set it here once
-	auto& point_prog = point_renderer.ref_prog();
-	point_prog.enable(ctx);
-	point_style.apply(ctx, point_prog);
-	point_prog.disable(ctx);
 
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;
@@ -433,7 +408,7 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	overlay_style.border_width = 3.0f;
 	overlay_style.feather_width = 0.0f;
 
-	// also does not chnage, so is only set whenever this method is called
+	// also does not change, so is only set whenever this method is called
 	auto& overlay_prog = viewport_canvas.enable_shader(ctx, "rectangle");
 	overlay_style.apply(ctx, overlay_prog);
 	viewport_canvas.disable_current_shader(ctx);
@@ -524,8 +499,6 @@ void tf_editor_scatterplot::update_content() {
 		}
 	}
 
-	std::cout << "Drawing " << m_point_geometry_data.get_render_count() << " points" << std::endl;
-
 	// tell the program that we need to update the content of this overlay
 	has_damage = true;
 	// request a redraw
@@ -614,6 +587,52 @@ void tf_editor_scatterplot::add_centroid_draggables() {
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.66f, 0.0f) * size + org, 2, 3));
 
 	m_points.push_back(points);
+}
+
+bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
+
+	// enable the offline plot frame buffer, so all things are drawn into its attached textures
+	fbc_plot.enable(ctx);
+
+	// make sure to reset the color buffer if we update the content from scratch
+	if (total_count == 0 || reset_plot) {
+		glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		reset_plot = false;
+	}
+
+	// the amount of points that will be drawn in each step
+	int count = 50000;
+
+	// make sure to not draw more points than available
+	if (total_count + count > m_point_geometry_data.get_render_count())
+		count = m_point_geometry_data.get_render_count() - total_count;
+
+	if (count > 0) {
+		auto& point_prog = m_point_renderer.ref_prog();
+		point_prog.enable(ctx);
+		content_canvas.set_view(ctx, point_prog);
+		m_point_style.apply(ctx, point_prog);
+		point_prog.set_attribute(ctx, "size", vec2(radius));
+		point_prog.disable(ctx);
+		m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_data, total_count, count);
+	}
+
+	// accumulate the total amount of so-far drawn points
+	total_count += count;
+
+	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
+	fbc_plot.disable(ctx);
+
+	// Stop the process if we have drawn all available lines,
+	// otherwise request drawing of another frame.
+	bool run = total_count < m_point_geometry_data.get_render_count();
+	if (run) {
+		post_redraw();
+	} else {
+		std::cout << "done" << std::endl;
+	}
+	return !run;
 }
 
 void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
