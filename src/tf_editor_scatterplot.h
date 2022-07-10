@@ -143,6 +143,8 @@ private:
 
 	void set_point_positions();
 
+	void find_clicked_centroid(int x, int y);
+
 	void end_drag() {
 		m_interacted_points.clear();
 		has_damage = true;
@@ -184,6 +186,9 @@ private:
 	std::pair<int, int> m_interacted_point_id;
 	// Has a point been dragged?
 	bool m_interacted_id_set = false;
+
+	// Id of the centroid layer whose point was clicked
+	int m_clicked_centroid_id;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_scatterplot> tf_editor_scatterplot_ptr;

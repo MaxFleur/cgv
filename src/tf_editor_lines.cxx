@@ -93,7 +93,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 	else if (et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
-		ivec2 mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
+		const auto mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
 		// Search for points if LMB is pressed
 		if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
 			find_clicked_centroid(mpos.x(), mpos.y());

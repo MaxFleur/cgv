@@ -197,7 +197,7 @@ private:
 	// Has a point been clicked?
 	bool m_is_point_clicked = false;
 	// Id of the centroid layer whose point was clicked
-	int m_clicked_centroid_id ;
+	int m_clicked_centroid_id;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_lines> tf_editor_lines_ptr;

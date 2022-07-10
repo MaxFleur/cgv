@@ -78,6 +78,12 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 	if (et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
+		ivec2 mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
+		// Search for points if LMB is pressed
+		if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
+			find_clicked_centroid(mpos.x(), mpos.y());
+		}
+
 		bool handled = false;
 		handled |= m_point_handles.handle(e, last_viewport_size, container);
 
@@ -796,4 +802,34 @@ void tf_editor_scatterplot::set_point_positions() {
 
 	has_damage = true;
 	post_redraw();
+}
+
+void tf_editor_scatterplot::find_clicked_centroid(int x, int y) {
+	const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y) };
+	auto found = false;
+	int found_index;
+	// Search all points
+	for (int i = 0; i < m_points.size(); i++) {
+		for (int j = 0; j < m_points.at(i).size(); j++) {
+			// If the mouse was clicked inside a point, store all point addresses belonging to the 
+			// corresponding layer
+			if (m_points.at(i).at(j).is_inside(input_vec)) {
+				m_interacted_points.clear();
+				for (int k = 0; k < m_points.at(i).size(); k++) {
+					m_interacted_points.push_back(&m_points.at(i).at(k));
+				}
+				found = true;
+				found_index = i;
+				break;
+			}
+		}
+	}
+
+	m_is_point_clicked = found;
+	// If we found something, redraw 
+	if (found) {
+		m_clicked_centroid_id = found_index;
+		has_damage = true;
+		post_redraw();
+	}
 }
