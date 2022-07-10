@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cgv/gui/provider.h>
 #include <cgv_gl/renderer.h>
 
 #include <cgv_gl/gl/lib_begin.h>
@@ -51,18 +52,16 @@ namespace cgv { // @<
 				SM_ALIGNED = 1,
 				SM_OBLIQUE = 2,
 			} slice_mode;
-			///
+			/// whether the slices are using an alpha mask with a threshold defined by <slice_alpha>
 			bool slice_alpha_masked;
-			///
+			/// slice positions (plane origin for the oblique slice)
 			vec3 slice_position;
-			///
+			/// the oblique slice normal
 			vec3 slice_normal;
-			///
+			/// alpha scales for the three axis-aligned slices (first component used for the oblique slice)
 			vec3 slice_alpha;
-			///
+			/// a color multiplier to boost the slice color as output from the transfer function
 			float slice_color_boost;
-			
-
 			/// a bounding box used to define a subspace of the volume to be visualized
 			box3 clip_box;
 
@@ -75,6 +74,22 @@ namespace cgv { // @<
 			bool enable_depth_test;
 			/// construct with default values
 			special_volume_render_style();
+
+			void on_set(cgv::gui::provider* p, cgv::base::base* base_ptr, void* member_ptr) {
+
+				if(member_ptr == &slice_normal[0] || member_ptr == &slice_normal[1] || member_ptr == &slice_normal[2]) {
+					slice_normal.safe_normalize();
+
+					if(p) {
+						p->update_member(&slice_normal[0]);
+						p->update_member(&slice_normal[1]);
+						p->update_member(&slice_normal[2]);
+					}
+				}
+
+				if(base_ptr)
+					base_ptr->on_set(member_ptr);
+			}
 		};
 
 		/// renderer that supports point splatting
