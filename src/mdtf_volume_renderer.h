@@ -59,9 +59,11 @@ namespace cgv { // @<
 			/// the oblique slice normal
 			vec3 slice_normal;
 			/// alpha scales for the three axis-aligned slices (first component used for the oblique slice)
-			vec3 slice_alpha;
+			vec3 slice_opacity;
 			/// a color multiplier to boost the slice color as output from the transfer function
 			float slice_color_boost;
+			/// whether to alos boost the slices opacity
+			bool slice_boost_opacity;
 			/// a bounding box used to define a subspace of the volume to be visualized
 			box3 clip_box;
 

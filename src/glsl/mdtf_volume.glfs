@@ -8,6 +8,7 @@
 #define ENABLE_DEPTH_TEST 0
 #define SLICE_MODE 0
 #define SLICE_BLEND_MODE 0
+#define SLICE_BOOST_ALPHA 0
 
 // ***** begin interface of fragment.glfs ***********************************
 uniform float gamma = 2.2;
@@ -314,8 +315,12 @@ vec4 blend_slice_color(vec3 uvw, vec3 ray_dir, vec4 color, float alpha) {
 	color_in.rgb *= color_in.a;
 #endif
 
-	// color boost
+	// color (and alpha) boost
+#if SLICE_BOOST_ALPHA == 0
 	color_in.rgb *= slice_color_boost;
+#else
+	color_in.rgba *= slice_color_boost;
+#endif
 
 	// make sure the alpha value does not exceed 1
 	color_in.a = min(color_in.a, 1.0);

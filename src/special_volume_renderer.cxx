@@ -60,8 +60,9 @@ namespace cgv {
 			slice_alpha_masked = false;
 			slice_position = vec3(0.5f);
 			slice_normal = vec3(0.0f, 1.0f, 0.0f);
-			slice_alpha = vec3(1.0f);
+			slice_opacity = vec3(1.0f);
 			slice_color_boost = 1.0f;
+			slice_boost_opacity = false;
 			clip_box = box3(vec3(0.0f), vec3(1.0f));
 			enable_lighting = false;
 			enable_depth_test = false;
@@ -169,6 +170,7 @@ namespace cgv {
 			shader_code::set_define(defines, "ENABLE_DEPTH_TEST", vrs.enable_depth_test, false);
 			shader_code::set_define(defines, "SLICE_MODE", vrs.slice_mode, special_volume_render_style::SM_NONE);
 			shader_code::set_define(defines, "SLICE_BLEND_MODE", vrs.slice_alpha_masked, false);
+			shader_code::set_define(defines, "SLICE_BOOST_ALPHA", vrs.slice_boost_opacity, false);
 		}
 		bool special_volume_renderer::build_shader_program(context& ctx, shader_program& prog, const shader_define_map& defines)
 		{
@@ -208,7 +210,7 @@ namespace cgv {
 			if(vrs.slice_mode != special_volume_render_style::SM_NONE) {
 				ref_prog().set_uniform(ctx, "slice_pos", vrs.slice_position);
 				ref_prog().set_uniform(ctx, "slice_normal", normalize(vrs.slice_normal));
-				ref_prog().set_uniform(ctx, "slice_alpha", vrs.slice_alpha);
+				ref_prog().set_uniform(ctx, "slice_alpha", vrs.slice_opacity);
 				ref_prog().set_uniform(ctx, "slice_color_boost", vrs.slice_color_boost);
 			}
 
@@ -290,7 +292,7 @@ namespace cgv {
 					if(n == 2) options += ";w=94";
 					else if(n > 2) options += ";w=58";
 					for(int i = 0; i < n; ++i)
-						add_style_member_control(p, b, vrs_ptr, i == 0 ? label : "", v[0], type, options, i == n - 1 ? alignment : " ");
+						add_style_member_control(p, b, vrs_ptr, i == 0 ? label : "", v[i], type, options, i == n - 1 ? alignment : " ");
 				};
 
 				const auto add_vec3_multi_gui = [&](const std::string& label, cgv::render::vec3& v, const std::string& min = "0", const std::string& max = "1", bool use_value = true, bool use_slider = true, bool use_wheel = false) {
@@ -332,7 +334,8 @@ namespace cgv {
 					add_vec3_multi_gui("Position", vrs_ptr->slice_position, "0", "1", true, true, true);
 					add_vec3_multi_gui("Normal", vrs_ptr->slice_normal, "-1", "1", true, true, true);
 					p->add_member_control(b, "Color Boost", vrs_ptr->slice_color_boost, "value_slider", "min=0;max=10.0;step=0.001;log=true;ticks=true;");
-					add_vec3_multi_gui("Opacity", vrs_ptr->slice_alpha);
+					p->add_member_control(b, "Boost Opacity", vrs_ptr->slice_boost_opacity, "check");
+					add_vec3_multi_gui("Opacity", vrs_ptr->slice_opacity);
 					p->add_member_control(b, "Use Alpha Mask", vrs_ptr->slice_alpha_masked, "check");
 					p->align("\b");
 				}

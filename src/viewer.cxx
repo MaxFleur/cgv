@@ -421,6 +421,12 @@ void viewer::draw(cgv::render::context& ctx) {
 
 	ctx.pop_modelview_matrix();
 
+	// render the bounding box of the whole volume
+	ctx.push_modelview_matrix();
+	ctx.mul_modelview_matrix(volume_transform);
+	bounding_box_rd.render(ctx, ref_box_wire_renderer(ctx), bwstyle, 0, 1);
+	ctx.pop_modelview_matrix();
+
 	fbc.disable(ctx);
 
 	shader_program& prog = shaders.get("screen");
@@ -463,35 +469,37 @@ void viewer::draw(cgv::render::context& ctx) {
 			vr.set_gradient_texture(&dataset.gradient_tex);
 			vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
 
-			auto& vol_prog = vr.ref_prog();
-			vol_prog.enable(ctx);
+			if(vr.enable(ctx)) {
+				auto& vol_prog = vr.ref_prog();
 
-			const int size = m_shared_data_ptr->centroids.size();
-			vol_prog.set_uniform(ctx, "centroid_values_size", size);
+				const int size = m_shared_data_ptr->centroids.size();
+				vol_prog.set_uniform(ctx, "centroid_values_size", size);
 
-			for(int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-				const auto color = m_shared_data_ptr->centroids.at(i).color;
-				vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
+				for(int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+					const auto color = m_shared_data_ptr->centroids.at(i).color;
+					vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
 
-				const auto idx = std::to_string(i);
-				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->centroids.at(i).centroids);
-				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->centroids.at(i).widths);
-				vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
+					const auto idx = std::to_string(i);
+					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->centroids.at(i).centroids);
+					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->centroids.at(i).widths);
+					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
+				}
+
+				vr.draw(ctx, 0, 0);
+				vr.disable(ctx);
 			}
-			vol_prog.disable(ctx);
 
-			vr.render(ctx, 0, 0);
 			/** END - MFLEURY **/
 		}
 
 		ctx.pop_modelview_matrix();
 	}
 
-	// render the bounding box of the whole volume
-	ctx.push_modelview_matrix();
-	ctx.mul_modelview_matrix(volume_transform);
-	bounding_box_rd.render(ctx, ref_box_wire_renderer(ctx), bwstyle, 0, 1);
-	ctx.pop_modelview_matrix();
+	//// render the bounding box of the whole volume
+	//ctx.push_modelview_matrix();
+	//ctx.mul_modelview_matrix(volume_transform);
+	//bounding_box_rd.render(ctx, ref_box_wire_renderer(ctx), bwstyle, 0, 1);
+	//ctx.pop_modelview_matrix();
 
 	// render the bounding box of the selected sarcomere segment
 	if (draw_segment_bbox) {
