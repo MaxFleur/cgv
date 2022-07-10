@@ -529,35 +529,36 @@ void tf_editor_scatterplot::create_grid_lines() {
 	const auto sizeX = domain.size().x();
 	const auto sizeY = domain.size().y();
 
+	const auto add_data = [&](vec2 horiz_left, vec2 horiz_right,vec2 vert_down, vec2 vert_up) {
+		m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
+		m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
+	};
+
 	// Coordinates for the most left and down line
 	vec2 horiz_left{ sizeX * 0.05f, sizeY * 0.05f };
 	vec2 horiz_right{ sizeX * 1.05f, sizeY * 0.05f };
 	vec2 vert_down{ sizeX * 0.05f, sizeY * 0.05f };
 	vec2 vert_up{ sizeX * 0.05f, sizeY * 1.05f };
-	m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
-	m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
+	add_data(horiz_left, horiz_right, vert_down, vert_up);
 
+	horiz_left.set(sizeX * 0.05f, sizeY * 0.38f);
+	horiz_right.set(sizeX * 1.05f, sizeY * 0.38f);
 	// Modify for all following positions
-	horiz_left.set(sizeX * 0.38f, sizeY * 0.05f);
-	horiz_right.set(sizeX * 0.38f, sizeY * 1.05f);
-	vert_down.set(sizeX * 0.05f, sizeY * 0.38f);
-	vert_up.set(sizeX * 1.05f, sizeY * 0.38f);
-	m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
-	m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
+	vert_down.set(sizeX * 0.38f, sizeY * 0.05f);
+	vert_up.set(sizeX * 0.38f, sizeY * 1.05f);
+	add_data(horiz_left, horiz_right, vert_down, vert_up);
 
 	horiz_left.set(sizeX * 0.05f, sizeY * 0.71f);
 	horiz_right.set(sizeX * 0.71f, sizeY * 0.71f);
 	vert_down.set(sizeX * 0.71f, sizeY * 0.05f);
 	vert_up.set(sizeX * 0.71f, sizeY * 0.71f);
-	m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
-	m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
+	add_data(horiz_left, horiz_right, vert_down, vert_up);
 
-	horiz_left.set(sizeX * 0.05f, sizeY * 1.05f);
-	horiz_right.set(sizeX * 0.38f, sizeY * 1.05f);
-	vert_down.set(sizeX * 1.05f, sizeY * 0.05f);
-	vert_up.set(sizeX * 1.05f, sizeY * 0.38f);
-	m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
-	m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
+	horiz_left.set(sizeX * 1.05f, sizeY * 0.05f);
+	horiz_right.set(sizeX * 1.05f, sizeY * 0.38f);
+	vert_down.set(sizeX * 0.05f, sizeY * 1.05f);
+	vert_up.set(sizeX * 0.38f, sizeY * 1.05f);
+	add_data(horiz_left, horiz_right, vert_down, vert_up);
 }
 
 void tf_editor_scatterplot::add_grid_lines() {
@@ -736,41 +737,46 @@ void tf_editor_scatterplot::set_point_positions() {
 					m_points[i][2].pos = vec2(found_point.pos.x(), m_points[i][2].pos.y());
 
 					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.y());
-					m_points[i][5].pos = vec2(found_point.pos.y() + domain.size().x() * 0.33f, m_points[i][5].pos.y());
+					m_points[i][5].pos = vec2(found_point.pos.y() + size.x() * 0.33f, m_points[i][5].pos.y());
 				}
-
-				/*
 				else if (found_point.m_stain_first == 0 && found_point.m_stain_second == 1) {
-					m_points[i][0].pos = vec2(m_points[i][0].pos.x() + domain.size().x() * 0.33f, m_points[i][0].pos.y());
-					m_points[i][1].pos = vec2(m_points[i][1].pos.x() - domain.size().x() * 0.33f, m_points[i][1].pos.y());
+					m_points[i][0].pos = vec2(found_point.pos.x(), m_points[i][0].pos.y());
+					m_points[i][1].pos = vec2(found_point.pos.x(), m_points[i][1].pos.y());
 
-					m_points[i][3].pos = vec2(found_point.pos.x() + domain.size().x() * 0.33f, m_points[i][3].pos.y());
-					m_points[i][4].pos = vec2(found_point.pos.x() + domain.size().x() * 0.33f, m_points[i][4].pos.y());
+					m_points[i][3].pos = vec2(found_point.pos.y() - size.x() * 0.33f, m_points[i][3].pos.y());
+					m_points[i][4].pos = vec2(found_point.pos.y() - size.x() * 0.33f, m_points[i][4].pos.y());
 				}
 				else if (found_point.m_stain_first == 1 && found_point.m_stain_second == 3) {
 					m_points[i][0].pos = vec2(m_points[i][0].pos.x(), found_point.pos.y());
 					m_points[i][5].pos = vec2(m_points[i][5].pos.x(), found_point.pos.y());
 
-					m_points[i][2].pos = vec2(found_point.pos.x() - domain.size().x() * 0.33f, m_points[i][2].pos.y());
+					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + size.y() * 0.33f);
 					m_points[i][4].pos = vec2(found_point.pos.x(), m_points[i][4].pos.y());
 				}
 				else if (found_point.m_stain_first == 1 && found_point.m_stain_second == 2) {
 					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.y());
-					m_points[i][5].pos = vec2(m_points[i][5].pos.x(), found_point.pos.y() - domain.size().y() * 0.33f);
+					m_points[i][5].pos = vec2(found_point.pos.y() + size.x() * 0.33f, m_points[i][5].pos.y());
 
-					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.y() + domain.size().y() * 0.33f);
+					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + size.y() * 0.33f);
 					m_points[i][3].pos = vec2(found_point.pos.x(), m_points[i][3].pos.y());
-				}*/
+				}
+				else if (found_point.m_stain_first == 2 && found_point.m_stain_second == 3) {
+					m_points[i][0].pos = vec2(m_points[i][0].pos.x(), found_point.pos.y());
+					m_points[i][3].pos = vec2(m_points[i][3].pos.x(), found_point.pos.y());
+
+					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.x() - size.y() * 0.33f);
+					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.x() - size.y() * 0.33f);
+				}
 
 				// Remap to correct GUI vals
-				const auto offset_first = m_points[i][j].m_stain_first * 0.33f;
-				const auto offset_second = std::abs(m_points[i][j].m_stain_second - 3) * 0.33f;
+				const float offset_first = m_points[i][j].m_stain_first / 3.0f;
+				const auto offset_second = std::abs(m_points[i][j].m_stain_first - 3) * 0.33f;
 
-				const auto gui_value_first = (m_points[i][j].pos.y() - offset_first * domain.size().y()) / domain.size().y() * 0.33f + org.y();
+				const auto gui_value_first = (m_points[i][j].pos.x() - offset_first * size.x()) / (size.x() * (1.0f / 3.0f));
 				m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_first] = gui_value_first;
 				update_member(&m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_first]);
 
-				const auto gui_value_second = (m_points[i][j].pos.x() - offset_second * domain.size().x()) / domain.size().x() * 0.33f + org.x();
+				const auto gui_value_second = (m_points[i][j].pos.y() - offset_second * size.y()) / (size.y() * (1.0f / 3.0f));
 				m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_second] = gui_value_second;
 				update_member(&m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_second]);
 
