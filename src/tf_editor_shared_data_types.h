@@ -65,6 +65,30 @@ namespace tf_editor_shared_data_types
 		vec4 widths{ 0.5f, 0.5f, 0.5f, 0.5f };
 	};
 
+	struct rectangle
+	{
+		vec2 start, end;
+
+		rectangle(vec2 s, vec2 e) {
+			start = s;
+			end = e;
+		}
+
+		float relative_position(float value, bool is_value_x) const {
+			auto rel = is_value_x ? (value - start.x()) / (end.x() - start.x()) : (value - start.y()) / (end.y() - start.y());
+			rel = cgv::math::clamp(rel, 0.0f, 1.0f);
+			return rel;
+		}
+
+		float size_x() {
+			return end.x() - start.x();
+		}
+
+		float size_y() {
+			return end.y() - start.y();
+		}
+	};
+
 	struct point : public cgv::glutil::draggable
 	{
 		point(const ivec2& pos)
@@ -124,25 +148,23 @@ namespace tf_editor_shared_data_types
 		int m_stain_first;
 		int m_stain_second;
 
-		float x_min;
-		float x_max;
-		float y_min;
-		float y_max;
+		rectangle* parent_rectangle;
 
-		point_scatterplot(const ivec2& pos, int stain_first, int stain_second, float x_min, float x_max, float y_min, float y_max) : point(pos)
+		point_scatterplot(const ivec2& pos, int stain_first, int stain_second, rectangle* rectangle) : point(pos)
 		{
 			m_stain_first = stain_first;
 			m_stain_second = stain_second;
 
-			this->x_min = x_min;
-			this->x_max = x_max;
-			this->y_min = y_min;
-			this->y_max = y_max;
+			parent_rectangle = rectangle;
 		}
 
 		void update_val() {
-			pos.x() = cgv::math::clamp(pos.x(), x_min, x_max);
-			pos.y() = cgv::math::clamp(pos.y(), y_min, y_max);
+			pos.x() = cgv::math::clamp(pos.x(), parent_rectangle->start.x(), parent_rectangle->end.x());
+			pos.y() = cgv::math::clamp(pos.y(), parent_rectangle->start.y(), parent_rectangle->end.y());
+		}
+
+		float get_relative_position(float val, bool is_relative_x) {
+			return parent_rectangle->relative_position(val, is_relative_x);
 		}
 	};
 

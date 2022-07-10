@@ -129,9 +129,7 @@ public:
 
 private:
 
-	void create_grid_lines();
-
-	void add_grid_lines();
+	void create_rectangles();
 
 	void add_centroids();
 
@@ -158,9 +156,9 @@ private:
 
 	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
-	std::vector<tf_editor_shared_data_types::line> m_lines_grid;
-
-	cgv::glutil::line2d_style m_line_style_grid;
+	cgv::glutil::shape2d_style m_rectangle_style;
+	std::vector<tf_editor_shared_data_types::rectangle> m_rectangles_draw;
+	std::vector<tf_editor_shared_data_types::rectangle> m_rectangles_calc;
 
 	cgv::glutil::shape2d_style m_draggable_style;
 	cgv::glutil::shape2d_style m_draggable_style_interacted;

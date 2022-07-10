@@ -301,16 +301,15 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	// restore the previous view matrix
 	content_canvas.pop_modelview_matrix(ctx);
 
-	create_grid_lines();
-	add_grid_lines();
+	create_rectangles();
 
-	// draw the grid lines
-	auto& line_prog = m_line_renderer.ref_prog();
-	line_prog.enable(ctx);
-	content_canvas.set_view(ctx, line_prog);
-	m_line_style_grid.apply(ctx, line_prog);
-	line_prog.disable(ctx);
-	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_grid);
+	// draw the grid rectangle
+	auto& rect_prog = content_canvas.enable_shader(ctx, "rectangle");
+	m_rectangle_style.apply(ctx, rect_prog);
+	for (const auto rectangle : m_rectangles_draw) {
+		content_canvas.draw_shape(ctx, rectangle.start, rectangle.end, m_rectangle_style.border_color);
+	}
+	content_canvas.disable_current_shader(ctx);
 
 	draw_draggables(ctx);
 
@@ -387,11 +386,12 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_point_style.fill_color = rgba(rgb(0.0f), alpha);
 	m_point_style.feather_width = blur;
 
-	m_line_style_grid.use_blending = true;
-	m_line_style_grid.use_fill_color = true;
-	m_line_style_grid.apply_gamma = false;
-	m_line_style_grid.fill_color = m_color_gray;
-	m_line_style_grid.width = 3.0f;
+	m_rectangle_style.border_color = rgba(0.4f, 0.4f, 0.4f, 1.0f);
+	m_rectangle_style.use_blending = false;
+	m_rectangle_style.use_fill_color = true;
+	m_rectangle_style.apply_gamma = false;
+	m_rectangle_style.use_fill_color = false;
+	m_rectangle_style.ring_width = 2.0f;
 
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;
@@ -523,51 +523,29 @@ void tf_editor_scatterplot::update_content() {
 	post_redraw();
 }
 
-void tf_editor_scatterplot::create_grid_lines() {
-	m_lines_grid.clear();
+void tf_editor_scatterplot::create_rectangles() {
+	m_rectangles_draw.clear();
 
 	const auto sizeX = domain.size().x();
 	const auto sizeY = domain.size().y();
 
-	const auto add_data = [&](vec2 horiz_left, vec2 horiz_right,vec2 vert_down, vec2 vert_up) {
-		m_lines_grid.push_back(tf_editor_shared_data_types::line({ horiz_left, horiz_right }));
-		m_lines_grid.push_back(tf_editor_shared_data_types::line({ vert_down, vert_up }));
-	};
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.05f), vec2(sizeX * 0.38f, sizeY * 0.38f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.05f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
 
-	// Coordinates for the most left and down line
-	vec2 horiz_left{ sizeX * 0.05f, sizeY * 0.05f };
-	vec2 horiz_right{ sizeX * 1.05f, sizeY * 0.05f };
-	vec2 vert_down{ sizeX * 0.05f, sizeY * 0.05f };
-	vec2 vert_up{ sizeX * 0.05f, sizeY * 1.05f };
-	add_data(horiz_left, horiz_right, vert_down, vert_up);
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.38f), vec2(sizeX * 0.38f, sizeY * 0.71f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.38f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
 
-	horiz_left.set(sizeX * 0.05f, sizeY * 0.38f);
-	horiz_right.set(sizeX * 1.05f, sizeY * 0.38f);
-	// Modify for all following positions
-	vert_down.set(sizeX * 0.38f, sizeY * 0.05f);
-	vert_up.set(sizeX * 0.38f, sizeY * 1.05f);
-	add_data(horiz_left, horiz_right, vert_down, vert_up);
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.71f), vec2(sizeX * 0.38f, sizeY * 1.05f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.71f), vec2(sizeX * 0.33f, sizeY * 0.34f)));
 
-	horiz_left.set(sizeX * 0.05f, sizeY * 0.71f);
-	horiz_right.set(sizeX * 0.71f, sizeY * 0.71f);
-	vert_down.set(sizeX * 0.71f, sizeY * 0.05f);
-	vert_up.set(sizeX * 0.71f, sizeY * 0.71f);
-	add_data(horiz_left, horiz_right, vert_down, vert_up);
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.38f, sizeY * 0.05f), vec2(sizeX * 0.71f, sizeY * 0.38f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.38f, sizeY * 0.05f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
 
-	horiz_left.set(sizeX * 1.05f, sizeY * 0.05f);
-	horiz_right.set(sizeX * 1.05f, sizeY * 0.38f);
-	vert_down.set(sizeX * 0.05f, sizeY * 1.05f);
-	vert_up.set(sizeX * 0.38f, sizeY * 1.05f);
-	add_data(horiz_left, horiz_right, vert_down, vert_up);
-}
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.38f, sizeY * 0.38f), vec2(sizeX * 0.71f, sizeY * 0.71f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.38f, sizeY * 0.38f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
 
-void tf_editor_scatterplot::add_grid_lines() {
-	m_line_geometry_grid.clear();
-
-	for (const auto l : m_lines_grid) {
-		m_line_geometry_grid.add(l.a);
-		m_line_geometry_grid.add(l.b);
-	}
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.71f, sizeY * 0.05f), vec2(sizeX * 1.05f, sizeY * 0.38f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.71f, sizeY * 0.05f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
 }
 
 void tf_editor_scatterplot::add_centroids() {
@@ -598,25 +576,12 @@ void tf_editor_scatterplot::add_centroid_draggables() {
 	const auto size = domain.size();
 
 	// Add the new centroid points to the scatter plot
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.0f) * size + org, 0, 3, 
-																	org.x(), domain.size().x() * 0.33f + org.x(), 
-																	org.y(), domain.size().y() * 0.33f + org.y()));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.33f) * size + org, 0, 2,
-																	org.x(), domain.size().x() * 0.33f + org.x(),
-																	domain.size().y() * 0.33f + org.y(), domain.size().y() * 0.66f + org.y()));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.0f, 0.66f) * size + org, 0, 1,
-																	org.x(), domain.size().x() * 0.33f + org.x(),
-																	domain.size().y() * 0.66f + org.y(), domain.size().y() * 1.0f + org.y()));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.0f) * size + org, 1, 3,
-																	domain.size().x() * 0.33f + org.x(), domain.size().x() * 0.66f + org.x(),
-																	org.y(), domain.size().y() * 0.33f + org.y()));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.33f, 0.33f) * size + org, 1, 2,
-																	domain.size().x() * 0.33f + org.x(), domain.size().x() * 0.66f + org.x(),
-																	domain.size().y() * 0.33f + org.y(), domain.size().y() * 0.66f + org.y()));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(vec2(0.66f, 0.0f) * size + org, 2, 3,
-																	domain.size().x() * 0.66f + org.x(), domain.size().x() * 1.0f + org.x(),
-																	org.y(), domain.size().y() * 0.33f + org.y()));
-
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(0).start, 0, 3, &m_rectangles_calc.at(0)));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(1).start, 0, 2, &m_rectangles_calc.at(1)));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(2).start, 0, 1, &m_rectangles_calc.at(2)));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(3).start, 1, 3, &m_rectangles_calc.at(3)));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(4).start, 1, 2, &m_rectangles_calc.at(4)));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(5).start, 2, 3, &m_rectangles_calc.at(5)));
 	m_points.push_back(points);
 }
 
@@ -737,46 +702,42 @@ void tf_editor_scatterplot::set_point_positions() {
 					m_points[i][2].pos = vec2(found_point.pos.x(), m_points[i][2].pos.y());
 
 					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.y());
-					m_points[i][5].pos = vec2(found_point.pos.y() + size.x() * 0.33f, m_points[i][5].pos.y());
+					m_points[i][5].pos = vec2(found_point.pos.y() + found_point.parent_rectangle->size_x(), m_points[i][5].pos.y());
 				}
 				else if (found_point.m_stain_first == 0 && found_point.m_stain_second == 1) {
 					m_points[i][0].pos = vec2(found_point.pos.x(), m_points[i][0].pos.y());
 					m_points[i][1].pos = vec2(found_point.pos.x(), m_points[i][1].pos.y());
 
-					m_points[i][3].pos = vec2(found_point.pos.y() - size.x() * 0.33f, m_points[i][3].pos.y());
-					m_points[i][4].pos = vec2(found_point.pos.y() - size.x() * 0.33f, m_points[i][4].pos.y());
+					m_points[i][3].pos = vec2(found_point.pos.y() - found_point.parent_rectangle->size_x(), m_points[i][3].pos.y());
+					m_points[i][4].pos = vec2(found_point.pos.y() - found_point.parent_rectangle->size_x(), m_points[i][4].pos.y());
 				}
 				else if (found_point.m_stain_first == 1 && found_point.m_stain_second == 3) {
 					m_points[i][0].pos = vec2(m_points[i][0].pos.x(), found_point.pos.y());
 					m_points[i][5].pos = vec2(m_points[i][5].pos.x(), found_point.pos.y());
 
-					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + size.y() * 0.33f);
+					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + found_point.parent_rectangle->size_y());
 					m_points[i][4].pos = vec2(found_point.pos.x(), m_points[i][4].pos.y());
 				}
 				else if (found_point.m_stain_first == 1 && found_point.m_stain_second == 2) {
 					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.y());
-					m_points[i][5].pos = vec2(found_point.pos.y() + size.x() * 0.33f, m_points[i][5].pos.y());
+					m_points[i][5].pos = vec2(found_point.pos.y() + found_point.parent_rectangle->size_x(), m_points[i][5].pos.y());
 
-					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + size.y() * 0.33f);
+					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + found_point.parent_rectangle->size_y());
 					m_points[i][3].pos = vec2(found_point.pos.x(), m_points[i][3].pos.y());
 				}
 				else if (found_point.m_stain_first == 2 && found_point.m_stain_second == 3) {
 					m_points[i][0].pos = vec2(m_points[i][0].pos.x(), found_point.pos.y());
 					m_points[i][3].pos = vec2(m_points[i][3].pos.x(), found_point.pos.y());
 
-					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.x() - size.y() * 0.33f);
-					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.x() - size.y() * 0.33f);
+					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.x() - found_point.parent_rectangle->size_y());
+					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.x() - found_point.parent_rectangle->size_y());
 				}
 
-				// Remap to correct GUI vals
-				const float offset_first = m_points[i][j].m_stain_first / 3.0f;
-				const auto offset_second = std::abs(m_points[i][j].m_stain_first - 3) * 0.33f;
-
-				const auto gui_value_first = (m_points[i][j].pos.x() - offset_first * size.x()) / (size.x() * (1.0f / 3.0f));
+				const auto gui_value_first = m_points[i][j].get_relative_position(m_points[i][j].pos.x(), true);
 				m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_first] = gui_value_first;
 				update_member(&m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_first]);
 
-				const auto gui_value_second = (m_points[i][j].pos.y() - offset_second * size.y()) / (size.y() * (1.0f / 3.0f));
+				const auto gui_value_second = m_points[i][j].get_relative_position(m_points[i][j].pos.y(), false);
 				m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_second] = gui_value_second;
 				update_member(&m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_second]);
 
