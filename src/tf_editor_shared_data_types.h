@@ -77,7 +77,7 @@ namespace tf_editor_shared_data_types
 		bool is_inside(int x, int y) {
 			return (x > start.x() && x < end.x()) && (y > start.y() && y < end.y()) ? true : false;
 		}
-
+		// Calculate the relative x or y position of a point inside the rectangle
 		float relative_position(float value, bool is_value_x) const {
 			auto rel = is_value_x ? (value - start.x()) / (end.x() - start.x()) : (value - start.y()) / (end.y() - start.y());
 			rel = cgv::math::clamp(rel, 0.0f, 1.0f);
@@ -173,6 +173,7 @@ namespace tf_editor_shared_data_types
 			parent_rectangle = rectangle;
 		}
 
+		// Make sure the point stays in its rectangle
 		void update_val() {
 			pos.x() = cgv::math::clamp(pos.x(), parent_rectangle->start.x(), parent_rectangle->end.x());
 			pos.y() = cgv::math::clamp(pos.y(), parent_rectangle->start.y(), parent_rectangle->end.y());

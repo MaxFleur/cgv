@@ -163,9 +163,12 @@ private:
 	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
 	cgv::glutil::shape2d_style m_rectangle_style;
+	// Rectangles used for drawing
 	std::vector<tf_editor_shared_data_types::rectangle> m_rectangles_draw;
+	// Rectangles used for calculations
 	std::vector<tf_editor_shared_data_types::rectangle> m_rectangles_calc;
 
+	// Style of the draggables, interacted ones are drawn differently
 	cgv::glutil::shape2d_style m_draggable_style;
 	cgv::glutil::shape2d_style m_draggable_style_interacted;
 
@@ -173,7 +176,6 @@ private:
 	std::vector<std::vector<tf_editor_shared_data_types::ellipse>> m_ellipses;
 
 	cgv::glutil::shape2d_style m_point_style;
-
 	std::vector<std::vector<tf_editor_shared_data_types::point_scatterplot>> m_points;
 	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
 

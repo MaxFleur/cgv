@@ -79,7 +79,7 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
 		ivec2 mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
-		// Search for points if LMB is pressed
+		// Search for points if RMB is pressed
 		if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
 			find_clicked_centroid(mpos.x(), mpos.y());
 		}
@@ -88,9 +88,9 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
 			const auto modifiers = e.get_modifiers();
 			const auto negative_change = me.get_dy() > 0 ? true : false;
-			const auto shift_pressed = modifiers & cgv::gui::EM_CTRL ? true : false;
+			const auto ctrl_pressed = modifiers & cgv::gui::EM_CTRL ? true : false;
 
-			scroll_centroid_width(mpos.x(), mpos.y(), negative_change, shift_pressed);
+			scroll_centroid_width(mpos.x(), mpos.y(), negative_change, ctrl_pressed);
 		}
 
 		bool handled = false;
@@ -113,7 +113,7 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
 	}
-
+	// label change
 	if(member_ptr == &x_idx) {
 		x_idx = cgv::math::clamp(x_idx, 0, 3);
 		if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3 && labels.size() > 1)
@@ -138,7 +138,7 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 					const auto org = static_cast<vec2>(domain.pos());
 					const auto size = domain.size();
 					value = m_shared_data_ptr->centroids.at(i).centroids[protein_id];
-
+					// Update points based on their distribution in the scatterplot
 					switch (protein_id) {
 					case 0:
 						m_points[i][0].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][0].pos.y());
@@ -294,8 +294,6 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	font_prog.disable(ctx);
 	// draw the first label only
 	font_renderer.render(ctx, get_overlay_size(), labels, 0, 3);
-	//font_renderer.render(ctx, get_overlay_size(), labels, 1, 1);
-	//font_renderer.render(ctx, get_overlay_size(), labels, 2, 1);
 
 	// save the current view matrix
 	content_canvas.push_modelview_matrix();
@@ -318,9 +316,8 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	// restore the previous view matrix
 	content_canvas.pop_modelview_matrix(ctx);
 
+	// Create and draw the scatterplot grids
 	create_rectangles();
-
-	// draw the grid rectangle
 	auto& rect_prog = content_canvas.enable_shader(ctx, "rectangle");
 	m_rectangle_style.apply(ctx, rect_prog);
 	for (const auto rectangle : m_rectangles_draw) {
@@ -328,11 +325,12 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	}
 	content_canvas.disable_current_shader(ctx);
 
+	// Now the draggable points
 	draw_draggables(ctx);
-
+	
+	// Ellipses are next 
 	create_ellipses();
 	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-		// Strip borders
 		m_ellipse_style.border_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
 		m_ellipse_style.fill_color = m_shared_data_ptr->centroids.at(i).color;
 
@@ -366,8 +364,6 @@ void tf_editor_scatterplot::create_gui() {
 
 	add_decorator("Stain Indices", "heading", "level=3;font_style=regular");
 	add_decorator("", "separator", "h=2");
-	//add_member_control(this, "X Index", x_idx, "value", "min=0;max=3;step=1");
-	//add_member_control(this, "Y Index", y_idx, "value", "min=0;max=3;step=1");
 
 	// Create new centroids
 	auto const add_centroid_button = add_button("Add centroid");
@@ -394,8 +390,6 @@ void tf_editor_scatterplot::create_gui() {
 		add_member_control(this, "Width Obscurin", m_shared_data_ptr->centroids.at(i).widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 		add_member_control(this, "Width Salimus", m_shared_data_ptr->centroids.at(i).widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 	}
-
-	add_gui("", m_ellipse_style);
 }
 
 void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
@@ -419,12 +413,14 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_point_style.fill_color = rgba(rgb(0.0f), alpha);
 	m_point_style.feather_width = blur;
 
+	// Style for the grid
 	m_rectangle_style.border_color = rgba(0.4f, 0.4f, 0.4f, 1.0f);
 	m_rectangle_style.use_blending = false;
 	m_rectangle_style.apply_gamma = false;
 	m_rectangle_style.use_fill_color = false;
 	m_rectangle_style.ring_width = 2.0f;
 
+	// Ellipses
 	m_ellipse_style.use_blending = true;
 	m_ellipse_style.use_fill_color = true;
 	m_ellipse_style.apply_gamma = false;
@@ -444,7 +440,6 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_draggable_style.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
 	m_draggable_style.border_width = 1.5f;
 	m_draggable_style.use_blending = true;
-
 	m_draggable_style_interacted.position_is_center = true;
 	m_draggable_style_interacted.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
 	m_draggable_style_interacted.border_width = 1.5f;
@@ -509,12 +504,13 @@ void tf_editor_scatterplot::update_content() {
 	vec2 org = static_cast<vec2>(domain.pos());
 	vec2 size = domain.size();
 
+	// Construct to add the points
 	const auto add_point = [&](vec2 pos, float x, float y) {
+		// Apply size and offset
 		pos.set(x, y);
 		pos *= size;
 		pos += org;
 
-		// add one point
 		m_point_geometry_data.add(pos, rgba(rgb(0.0f), alpha));
 	};
 
@@ -563,48 +559,47 @@ void tf_editor_scatterplot::update_content() {
 
 void tf_editor_scatterplot::create_rectangles() {
 	m_rectangles_draw.clear();
+	m_rectangles_calc.clear();
 
-	const auto sizeX = domain.size().x();
-	const auto sizeY = domain.size().y();
+	const auto size_x = domain.size().x();
+	const auto size_y = domain.size().y();
 
-	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.05f), vec2(sizeX * 0.38f, sizeY * 0.38f)));
-	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.05f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.05f, size_y * 0.05f), vec2(size_x * 0.38f, size_y * 0.38f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.05f, size_y * 0.05f), vec2(size_x * 0.33f, size_y * 0.33f)));
 
-	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.38f), vec2(sizeX * 0.38f, sizeY * 0.71f)));
-	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.38f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.05f, size_y * 0.38f), vec2(size_x * 0.38f, size_y * 0.71f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.05f, size_y * 0.38f), vec2(size_x * 0.33f, size_y * 0.33f)));
 
-	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.71f), vec2(sizeX * 0.38f, sizeY * 1.05f)));
-	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.05f, sizeY * 0.71f), vec2(sizeX * 0.33f, sizeY * 0.34f)));
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.05f, size_y * 0.71f), vec2(size_x * 0.38f, size_y * 1.05f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.05f, size_y * 0.71f), vec2(size_x * 0.33f, size_y * 0.34f)));
 
-	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.38f, sizeY * 0.05f), vec2(sizeX * 0.71f, sizeY * 0.38f)));
-	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.38f, sizeY * 0.05f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.38f, size_y * 0.05f), vec2(size_x * 0.71f, size_y * 0.38f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.38f, size_y * 0.05f), vec2(size_x * 0.33f, size_y * 0.33f)));
 
-	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.38f, sizeY * 0.38f), vec2(sizeX * 0.71f, sizeY * 0.71f)));
-	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.38f, sizeY * 0.38f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.38f, size_y * 0.38f), vec2(size_x * 0.71f, size_y * 0.71f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.38f, size_y * 0.38f), vec2(size_x * 0.33f, size_y * 0.33f)));
 
-	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.71f, sizeY * 0.05f), vec2(sizeX * 1.05f, sizeY * 0.38f)));
-	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.71f, sizeY * 0.05f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
+	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.71f, size_y * 0.05f), vec2(size_x * 1.05f, size_y * 0.38f)));
+	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.71f, size_y * 0.05f), vec2(size_x * 0.33f, size_y * 0.33f)));
 }
 
 void tf_editor_scatterplot::create_ellipses() {
 	m_ellipses.clear();
 
 	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-		// For each centroid, we want to create the lines of the boundaries
+		// Ellipses for every centroid
 		std::vector<tf_editor_shared_data_types::ellipse> ellipses;
 
 		for (int j = 0; j < m_points.at(i).size(); j++) {
-
+			// Get the width for the point's protein stains
 			const auto width_stain_x = m_shared_data_ptr->centroids.at(i).widths[m_points[i][j].m_stain_second];
 			const auto width_stain_y = m_shared_data_ptr->centroids.at(i).widths[m_points[i][j].m_stain_first];
-
+			// Multiply with the rectangle size
 			const auto width_x = width_stain_x * m_points.at(i).at(j).parent_rectangle->size_x();
 			const auto width_y = width_stain_y * m_points.at(i).at(j).parent_rectangle->size_y();
-
+			// Store
 			const auto position = vec2(m_points.at(i).at(j).pos.x() - width_x / 2, m_points.at(i).at(j).pos.y() - width_y / 2);
 			ellipses.push_back(tf_editor_shared_data_types::ellipse(position, vec2(width_x, width_y)));
-			
-			// ellipses.push_back(tf_editor_shared_data_types::ellipse(m_points.at(i).at(j).pos, vec2(width_x, width_y)));
 		}
 
 		m_ellipses.push_back(ellipses);
@@ -712,8 +707,6 @@ void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 				m_point_geometry.add(m_points[i][j].get_render_position());
 		}
 
-		m_point_geometry.set_out_of_date();
-
 		// Draw 
 		shader_program& point_prog = m_draggables_renderer.ref_prog();
 		point_prog.enable(ctx);
@@ -752,7 +745,7 @@ void tf_editor_scatterplot::set_point_positions() {
 
 				m_interacted_point_id.first = i;
 				m_interacted_point_id.second = j;
-
+				// Update all other points with values belonging to this certain point
 				if (found_point.m_stain_first == 0 && found_point.m_stain_second == 3) {
 					m_points[i][1].pos = vec2(found_point.pos.x(), m_points[i][1].pos.y());
 					m_points[i][2].pos = vec2(found_point.pos.x(), m_points[i][2].pos.y());
@@ -795,7 +788,7 @@ void tf_editor_scatterplot::set_point_positions() {
 					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.x() - found_point.parent_rectangle->size_y());
 					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.x() - found_point.parent_rectangle->size_y());
 				}
-
+				// Remap the gui values
 				const auto gui_value_first = m_points[i][j].get_relative_position(m_points[i][j].pos.x(), true);
 				m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_first] = gui_value_first;
 				update_member(&m_shared_data_ptr->centroids.at(i).centroids[m_points[i][j].m_stain_first]);
@@ -846,11 +839,10 @@ void tf_editor_scatterplot::find_clicked_centroid(int x, int y) {
 void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed) {
 	auto found = false;
 	int found_index;
-	// Search through all polygons
+	// Search through the rectangles
 	for (int i = 0; i < m_rectangles_calc.size(); i++) {
-		// If we found a polygon, update the corresponding width
 		if (m_rectangles_calc.at(i).is_inside(x, y)) {
-
+			// If the rectangle is found, update the point's width in it depending on the ctrl modifier
 			auto& centroids = m_shared_data_ptr->centroids[m_clicked_centroid_id];
 			auto& width = centroids.widths[ctrl_pressed ? m_points[m_clicked_centroid_id][i].m_stain_first : m_points[m_clicked_centroid_id][i].m_stain_second];
 			// auto width = 0.0f;

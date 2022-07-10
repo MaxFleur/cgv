@@ -94,7 +94,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
 		const auto mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
-		// Search for points if LMB is pressed
+		// Search for points if RMB is pressed
 		if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
 			find_clicked_centroid(mpos.x(), mpos.y());
 		}
@@ -924,8 +924,6 @@ void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
 				m_point_geometry_interacted.add(m_points[i][j].get_render_position()) :
 				m_point_geometry.add(m_points[i][j].get_render_position());
 		}
-
-		m_point_geometry.set_out_of_date();
 
 		// Draw 
 		shader_program& point_prog = m_point_renderer.ref_prog();
