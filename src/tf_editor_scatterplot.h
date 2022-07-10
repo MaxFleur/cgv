@@ -178,6 +178,8 @@ private:
 
 	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
 
+	cgv::glutil::shape2d_style m_plot_rect_style;
+
 	bool reset_plot = true;
 
 	// Has a point been clicked?
