@@ -29,7 +29,6 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 
 	// register a rectangle shader for the content canvas, to draw a frame around the plot
 	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
-
 	content_canvas.register_shader("ellipse", cgv::glutil::canvas::shaders_2d::ellipse);
 
 	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main frame buffer
@@ -67,7 +66,6 @@ void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 }
 
 bool tf_editor_scatterplot::self_reflect(cgv::reflect::reflection_handler& _rh) {
-
 	return true;
 }
 
@@ -592,8 +590,8 @@ void tf_editor_scatterplot::create_ellipses() {
 
 		for (int j = 0; j < m_points.at(i).size(); j++) {
 			// Get the width for the point's protein stains
-			const auto width_stain_x = m_shared_data_ptr->centroids.at(i).widths[m_points[i][j].m_stain_second];
-			const auto width_stain_y = m_shared_data_ptr->centroids.at(i).widths[m_points[i][j].m_stain_first];
+			const auto width_stain_x = m_shared_data_ptr->centroids.at(i).widths[m_points[i][j].m_stain_first];
+			const auto width_stain_y = m_shared_data_ptr->centroids.at(i).widths[m_points[i][j].m_stain_second];
 			// Multiply with the rectangle size
 			const auto width_x = width_stain_x * m_points.at(i).at(j).parent_rectangle->size_x();
 			const auto width_y = width_stain_y * m_points.at(i).at(j).parent_rectangle->size_y();

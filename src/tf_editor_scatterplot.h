@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef    SP_OVERLAY_H
-#define    SP_OVERLAY_H
-
 #include <cgv_glutil/frame_buffer_container.h>
 #include <cgv_glutil/generic_renderer.h>
 #include <cgv_glutil/2d/canvas.h>
@@ -197,4 +194,3 @@ private:
 
 typedef cgv::data::ref_ptr<tf_editor_scatterplot> tf_editor_scatterplot_ptr;
 
-#endif SP_OVERLAY_H
