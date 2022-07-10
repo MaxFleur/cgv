@@ -131,6 +131,8 @@ private:
 
 	void create_rectangles();
 
+	void create_ellipses();
+
 	void add_centroids();
 
 	void add_centroid_draggables();
@@ -162,6 +164,9 @@ private:
 
 	cgv::glutil::shape2d_style m_draggable_style;
 	cgv::glutil::shape2d_style m_draggable_style_interacted;
+
+	cgv::glutil::shape2d_style m_ellipse_style;
+	std::vector<std::vector<tf_editor_shared_data_types::ellipse>> m_ellipses;
 
 	cgv::glutil::shape2d_style m_point_style;
 

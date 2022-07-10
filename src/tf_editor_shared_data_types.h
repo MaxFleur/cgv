@@ -89,6 +89,17 @@ namespace tf_editor_shared_data_types
 		}
 	};
 
+	struct ellipse
+	{
+		vec2 pos;
+		vec2 size;
+
+		ellipse(vec2 p, vec2 s) {
+			pos = p;
+			size = s;
+		}
+	};
+
 	struct point : public cgv::glutil::draggable
 	{
 		point(const ivec2& pos)

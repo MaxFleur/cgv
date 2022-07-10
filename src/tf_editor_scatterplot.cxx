@@ -30,6 +30,8 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	// register a rectangle shader for the content canvas, to draw a frame around the plot
 	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
+	content_canvas.register_shader("ellipse", cgv::glutil::canvas::shaders_2d::ellipse);
+
 	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main frame buffer
 	viewport_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
@@ -313,6 +315,20 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 
 	draw_draggables(ctx);
 
+	create_ellipses();
+	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+		// Strip borders
+		m_ellipse_style.border_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
+		m_ellipse_style.fill_color = m_shared_data_ptr->centroids.at(i).color;
+
+		auto& ellipse_prog = content_canvas.enable_shader(ctx, "ellipse");
+		m_ellipse_style.apply(ctx, ellipse_prog);
+		for (const auto ellipse : m_ellipses.at(i)) {
+			content_canvas.draw_shape(ctx, ellipse.pos, ellipse.size, rgba(0, 1, 1, 1));
+		}
+		content_canvas.disable_current_shader(ctx);
+	}
+
 	fbc.disable(ctx);
 
 	// don't forget to disable blending
@@ -363,6 +379,8 @@ void tf_editor_scatterplot::create_gui() {
 		add_member_control(this, "Width Obscurin", m_shared_data_ptr->centroids.at(i).widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 		add_member_control(this, "Width Salimus", m_shared_data_ptr->centroids.at(i).widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 	}
+
+	add_gui("", m_ellipse_style);
 }
 
 void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
@@ -388,10 +406,15 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 
 	m_rectangle_style.border_color = rgba(0.4f, 0.4f, 0.4f, 1.0f);
 	m_rectangle_style.use_blending = false;
-	m_rectangle_style.use_fill_color = true;
 	m_rectangle_style.apply_gamma = false;
 	m_rectangle_style.use_fill_color = false;
 	m_rectangle_style.ring_width = 2.0f;
+
+	m_ellipse_style.use_blending = true;
+	m_ellipse_style.use_fill_color = true;
+	m_ellipse_style.apply_gamma = false;
+	m_ellipse_style.ring_width = 0.0f;
+	m_ellipse_style.border_width = 5.0f;
 
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;
@@ -546,6 +569,31 @@ void tf_editor_scatterplot::create_rectangles() {
 
 	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.71f, sizeY * 0.05f), vec2(sizeX * 1.05f, sizeY * 0.38f)));
 	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(sizeX * 0.71f, sizeY * 0.05f), vec2(sizeX * 0.33f, sizeY * 0.33f)));
+}
+
+void tf_editor_scatterplot::create_ellipses() {
+	m_ellipses.clear();
+
+	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+		// For each centroid, we want to create the lines of the boundaries
+		std::vector<tf_editor_shared_data_types::ellipse> ellipses;
+
+		for (int j = 0; j < m_points.at(i).size(); j++) {
+
+			const auto width_stain_x = m_shared_data_ptr->centroids.at(i).widths[m_points[i][j].m_stain_second];
+			const auto width_stain_y = m_shared_data_ptr->centroids.at(i).widths[m_points[i][j].m_stain_first];
+
+			const auto width_x = width_stain_x * m_points.at(i).at(j).parent_rectangle->size_x();
+			const auto width_y = width_stain_y * m_points.at(i).at(j).parent_rectangle->size_y();
+
+			const auto position = vec2(m_points.at(i).at(j).pos.x() - width_x / 2, m_points.at(i).at(j).pos.y() - width_y / 2);
+			ellipses.push_back(tf_editor_shared_data_types::ellipse(position, vec2(width_x, width_y)));
+			
+			// ellipses.push_back(tf_editor_shared_data_types::ellipse(m_points.at(i).at(j).pos, vec2(width_x, width_y)));
+		}
+
+		m_ellipses.push_back(ellipses);
+	}
 }
 
 void tf_editor_scatterplot::add_centroids() {
