@@ -145,6 +145,8 @@ private:
 
 	void find_clicked_centroid(int x, int y);
 
+	void scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed);
+
 	void end_drag() {
 		m_interacted_points.clear();
 		has_damage = true;

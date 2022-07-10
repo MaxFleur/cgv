@@ -84,6 +84,15 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 			find_clicked_centroid(mpos.x(), mpos.y());
 		}
 
+		// Set width if a scroll is done
+		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
+			const auto modifiers = e.get_modifiers();
+			const auto negative_change = me.get_dy() > 0 ? true : false;
+			const auto shift_pressed = modifiers & cgv::gui::EM_CTRL ? true : false;
+
+			scroll_centroid_width(mpos.x(), mpos.y(), negative_change, shift_pressed);
+		}
+
 		bool handled = false;
 		handled |= m_point_handles.handle(e, last_viewport_size, container);
 
@@ -830,6 +839,35 @@ void tf_editor_scatterplot::find_clicked_centroid(int x, int y) {
 	if (found) {
 		m_clicked_centroid_id = found_index;
 		has_damage = true;
+		post_redraw();
+	}
+}
+
+void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed) {
+	auto found = false;
+	int found_index;
+	// Search through all polygons
+	for (int i = 0; i < m_rectangles_calc.size(); i++) {
+		// If we found a polygon, update the corresponding width
+		if (m_rectangles_calc.at(i).is_inside(x, y)) {
+
+			auto& centroids = m_shared_data_ptr->centroids[m_clicked_centroid_id];
+			auto& width = centroids.widths[ctrl_pressed ? m_points[m_clicked_centroid_id][i].m_stain_first : m_points[m_clicked_centroid_id][i].m_stain_second];
+			// auto width = 0.0f;
+			width += negative_change ? 0.02f : -0.02f;
+			width = cgv::math::clamp(width, 0.0f, 1.0f);
+
+			found = true;
+			found_index = i;
+			break;
+		}
+	}
+	// If we found something, we have to set the corresponding point ids and redraw
+	if (found) {
+		m_interacted_id_set = true;
+
+		has_damage = true;
+		post_recreate_gui();
 		post_redraw();
 	}
 }

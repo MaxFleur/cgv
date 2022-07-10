@@ -74,6 +74,10 @@ namespace tf_editor_shared_data_types
 			end = e;
 		}
 
+		bool is_inside(int x, int y) {
+			return (x > start.x() && x < end.x()) && (y > start.y() && y < end.y()) ? true : false;
+		}
+
 		float relative_position(float value, bool is_value_x) const {
 			auto rel = is_value_x ? (value - start.x()) / (end.x() - start.x()) : (value - start.y()) / (end.y() - start.y());
 			rel = cgv::math::clamp(rel, 0.0f, 1.0f);

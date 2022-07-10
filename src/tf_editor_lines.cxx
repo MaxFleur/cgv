@@ -1213,7 +1213,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 		// If we found a polygon, update the corresponding width
 		if (m_widget_polygons.at(i).is_point_in_polygon(x, y)) {
 			// Stronger change for pressed shift
-			auto change = shift_pressed ? 0.05 : 0.02;
+			auto change = shift_pressed ? 0.05f : 0.02f;
 			if (negative_change) {
 				change *= -1.0f;
 			}
