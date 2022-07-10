@@ -56,6 +56,12 @@ namespace cgv {
 			opacity_scale = 1.0f;
 			enable_scale_adjustment = true;
 			size_scale = 50.0f;
+			slice_mode = SM_NONE;
+			slice_alpha_masked = false;
+			slice_position = vec3(0.5f);
+			slice_normal = vec3(0.0f, 1.0f, 0.0f);
+			slice_alpha = vec3(1.0f);
+			slice_color_boost = 1.0f;
 			clip_box = box3(vec3(0.0f), vec3(1.0f));
 			enable_lighting = false;
 			enable_depth_test = false;
@@ -152,6 +158,8 @@ namespace cgv {
 			shader_code::set_define(defines, "ENABLE_SCALE_ADJUSTMENT", vrs.enable_scale_adjustment, false);
 			shader_code::set_define(defines, "ENABLE_LIGHTING", vrs.enable_lighting, false);
 			shader_code::set_define(defines, "ENABLE_DEPTH_TEST", vrs.enable_depth_test, false);
+			shader_code::set_define(defines, "SLICE_MODE", vrs.slice_mode, mdtf_volume_render_style::SM_NONE);
+			shader_code::set_define(defines, "SLICE_BLEND_MODE", vrs.slice_alpha_masked, false);
 		}
 		bool mdtf_volume_renderer::build_shader_program(context& ctx, shader_program& prog, const shader_define_map& defines)
 		{
@@ -184,6 +192,13 @@ namespace cgv {
 
 			ref_prog().set_uniform(ctx, "combined_transform", inv(vrs.volume_transform) * vrs.clip_box_transform);
 			ref_prog().set_uniform(ctx, "combined_transform_inverse", inv(vrs.clip_box_transform) * vrs.volume_transform);
+
+			if(vrs.slice_mode != mdtf_volume_render_style::SM_NONE) {
+				ref_prog().set_uniform(ctx, "slice_pos", vrs.slice_position);
+				ref_prog().set_uniform(ctx, "slice_normal", normalize(vrs.slice_normal));
+				ref_prog().set_uniform(ctx, "slice_alpha", vrs.slice_alpha);
+				ref_prog().set_uniform(ctx, "slice_color_boost", vrs.slice_color_boost);
+			}
 
 			glDisable(GL_DEPTH_TEST);
 
@@ -232,10 +247,19 @@ namespace cgv {
 #undef P_110
 #undef P_111
 
-#include <cgv/gui/provider.h>
+//#include <cgv/gui/provider.h>
 
 namespace cgv {
 	namespace gui {
+
+		template <typename T>
+		data::ref_ptr<control<T> > add_style_member_control(provider* p, cgv::base::base* base_ptr, cgv::render::mdtf_volume_render_style* style_ptr, const std::string& label, T& value, const std::string& gui_type = "", const std::string& options = "", const std::string& align = "\n") {
+			data::ref_ptr<control<T> > cp = p->add_control(label, value, gui_type, options, align);
+			if(cp)
+				connect_copy(cp->value_change,
+					cgv::signal::rebind(style_ptr, &cgv::render::mdtf_volume_render_style::on_set, cgv::signal::_c<provider*>(p), cgv::signal::_c<cgv::base::base*>(base_ptr), &value));
+			return cp;
+		}
 
 		struct mdtf_volume_render_style_gui_creator : public gui_creator {
 			/// attempt to create a gui and return whether this was successful
@@ -247,6 +271,30 @@ namespace cgv {
 				cgv::render::mdtf_volume_render_style* vrs_ptr = reinterpret_cast<cgv::render::mdtf_volume_render_style*>(value_ptr);
 				cgv::base::base* b = dynamic_cast<cgv::base::base*>(p);
 
+				const auto add_vec3_gui = [&](const std::string& label, cgv::render::vec3& v, const std::string& type, std::string options = "", const std::string& alignment = "\n") {
+					int n = static_cast<int>(v.dims);
+					if(n == 2) options += ";w=94";
+					else if(n > 2) options += ";w=58";
+					for(int i = 0; i < n; ++i)
+						add_style_member_control(p, b, vrs_ptr, i == 0 ? label : "", v[0], type, options, i == n-1 ? alignment : " ");
+				};
+
+				const auto add_vec3_multi_gui = [&](const std::string& label, cgv::render::vec3& v, const std::string& min = "0", const std::string& max = "1", bool use_value = true, bool use_slider = true, bool use_wheel = false) {
+					std::string options_value = "min=" + min + ";max=" + max;
+					std::string options_slider = options_value + ";step=0.0001;";
+					std::string options_wheel = options_value + ";step=0.0001;h=8";
+					options_value += ";step=0.01";
+
+					if(use_value)
+						add_vec3_gui(label, v, "value", options_value, (use_slider || use_wheel) ? "%y-=12\n" : "\n");
+
+					if(use_slider)
+						add_vec3_gui("", v, "fill_slider", options_slider, use_wheel ? "%y-=12\n" : "\n");
+
+					if(use_wheel)
+						add_vec3_gui("", v, "wheel", options_wheel);
+				};
+
 				p->add_member_control(b, "Quality", vrs_ptr->integration_quality, "dropdown", "enums='8=8,16=16,32=32,64=64,128=128,256=256,512=512,1024=1024'");
 				p->add_member_control(b, "Interpolation", vrs_ptr->interpolation_mode, "dropdown", "enums=Nearest,Linear,Smooth,Cubic");
 				p->add_member_control(b, "Use Noise", vrs_ptr->enable_noise_offset, "check");
@@ -257,19 +305,23 @@ namespace cgv {
 				p->add_member_control(b, "Lighting", vrs_ptr->enable_lighting, "check");
 				p->add_member_control(b, "Depth Test", vrs_ptr->enable_depth_test, "check");
 
-				p->add_member_control(b, "Box Min", vrs_ptr->clip_box.ref_min_pnt()[0], "value", "w=55;min=0;max=1", " ");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_min_pnt()[1], "value", "w=55;min=0;max=1", " ");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_min_pnt()[2], "value", "w=55;min=0;max=1");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_min_pnt()[0], "slider", "w=55;min=0;step=0.0001;max=1;ticks=true", " ");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_min_pnt()[1], "slider", "w=55;min=0;step=0.0001;max=1;ticks=true", " ");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_min_pnt()[2], "slider", "w=55;min=0;step=0.0001;max=1;ticks=true");
-
-				p->add_member_control(b, "Box Max", vrs_ptr->clip_box.ref_max_pnt()[0], "value", "w=55;max=0;max=1", " ");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_max_pnt()[1], "value", "w=55;max=0;max=1", " ");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_max_pnt()[2], "value", "w=55;max=0;max=1");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_max_pnt()[0], "slider", "w=55;max=0;step=0.0001;max=1;ticks=true", " ");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_max_pnt()[1], "slider", "w=55;max=0;step=0.0001;max=1;ticks=true", " ");
-				p->add_member_control(b, "", vrs_ptr->clip_box.ref_max_pnt()[2], "slider", "w=55;max=0;step=0.0001;max=1;ticks=true");
+				if(p->begin_tree_node("Clip Box", vrs_ptr->clip_box, false)) {
+					p->align("\a");
+					add_vec3_multi_gui("Min", vrs_ptr->clip_box.ref_min_pnt(), "0", "1", true, true, true);
+					add_vec3_multi_gui("Max", vrs_ptr->clip_box.ref_max_pnt(), "0", "1", true, true, true);
+					p->align("\b");
+				}
+				
+				if(p->begin_tree_node("Slicing", vrs_ptr->slice_mode, false)) {
+					p->align("\a");
+					p->add_member_control(b, "Mode", vrs_ptr->slice_mode, "dropdown", "enums=Disabled,Axis Aligned,Oblique");
+					add_vec3_multi_gui("Position", vrs_ptr->slice_position, "0", "1", true, true, true);
+					add_vec3_multi_gui("Normal", vrs_ptr->slice_normal, "-1", "1", true, true, true);
+					p->add_member_control(b, "Color Boost", vrs_ptr->slice_color_boost, "value_slider", "min=0;max=10.0;step=0.001;log=true;ticks=true;");
+					add_vec3_multi_gui("Opacity", vrs_ptr->slice_alpha);
+					p->add_member_control(b, "Use Alpha Mask", vrs_ptr->slice_alpha_masked, "check");
+					p->align("\b");
+				}
 
 				return true;
 			}
