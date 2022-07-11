@@ -275,19 +275,11 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	// draw the plot content from its own framebuffer texture
 	fbc_plot.enable_attachment(ctx, "color", 0);
 	auto& rectangle_prog = content_canvas.enable_shader(ctx, "rectangle");
-	// NOTE: if we use teh same shader, rectangle in this case, multiple times to render different stuff, we need to set the styles of the to-be-rendered stuff beforehand everytime
 	m_plot_rect_style.apply(ctx, rectangle_prog);
 
 	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
 	content_canvas.disable_current_shader(ctx);
 	fbc_plot.disable_attachment(ctx, "color");
-
-	// also draw the plot domain frame...
-	// NOTE: this is not doiung anythin useful anymore, because wwe now have smaller frames for each individual scatter plot
-
-	//content_canvas.enable_shader(ctx, "rectangle"); // enabling the shader via the canvas will directly set the view uniforms
-	//content_canvas.draw_shape(ctx, domain.pos(), domain.size());
-	//content_canvas.disable_current_shader(ctx);
 
 	// ...and axis labels
 	// this is pretty much the same as for the generic renderer
@@ -339,8 +331,12 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 
 		auto& ellipse_prog = content_canvas.enable_shader(ctx, "ellipse");
 		m_ellipse_style.apply(ctx, ellipse_prog);
-		for (const auto ellipse : m_ellipses.at(i)) {
-			content_canvas.draw_shape(ctx, ellipse.pos, ellipse.size, rgba(0, 1, 1, 1));
+		for (int j = 0; j < m_ellipses.at(i).size(); j++) {
+			// Prevent ellipses lappin over rectangles
+			glEnable(GL_SCISSOR_TEST);
+			glScissor(m_rectangles_calc.at(j).start.x(), m_rectangles_calc.at(j).start.y(), m_rectangles_calc.at(j).size_x(), m_rectangles_calc.at(j).size_y());
+			content_canvas.draw_shape(ctx, m_ellipses.at(i).at(j).pos, m_ellipses.at(i).at(j).size, rgba(0, 1, 1, 1));
+			glDisable(GL_SCISSOR_TEST);
 		}
 		content_canvas.disable_current_shader(ctx);
 	}
@@ -396,18 +392,6 @@ void tf_editor_scatterplot::create_gui() {
 }
 
 void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
-
-	// configure style for the plot frame
-	// NOTE: frame_style is not used anymore
-	cgv::glutil::shape2d_style frame_style;
-	frame_style.border_color = rgba(rgb(0.0f), 1.0f);
-	frame_style.border_width = 1.0f;
-	frame_style.feather_width = 0.0f;
-	frame_style.apply_gamma = false;
-
-	//auto& frame_prog = content_canvas.enable_shader(ctx, "rectangle");
-	//frame_style.apply(ctx, frame_prog);
-	//content_canvas.disable_current_shader(ctx);
 
 	// configure style for rendering the plot framebuffer texture
 	m_plot_rect_style.use_texture = true;
@@ -853,7 +837,7 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 			auto& centroids = m_shared_data_ptr->centroids[m_clicked_centroid_id];
 			auto& width = centroids.widths[ctrl_pressed ? m_points[m_clicked_centroid_id][i].m_stain_first : m_points[m_clicked_centroid_id][i].m_stain_second];
 			// auto width = 0.0f;
-			width += negative_change ? 0.02f : -0.02f;
+			width += negative_change ? -0.02f : 0.02f;
 			width = cgv::math::clamp(width, 0.0f, 1.0f);
 
 			found = true;
