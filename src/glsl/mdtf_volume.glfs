@@ -275,20 +275,17 @@ bool intersect_box(vec3 origin, vec3 direction, out float t_min, out float t_max
 	return t_max > max(t_min, 0.0f);
 }
 
-#if SLICE_MODE == 2
-bool intersect_plane(in vec3 ro, in vec3 rd, in vec3 p, in vec3 n, out vec3 hit) {
+#if SLICE_MODE > 0
+float intersect_plane(in vec3 ro, in vec3 rd, in vec3 p, in vec3 n) {
 	float denom = dot(n, rd);
-	if(abs(denom) > 1e-6) {
-		float t = dot(p - ro, n) / denom;
-		hit = ro + t * rd;
-		return true;
-	}
-	return false;
+	if(abs(denom) > 1e-6)
+		return dot(p - ro, n) / denom;
+	return -1e20;
 }
 #endif
 
 #if SLICE_MODE > 0
-vec4 blend_slice_color(vec3 uvw, vec3 ray_dir, vec4 color, float alpha) {
+vec4 get_slice_color(vec3 uvw, float alpha) {
 
 	vec4 density = sample_volume(uvw);
 
@@ -326,16 +323,12 @@ vec4 blend_slice_color(vec3 uvw, vec3 ray_dir, vec4 color, float alpha) {
 	color_in.a = min(color_in.a, 1.0);
 
 	// blend back to front
-	return color_in + (1.0 - color_in.a)*color;
+	return color_in;
 }
 #endif
 
-#define EVALUATE_SLICE(I) \
-if((uvw[I] - slice_pos[I])*(prev_pos[I] - slice_pos[I]) < 0.0) { \
-	vec3 uvw_slice = uvw; \
-	uvw_slice[I] = slice_pos[I]; \
-	color = blend_slice_color(uvw_slice , ray_dir, color, slice_alpha[I]); \
-}
+#define EVALUATE_SLICE(T, COLOR) \
+if((t - T)*(prev_t - T) < 0.0) color = COLOR + (1.0 - COLOR.a)*color;
 
 void main()
 {
@@ -419,10 +412,22 @@ void main()
 	ray_org += (2.0 * ray_dir / NUM_STEPS) * texture(noise_tex, frag_tex_coords*ts).r;
 #endif
 
-#if SLICE_MODE == 2
-	// ray plane intersection
-	vec3 slice_intersection = vec3(-1.0);
-	bool intersects_slice = intersect_plane(ray_org, ray_dir, slice_pos, slice_normal, slice_intersection);
+#if SLICE_MODE == 1
+	float slice_t[3];
+	slice_t[0] = intersect_plane(ray_org, ray_dir, vec3(slice_pos.x, 0.0, 0.0), vec3(1.0, 0.0, 0.0));
+	slice_t[1] = intersect_plane(ray_org, ray_dir, vec3(0.0, slice_pos.y, 0.0), vec3(0.0, 1.0, 0.0));
+	slice_t[2] = intersect_plane(ray_org, ray_dir, vec3(0.0, 0.0, slice_pos.z), vec3(0.0, 0.0, 1.0));
+
+	vec4 slice_color[3];
+	if(slice_t[0] >= 0.0) slice_color[0] = get_slice_color(ray_org + slice_t[0]*ray_dir, slice_alpha[0]);
+	if(slice_t[1] >= 0.0) slice_color[1] = get_slice_color(ray_org + slice_t[1]*ray_dir, slice_alpha[1]);
+	if(slice_t[2] >= 0.0) slice_color[2] = get_slice_color(ray_org + slice_t[2]*ray_dir, slice_alpha[2]);
+
+#elif SLICE_MODE == 2
+
+	float slice_t = intersect_plane(ray_org, ray_dir, slice_pos, slice_normal);
+	vec4 slice_color;
+	if(slice_t > 0.0) slice_color = get_slice_color(ray_org + slice_t*ray_dir, slice_alpha[0]);
 #endif
 
 	vec3 vol_size = vec3(1.0, 1.0, 0.106705);
@@ -436,8 +441,11 @@ void main()
 
 
 	float dt = t2 - t1;
-	vec3 prev_pos = ray_org;
 	vec4 color = vec4(0.0);
+
+#if SLICE_MODE > 0
+	float prev_t = 0.0;
+#endif
 
 	for(int istep = 0; istep < NUM_STEPS; ++istep) {
 		// calculate the current ray position
@@ -450,27 +458,21 @@ void main()
 		vec3 uvw = pos;
 
 #if SLICE_MODE == 1
-		EVALUATE_SLICE(0);
-		EVALUATE_SLICE(1);
-		EVALUATE_SLICE(2);
+		EVALUATE_SLICE(slice_t[0], slice_color[0]);
+		EVALUATE_SLICE(slice_t[1], slice_color[1]);
+		EVALUATE_SLICE(slice_t[2], slice_color[2]);
 
 #elif SLICE_MODE == 2
 
-		if(intersects_slice && dot(uvw - slice_intersection, prev_pos - slice_intersection) < 0.0)
-			color = blend_slice_color(slice_intersection, ray_dir, color, slice_alpha[0]);
+		EVALUATE_SLICE(slice_t, slice_color);
 #endif
 
-		prev_pos = uvw;
-
-#if (INTERPOLATION_MODE == 0)
-		vec4 density = textureNearest(volume_tex, uvw);
-#elif (INTERPOLATION_MODE == 1)
-		vec4 density = texture(volume_tex, uvw);
-#elif (INTERPOLATION_MODE == 2)
-		vec4 density = textureSmooth(volume_tex, uvw);
-#else
-		vec4 density = textureCubic(volume_tex, uvw);
+#if SLICE_MODE > 0
+		prev_t = t;
 #endif
+
+		vec4 density = sample_volume(uvw);
+
 		// scale the alpha channel based on the global opacity scale
 		float alpha_scale = opacity_scale;
 

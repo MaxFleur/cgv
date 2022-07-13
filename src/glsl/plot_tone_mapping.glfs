@@ -1,0 +1,58 @@
+#version 430
+
+//***** begin interface of shape2d.glsl ***********************************
+uniform vec2 tex_scaling = vec2(1.0);
+
+uniform vec4 border_color = vec4(1.0);
+
+vec2 get_adjusted_size(vec2 size);
+vec4 get_active_color(vec4 color);
+//***** end interface of shape2d.glsl ***********************************
+
+//***** begin interface of fragment2d.glfs ***********************************
+uniform layout(binding = 0) sampler2D tex;
+
+void finish_sdf_fragment2d(in float signed_distance, in vec4 color);
+void finish_sdf_fragment2d(in float signed_distance, in vec4 color, in vec2 texcoords);
+void finish_fragment2d(in vec4 color);
+void finish_fragment2d(in vec4 color, in vec2 texcoords);
+//***** end interface of fragment2d.glfs ***********************************
+
+uniform float normalization_factor;
+uniform float alpha;
+uniform float gamma;
+
+flat in vec2 size;
+in vec2 pix_coord;
+in vec2 tex_coord;
+flat in vec4 color_fs;
+
+// https://iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
+float sd_box(in vec2 p, in vec2 b)
+{
+    vec2 d = abs(p) - b;
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+}
+
+void main() {
+	
+	float dist = sd_box(pix_coord, get_adjusted_size(size));
+	
+	vec2 uv = tex_scaling * tex_coord;
+
+	float intensity = texture(tex, uv).a;
+	intensity = clamp(normalization_factor * intensity, 0.0, 1.0);
+
+	// tone-mapped intensity
+	float ea = exp(-alpha);
+	float tmi = log((1.0 - ea) * intensity + ea);
+	tmi /= -alpha;
+	tmi = 1.0 - tmi;
+
+	vec4 color = vec4(0.0, 0.0, 0.0, pow(tmi, gamma));
+
+	//vec3 col = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), clamp(intensity/10000.0, 0.0, 1.0));
+	//vec4 color = vec4(col, intensity > 0.0 ? 1.0 : 0.0);
+	
+	finish_sdf_fragment2d(dist, color);
+}
