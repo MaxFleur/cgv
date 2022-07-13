@@ -131,6 +131,8 @@ private:
 
 	void set_point_positions();
 
+	void update_point_positions();
+
 	void find_clicked_centroid(int x, int y);
 
 	void scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed);

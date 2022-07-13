@@ -227,55 +227,17 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 		viewport_canvas.set_resolution(ctx, get_viewport_size());
 
 		init_widgets();
+		add_widget_lines();
 
 		m_point_handles.set_constraint(domain);
 
 		create_labels();
 
-
-
-
-
-
-		
-		// update the point positions after a resize
-		// TODO: move to own method
-		if(m_shared_data_ptr && m_points.size() == m_shared_data_ptr->centroids.size()) {
-			for(size_t i = 0; i < m_points.size(); ++i) {
-				auto& points = m_points[i];
-				auto& centroid = m_shared_data_ptr->centroids[i];
-					
-				size_t idx = 0;
-				if(points.size() >= 4 * 3) {
-					for(int j = 0; j < 15; j++) {
-						// ignore the "back" lines of the widgets
-						if((j + 1) % 4 != 0) {
-							float c = centroid.centroids[j/4];
-
-							points[idx].pos = m_widget_lines.at(j).interpolate(c);
-							//points.push_back(utils_data_types::point(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
-							++idx;
-						}
-					}
-				}
-			}
-		}
+		update_point_positions();
 		
 		// update the quad positions after a resize
-		// TODO: move to own method? (maybe not needed)
 		m_strips_created = false;
 		m_create_all_values = true;
-
-
-
-
-
-
-
-
-
-
-
 
 		has_damage = true;
 		reset_plot = true;
@@ -331,10 +293,6 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
 	content_canvas.disable_current_shader(ctx);
 	fbc_plot.disable_attachment(ctx, "color");
-
-	// now draw the non-plot visuals
-	// TODO: no need to call this every frame
-	add_widget_lines();
 
 	// draw lines first
 	auto& line_prog = m_line_renderer.ref_prog();
@@ -533,11 +491,6 @@ void tf_editor_lines::create_labels() {
 		m_labels.add_text("2", ivec2(centers[2]), cgv::render::TA_NONE, 0.0);
 		m_labels.add_text("3", ivec2(centers[3]), cgv::render::TA_NONE, 0.0f);
 
-		//m_labels.add_text("0", ivec2(domain.size().x() * 0.27f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
-		//m_labels.add_text("1", ivec2(domain.size().x() * 0.73f, domain.size().y() * 0.70f), cgv::render::TA_NONE);
-		//m_labels.add_text("2", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.18f), cgv::render::TA_NONE);
-		//m_labels.add_text("3", ivec2(domain.size().x() * 0.5f, domain.size().y() * 0.48f), cgv::render::TA_NONE);
-
 		for(int i = 0; i < 4; i++) {
 			on_set(&m_text_ids[i]);
 		}
@@ -624,9 +577,6 @@ void tf_editor_lines::init_widgets() {
 	m_widget_lines.clear();
 	m_widget_polygons.clear();
 
-#define NEW_VERSION
-
-#ifdef NEW_VERSION
 	// Sizing constants for the widgets
 	const float a = 1.0f; // Distance from origin (center of central triangle) to its corners
 	const float b = 1.0f; // Orthogonal distance from center widget line to the outer widget line
@@ -729,70 +679,6 @@ void tf_editor_lines::init_widgets() {
 	m_widget_polygons.push_back(tf_editor_shared_data_types::polygon(right));
 	m_widget_polygons.push_back(tf_editor_shared_data_types::polygon(bottom));
 	m_widget_polygons.push_back(tf_editor_shared_data_types::polygon(center));
-
-#else
-
-	const auto add_lines = [&](vec2 v_0, vec2 v_1, vec2 v_2, vec2 v_3, bool invert = true) {
-		m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_0, v_1 }));
-		invert ? m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_2, v_1 })) : m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_1, v_2 }));
-		invert ? m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_3, v_2 })) : m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_2, v_3 }));
-		m_widget_lines.push_back(tf_editor_shared_data_types::line({ v_3, v_0 }));
-	};
-
-	const auto add_points_to_polygon = [&](vec2 v_0, vec2 v_1, vec2 v_2, vec2 v_3) {
-		tf_editor_shared_data_types::polygon p;
-		p.points.push_back(v_0);
-		p.points.push_back(v_1);
-		p.points.push_back(v_2);
-		p.points.push_back(v_3);
-		m_widget_polygons.push_back(p);
-	};
-
-	const auto sizeX = domain.size().x();
-	const auto sizeY = domain.size().y();
-	// Left widget
-	vec2 vec_0{ sizeX * 0.3f, sizeY * 0.95f };
-	vec2 vec_1{ sizeX * 0.35f, sizeY * 0.75f };
-	vec2 vec_2{ sizeX * 0.23f, sizeY * 0.45f };
-	vec2 vec_3{ sizeX * 0.1f, sizeY * 0.45f };
-	add_lines(vec_0, vec_1, vec_2, vec_3);
-	// Create a polygon out of each widget
-	add_points_to_polygon(vec_0, vec_1, vec_2, vec_3);
-
-	// Right widget
-	vec_0.set(sizeX * 0.9f, sizeY * 0.45f);
-	vec_1.set(sizeX * 0.77f, sizeY * 0.45f);
-	vec_2.set(sizeX * 0.65f, sizeY * 0.75f);
-	vec_3.set(sizeX * 0.7f, sizeY * 0.95f);
-	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_1, vec_0 }));
-	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_2, vec_1 }));
-	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_3, vec_2 }));
-	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_3, vec_0 }));
-	add_points_to_polygon(vec_0, vec_1, vec_2, vec_3);
-
-	// Bottom widget
-	vec_0.set(sizeX * 0.23f, sizeY * 0.05f);
-	vec_1.set(sizeX * 0.33f, sizeY * 0.25f);
-	vec_2.set(sizeX * 0.67f, sizeY * 0.25f);
-	vec_3.set(sizeX * 0.77f, sizeY * 0.05f);
-	add_lines(vec_0, vec_1, vec_2, vec_3, false);
-	add_points_to_polygon(vec_0, vec_1, vec_2, vec_3);
-
-	// Center widget, order: Left, right, bottom
-	vec_0.set(sizeX * 0.4f, sizeY * 0.4f);
-	vec_1.set(sizeX * 0.5f, sizeY * 0.6f);
-	vec_2.set(sizeX * 0.6f, sizeY * 0.4f);
-	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_0, vec_1 }));
-	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_1, vec_2 }));
-	m_widget_lines.push_back(tf_editor_shared_data_types::line({ vec_0, vec_2 }));
-
-	tf_editor_shared_data_types::polygon p;
-	p.points.push_back(vec_0);
-	p.points.push_back(vec_1);
-	p.points.push_back(vec_2);
-	m_widget_polygons.push_back(p);
-
-#endif
 
 	// draw smaller boundaries on the relations borders
 	for (int i = 0; i < 15; i++) {
@@ -1171,6 +1057,31 @@ void tf_editor_lines::set_point_positions() {
 
 	has_damage = true;
 	post_redraw();
+}
+
+void tf_editor_lines::update_point_positions()
+{
+	// update the point positions after a resize
+	if (m_shared_data_ptr && m_points.size() == m_shared_data_ptr->centroids.size()) {
+		for (size_t i = 0; i < m_points.size(); ++i) {
+			auto& points = m_points[i];
+			auto& centroid = m_shared_data_ptr->centroids[i];
+
+			size_t idx = 0;
+			if (points.size() >= 4 * 3) {
+				for (int j = 0; j < 15; j++) {
+					// ignore the "back" lines of the widgets
+					if ((j + 1) % 4 != 0) {
+						float c = centroid.centroids[j / 4];
+
+						points[idx].pos = m_widget_lines.at(j).interpolate(c);
+						//points.push_back(utils_data_types::point(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
+						++idx;
+					}
+				}
+			}
+		}
+	}
 }
 
 void tf_editor_lines::find_clicked_centroid(int x, int y) {
