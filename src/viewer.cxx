@@ -128,6 +128,12 @@ bool viewer::handle_event(cgv::gui::event& e) {
 					}
 				}
 				break;
+			case 'S':
+				if (m_editor_scatterplot_ptr) {
+					m_editor_scatterplot_ptr->toggle_visibility();
+					handled = true;
+				}
+				break;
 			default: break;
 			}
 
