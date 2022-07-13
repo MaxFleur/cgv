@@ -65,6 +65,11 @@ protected:
 	int x_idx = 0;
 	int y_idx = 1;
 
+	bool use_tone_mapping = false;
+	unsigned tm_normalization_count = 1000;
+	float tm_alpha = 1.0f;
+	float tm_gamma = 1.0f;
+
 	/// renderer for the 2d plot points
 	cgv::glutil::generic_renderer m_point_renderer;
 	// renderer for grid lines
