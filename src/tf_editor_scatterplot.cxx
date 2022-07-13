@@ -79,7 +79,7 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 
 		ivec2 mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
 		// Search for points if RMB is pressed
-		if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
+		if (me.get_action() == cgv::gui::MA_PRESS && me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
 			find_clicked_centroid(mpos.x(), mpos.y());
 		}
 
@@ -329,15 +329,6 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	// restore the previous view matrix
 	content_canvas.pop_modelview_matrix(ctx);
 
-	// Create and draw the scatterplot grids
-	create_rectangles();
-	auto& rect_prog = content_canvas.enable_shader(ctx, "rectangle");
-	m_rectangle_style.apply(ctx, rect_prog);
-	for (const auto rectangle : m_rectangles_draw) {
-		content_canvas.draw_shape(ctx, rectangle.start, rectangle.end, m_rectangle_style.border_color);
-	}
-	content_canvas.disable_current_shader(ctx);
-
 	// Now the draggable points
 	draw_draggables(ctx);
 	
@@ -358,6 +349,15 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 		}
 		content_canvas.disable_current_shader(ctx);
 	}
+
+	// Create and draw the scatterplot grids
+	create_rectangles();
+	auto& rect_prog = content_canvas.enable_shader(ctx, "rectangle");
+	m_rectangle_style.apply(ctx, rect_prog);
+	for (const auto rectangle : m_rectangles_draw) {
+		content_canvas.draw_shape(ctx, rectangle.start, rectangle.end, m_rectangle_style.border_color);
+	}
+	content_canvas.disable_current_shader(ctx);
 
 	fbc.disable(ctx);
 
@@ -432,7 +432,7 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_rectangle_style.use_blending = false;
 	m_rectangle_style.apply_gamma = false;
 	m_rectangle_style.use_fill_color = false;
-	m_rectangle_style.ring_width = 2.0f;
+	m_rectangle_style.ring_width = 0.5f;
 
 	// Ellipses
 	m_ellipse_style.use_blending = true;
