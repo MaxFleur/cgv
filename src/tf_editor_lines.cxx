@@ -291,15 +291,12 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
 
 	if (use_tone_mapping) {
-		m_plot_line_style.use_blending = true;
 		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
 		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
 		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
 	}
-	else {
-		m_plot_line_style.use_blending = false;
-	}
 
+	m_plot_line_style.use_blending = use_tone_mapping;
 	m_plot_line_style.apply(ctx, rectangle_prog);
 
 	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
