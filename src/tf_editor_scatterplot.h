@@ -65,11 +65,6 @@ protected:
 	int x_idx = 0;
 	int y_idx = 1;
 
-	bool use_tone_mapping = false;
-	unsigned tm_normalization_count = 1000;
-	float tm_alpha = 1.0f;
-	float tm_gamma = 1.0f;
-
 	/// renderer for the 2d plot points
 	cgv::glutil::generic_renderer m_point_renderer;
 	// renderer for grid lines
@@ -195,6 +190,11 @@ private:
 	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
 
 	cgv::glutil::shape2d_style m_plot_rect_style;
+
+	bool use_tone_mapping = false;
+	unsigned tm_normalization_count = 1000;
+	float tm_alpha = 1.0f;
+	float tm_gamma = 1.0f;
 
 	bool reset_plot = true;
 

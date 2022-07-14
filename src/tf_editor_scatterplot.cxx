@@ -277,21 +277,15 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
 	
 	if(use_tone_mapping) {
-		m_plot_rect_style.apply_gamma = false;
 		m_plot_rect_style.use_blending = true;
-		m_plot_rect_style.feather_width = 0.0f;
 		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
 		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
 		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
 	} else {
-		m_plot_rect_style.apply_gamma = false;
 		m_plot_rect_style.use_blending = false;
-		m_plot_rect_style.feather_width = 0.0f;
 	}
 
 	m_plot_rect_style.apply(ctx, rectangle_prog);
-
-	
 
 	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
 	content_canvas.disable_current_shader(ctx);
@@ -433,6 +427,8 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 
 	// configure style for rendering the plot framebuffer texture
 	m_plot_rect_style.use_texture = true;
+	m_plot_rect_style.apply_gamma = false;
+	m_plot_rect_style.feather_width = 0.0f;
 
 	// configure style for the plot points
 	m_point_style.use_blending = true;
