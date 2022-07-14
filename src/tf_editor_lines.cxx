@@ -164,17 +164,14 @@ void tf_editor_lines::on_set(void* member_ptr) {
 				else if (member_ptr == &m_shared_data_ptr->centroids.at(i).widths[c_protein_i]) {
 					utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
 				}
-				// In all cases, we need to update
-				was_updated = true;
-				has_damage = true;
+				// In all cases, we need to resynchronize
+				m_shared_data_ptr->set_synchronized();
 				break;
 			}
 		}
 	}
-
-	has_damage = true;
 	update_member(member_ptr);
-	post_redraw();
+	redraw(false);
 }
 
 bool tf_editor_lines::init(cgv::render::context& ctx) {
@@ -392,6 +389,24 @@ void tf_editor_lines::create_gui() {
 	}
 }
 
+void tf_editor_lines::resynchronize() {
+
+	m_points.clear();
+	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+		add_centroid_draggables(false, i);
+	}
+
+	m_point_handles.clear();
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			m_point_handles.add(&m_points[i][j]);
+		}
+	}
+	m_create_all_values = true;
+
+	redraw(false);
+}
+
 void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 
 	m_line_style_relations.use_blending = true;
@@ -569,8 +584,7 @@ void tf_editor_lines::update_content() {
 		}
 	}
 	// content was updated, so redraw
-	has_damage = true;
-	post_redraw();
+	redraw(false);
 }
 
 void tf_editor_lines::init_widgets() {
@@ -714,7 +728,7 @@ void tf_editor_lines::add_centroids() {
 	}
 
 	// Create a new centroid and store it
-	tf_editor_shared_data_types::centroid centr;
+	shared_data::centroid centr;
 	m_shared_data_ptr->centroids.push_back(centr);
 	add_centroid_draggables();
 	// Add a corresponding point for every centroid
@@ -726,22 +740,39 @@ void tf_editor_lines::add_centroids() {
 	}
 	// A new centroid was added, so we need to redraw completely
 	m_create_all_values = true;
-	// Update
-	has_damage = true;
-	post_recreate_gui();
-	post_redraw();
+	// Synchronize all other editors
+	m_shared_data_ptr->set_synchronized();
+
+	redraw(true);
 }
 
-void tf_editor_lines::add_centroid_draggables() {
+void tf_editor_lines::add_centroid_draggables(bool new_point, int centroid_index) {
 	std::vector<tf_editor_shared_data_types::point_line> points;
 	// Add the new centroid points to the widget lines, start with the left side
-	
-	// TODO: the following statement is not true anymore, because we now do it differently
-	// Because the values are normed between 0.1f and 0.9f, start with 0.1f
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets
 		if ((i + 1) % 4 != 0) {
-			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
+			float value;
+			if (new_point) {
+				value = 0.0f;
+			}
+			else {
+				int index;
+				if (i < 3) {
+					index = 0;
+				}
+				else if (i >= 4 && i < 7) {
+					index = 1;
+				}
+				else if (i >= 8 && i < 11) {
+					index = 2;
+				}
+				else if (i >= 12 && i < 115) {
+					index = 3;
+				}
+				value = m_shared_data_ptr->centroids.at(centroid_index).centroids[index];
+			}
+			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(value)), &m_widget_lines.at(i)));
 		}
 	}
 	m_points.push_back(points);
@@ -982,6 +1013,7 @@ void tf_editor_lines::create_strip_borders(int index) {
 	if (m_strip_border_points.at(index).empty()) {
 		return;
 	}
+
 	m_line_geometry_strip_borders.clear();
 
 	const auto add_indices_to_strip_borders = [&](int index, int a, int b) {
@@ -1050,13 +1082,12 @@ void tf_editor_lines::set_point_positions() {
 				m_shared_data_ptr->centroids.at(i).centroids[protein_index] = GUI_value;
 				update_member(&m_shared_data_ptr->centroids.at(i).centroids[protein_index]);
 
-				was_updated = true;
+				m_shared_data_ptr->set_synchronized();
 			}
 		}
 	}
 
-	has_damage = true;
-	post_redraw();
+	redraw(false);
 }
 
 void tf_editor_lines::update_point_positions()
@@ -1109,8 +1140,7 @@ void tf_editor_lines::find_clicked_centroid(int x, int y) {
 	// If we found something, redraw 
 	if (found) {
 		m_clicked_centroid_id = found_index;
-		has_damage = true;
-		post_redraw();
+		redraw(false);
 	}
 }
 
@@ -1140,9 +1170,9 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 		m_interacted_id_set = true;
 		utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, m_clicked_centroid_id, found_index);
 
-		has_damage = true;
-		post_recreate_gui();
-		post_redraw();
+		m_shared_data_ptr->set_synchronized();
+
+		redraw(true);
 	}
 }
 

@@ -121,6 +121,8 @@ public:
 	void draw_content(cgv::render::context& ctx);
 	
 	void create_gui();
+
+	void resynchronize();
 	
 	void set_data_set(sliced_volume_data_set* data_set_ptr) {
 		m_data_set_ptr = data_set_ptr;
@@ -137,7 +139,7 @@ private:
 
 	void add_centroids();
 
-	void add_centroid_draggables();
+	void add_centroid_draggables(bool new_point = true, int centroid_index = 0);
 
 	bool draw_scatterplot(cgv::render::context& ctx);
 
@@ -152,6 +154,15 @@ private:
 	void end_drag() {
 		m_interacted_points.clear();
 		has_damage = true;
+		post_redraw();
+	}
+
+	// redraw the plot contents excluding the data vis, optionally recreate the gui
+	void redraw(bool recreate_gui) {
+		has_damage = true;
+		if (recreate_gui) {
+			post_recreate_gui();
+		}
 		post_redraw();
 	}
 

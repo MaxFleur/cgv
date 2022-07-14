@@ -55,16 +55,6 @@ namespace tf_editor_shared_data_types
 		}
 	};
 
-	struct centroid
-	{
-		// Default color: blue to see the new centroid better
-		rgba color{0.0f, 0.0f, 1.0f, 0.5f};
-
-		vec4 centroids{ 0.0f, 0.0f, 0.0f, 0.0f };
-
-		vec4 widths{ 0.5f, 0.5f, 0.5f, 0.5f };
-	};
-
 	struct rectangle
 	{
 		vec2 start, end;
@@ -90,6 +80,10 @@ namespace tf_editor_shared_data_types
 
 		float size_y() {
 			return end.y() - start.y();
+		}
+
+		vec2 point_in_rect(vec2 value) {
+			return vec2(start.x() + size_x() * value.x(), start.y() + size_y() * value.y());
 		}
 	};
 

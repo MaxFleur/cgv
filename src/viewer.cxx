@@ -325,10 +325,16 @@ void viewer::init_frame(cgv::render::context& ctx) {
 		on_set(&fh.has_unsaved_changes);
 	}
 
-	if (m_editor_lines_ptr && m_editor_lines_ptr->was_updated) {
-		m_editor_lines_ptr->was_updated = false;
+	if (m_editor_lines_ptr && m_editor_scatterplot_ptr && m_shared_data_ptr->is_synchronized) {
+		m_shared_data_ptr->is_synchronized = false;
 
-		on_set(&m_shared_data_ptr->centroids);
+		if(m_shared_data_ptr->update_scatterplot) {
+			m_shared_data_ptr->update_scatterplot = false;
+			m_editor_scatterplot_ptr->resynchronize();
+		}
+		else {
+			m_editor_lines_ptr->resynchronize();
+		}
 	}
 	/** END - MFLEURY **/
 }
