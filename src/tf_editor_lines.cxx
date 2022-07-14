@@ -35,6 +35,7 @@ tf_editor_lines::tf_editor_lines()
 	// register a rectangle shader for the content canvas, to draw a frame around the plot
 	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
+	content_canvas.register_shader("plot_tone_mapping", "plot_tone_mapping.glpr");
 
 	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main
 	// frame buffer
@@ -286,7 +287,21 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 
 	// draw the plot content from its own framebuffer texture
 	fbc_plot.enable_attachment(ctx, "color", 0);
-	auto& rectangle_prog = content_canvas.enable_shader(ctx, "rectangle");
+
+	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
+
+	if (use_tone_mapping) {
+		m_plot_line_style.use_blending = true;
+		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
+		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
+		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
+	}
+	else {
+		m_plot_line_style.use_blending = false;
+	}
+
+	m_plot_line_style.apply(ctx, rectangle_prog);
+
 	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
 	content_canvas.disable_current_shader(ctx);
 	fbc_plot.disable_attachment(ctx, "color");
@@ -360,6 +375,11 @@ void tf_editor_lines::create_gui() {
 	add_member_control(this, "Line Alpha", line_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "other_threshold", other_threshold, "check");
 
+	add_member_control(this, "Use Tone Mapping", use_tone_mapping, "check");
+	add_member_control(this, "TM Norm Count", tm_normalization_count, "value_slider", "min=1;max=1000000;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "TM Alpha", tm_alpha, "value_slider", "min=0;max=50;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "TM Gamma", tm_gamma, "value_slider", "min=0;max=10;step=0.0001;log=true;ticks=true");
+
 	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Quadstrip Mode, GTF Mode");
 
 	// Create new centroids
@@ -408,6 +428,11 @@ void tf_editor_lines::resynchronize() {
 }
 
 void tf_editor_lines::init_styles(cgv::render::context& ctx) {
+
+	// configure style for rendering the plot framebuffer texture
+	m_plot_line_style.use_texture = true;
+	m_plot_line_style.apply_gamma = false;
+	m_plot_line_style.feather_width = 0.0f;
 
 	m_line_style_relations.use_blending = true;
 	m_line_style_relations.use_fill_color = false;
@@ -783,9 +808,16 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 	// enable the offline plot frame buffer, so all things are drawn into its attached textures
 	fbc_plot.enable(ctx);
 
+	if (use_tone_mapping) {
+		glBlendFunc(GL_ONE, GL_ONE);
+	}
+
 	// make sure to reset the color buffer if we update the content from scratch
-	if(total_count == 0 || reset_plot) {
-		glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+	if (total_count == 0 || reset_plot) {
+		if (use_tone_mapping)
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		else
+			glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		reset_plot = false;
 	}
@@ -811,6 +843,11 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 
 	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
 	fbc_plot.disable(ctx);
+
+	// reset the blend function
+	if (use_tone_mapping) {
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	}
 
 	// Stop the process if we have drawn all available lines,
 	// otherwise request drawing of another frame.

@@ -190,6 +190,12 @@ private:
 
 	std::vector<tf_editor_shared_data_types::point_line*> m_interacted_points;
 
+	cgv::glutil::shape2d_style m_plot_line_style;
+	bool use_tone_mapping = false;
+	unsigned tm_normalization_count = 1000;
+	float tm_alpha = 1.0f;
+	float tm_gamma = 1.0f;
+
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 1.0f };
 
