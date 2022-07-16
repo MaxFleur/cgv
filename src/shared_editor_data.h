@@ -17,7 +17,7 @@ public:
 
 	struct primitive
 	{
-		Type type = TYPE_GTF;
+		Type type{ TYPE_GTF };
 
 		// Default color: blue to see the new centroid better
 		rgba color{ 0.0f, 0.0f, 1.0f, 0.5f };

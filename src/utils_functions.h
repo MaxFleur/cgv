@@ -37,6 +37,15 @@ namespace utils_functions
 
 		return exp(-exponent);
 	}
+
+	float box_transfer_function(const vec4& data_values, const vec4& centroid_positions, const vec4& width) {
+		float ret = 1.0f;
+		for (int i = 0; i < 4; i++) {
+			ret *= data_values[i] >= centroid_positions[i] - (width[i] / 2) && data_values[i] <= centroid_positions[i] + (width[i] / 2) ? 1.0f : 0.0f;
+		}
+
+		return ret;
+	}
 }
 
 /** END - MFLEURY **/

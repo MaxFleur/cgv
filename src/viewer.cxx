@@ -492,6 +492,7 @@ void viewer::draw(cgv::render::context& ctx) {
 					vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
 
 					const auto idx = std::to_string(i);
+					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].type", static_cast<int>(m_shared_data_ptr->primitives.at(i).type));
 					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->primitives.at(i).centr_pos);
 					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->primitives.at(i).centr_widths);
 					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
