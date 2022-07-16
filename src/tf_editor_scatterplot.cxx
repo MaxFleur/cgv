@@ -5,9 +5,8 @@
 #include <cgv/gui/mouse_event.h>
 #include <cgv/math/ftransform.h>
 #include <cgv_gl/gl/gl.h>
-#include <cgv_glutil/color_map.h>
 
-// #include "tf_editor_shared_functions.h"
+#include "tf_editor_shared_functions.h"
 
 tf_editor_scatterplot::tf_editor_scatterplot() {
 	
@@ -554,7 +553,7 @@ void tf_editor_scatterplot::update_content() {
 
 		rgb color_rgb(0.0f);
 		if (vis_mode == VM_GTF) {
-			// color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
+			color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
 		}
 
 		rgba col(color_rgb, alpha);

@@ -59,9 +59,9 @@ viewer::viewer() : application_plugin("Viewer") {
 	/** BEGIN - MFLEURY **/
 	m_shared_data_ptr = std::make_shared<shared_data>();
 
-	// m_editor_lines_ptr = register_overlay<tf_editor_lines>("TF Lines Overlay");
-	// m_editor_lines_ptr->set_shared_data(m_shared_data_ptr);
-	// m_editor_lines_ptr->set_visibility(false);
+	m_editor_lines_ptr = register_overlay<tf_editor_lines>("TF Lines Overlay");
+	m_editor_lines_ptr->set_shared_data(m_shared_data_ptr);
+	m_editor_lines_ptr->set_visibility(false);
 
 	m_editor_scatterplot_ptr = register_overlay<tf_editor_scatterplot>("TF Scatterplot Overlay");
 	m_editor_scatterplot_ptr->set_shared_data(m_shared_data_ptr);
