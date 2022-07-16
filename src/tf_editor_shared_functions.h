@@ -45,6 +45,18 @@ namespace tf_editor_shared_functions
 		return ret;
 	}
 
+	static float sphere_transfer_function(const vec4& data_values, const vec4& centroid_positions, const vec4& width) {
+		float ret = 1.0f;
+		for (int i = 0; i < 4; i++) {
+			const auto left_boundary = (centroid_positions[i] - (width[i] / 2)) * (1.0f / width[i]) - 1;
+			const auto right_boundary = (centroid_positions[i] + (width[i] / 2)) * (1.0f / width[i]) - 1;
+
+			ret *= data_values[i] >= left_boundary && data_values[i] <= right_boundary ? 1.0f : 0.0f;
+		}
+
+		return ret;
+	}
+
 	static rgb get_color(const vec4& v, const std::vector<shared_data::primitive> primitives) {
 		rgb color(0.0f);
 
@@ -54,12 +66,16 @@ namespace tf_editor_shared_functions
 
 			switch (primitive.type) {
 
-			case shared_data::TYPE_BOX:
-				alpha = tf_editor_shared_functions::box_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
-				break;
 			case shared_data::TYPE_GTF:
 				alpha = tf_editor_shared_functions::gaussian_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
 				break;
+			case shared_data::TYPE_BOX:
+				alpha = tf_editor_shared_functions::box_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
+				break;
+			case shared_data::TYPE_SPHERE:
+				alpha = tf_editor_shared_functions::sphere_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
+				break;
+
 			}
 			alpha *= primitive.color.alpha();
 
