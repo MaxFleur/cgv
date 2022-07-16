@@ -146,7 +146,8 @@ void tf_editor_lines::on_set(void* member_ptr) {
 		auto value = 0.0f;
 
 		for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
-			if (member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i] || 
+			if (member_ptr == &m_shared_data_ptr->primitives.at(i).type ||
+				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i] || 
 				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
 				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
 				// Move the according points if their position was changed

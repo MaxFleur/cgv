@@ -128,9 +128,9 @@ public:
 
 private:
 
-	void create_rectangles();
+	void create_grid();
 
-	void create_ellipses();
+	void create_primitive_shapes();
 
 	void add_centroids();
 
@@ -139,6 +139,8 @@ private:
 	bool draw_scatterplot(cgv::render::context& ctx);
 
 	void draw_draggables(cgv::render::context& ctx);
+
+	void draw_primitive_shapes(cgv::render::context& ctx);
 
 	void set_point_positions();
 
@@ -183,13 +185,16 @@ private:
 	cgv::glutil::shape2d_style m_ellipse_style;
 	std::vector<std::vector<tf_editor_shared_data_types::ellipse>> m_ellipses;
 
+	cgv::glutil::shape2d_style m_rect_box_style;
+	std::vector<std::vector<tf_editor_shared_data_types::rectangle>> m_boxes;
+
 	cgv::glutil::shape2d_style m_point_style;
 	std::vector<std::vector<tf_editor_shared_data_types::point_scatterplot>> m_points;
 	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
 
 	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
 
-	cgv::glutil::shape2d_style m_plot_rect_style;
+	cgv::glutil::shape2d_style m_rect_grid_style;
 
 	bool use_tone_mapping = false;
 	unsigned tm_normalization_count = 1000;

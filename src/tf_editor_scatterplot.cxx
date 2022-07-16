@@ -128,7 +128,8 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 		auto value = 0.0f;
 
 		for (int protein_id = 0; protein_id < 4; protein_id++) {
-			if (member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[protein_id] ||
+			if (member_ptr == &m_shared_data_ptr->primitives.at(i).type ||
+				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[protein_id] ||
 				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
 				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[protein_id]) {
 
@@ -282,8 +283,8 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
 	}
 
-	m_plot_rect_style.use_blending = use_tone_mapping;
-	m_plot_rect_style.apply(ctx, rectangle_prog);
+	m_rect_grid_style.use_blending = use_tone_mapping;
+	m_rect_grid_style.apply(ctx, rectangle_prog);
 
 	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
 	content_canvas.disable_current_shader(ctx);
@@ -318,30 +319,16 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 		
 	// restore the previous view matrix
 	content_canvas.pop_modelview_matrix(ctx);
+	
+	// Ellipses and Boxes are next 
+	create_primitive_shapes();
+	draw_primitive_shapes(ctx);
 
 	// Now the draggable points
 	draw_draggables(ctx);
-	
-	// Ellipses are next 
-	create_ellipses();
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-		m_ellipse_style.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
-		m_ellipse_style.fill_color = m_shared_data_ptr->primitives.at(i).color;
-
-		auto& ellipse_prog = content_canvas.enable_shader(ctx, "ellipse");
-		m_ellipse_style.apply(ctx, ellipse_prog);
-		for (int j = 0; j < m_ellipses.at(i).size(); j++) {
-			// Prevent ellipses lappin over rectangles
-			glEnable(GL_SCISSOR_TEST);
-			glScissor(m_rectangles_calc.at(j).start.x(), m_rectangles_calc.at(j).start.y(), m_rectangles_calc.at(j).size_x(), m_rectangles_calc.at(j).size_y());
-			content_canvas.draw_shape(ctx, m_ellipses.at(i).at(j).pos, m_ellipses.at(i).at(j).size, rgba(0, 1, 1, 1));
-			glDisable(GL_SCISSOR_TEST);
-		}
-		content_canvas.disable_current_shader(ctx);
-	}
 
 	// Create and draw the scatterplot grids
-	create_rectangles();
+	create_grid();
 	auto& rect_prog = content_canvas.enable_shader(ctx, "rectangle");
 	m_rectangle_style.apply(ctx, rect_prog);
 	for (const auto rectangle : m_rectangles_draw) {
@@ -427,9 +414,9 @@ void tf_editor_scatterplot::resynchronize() {
 void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 
 	// configure style for rendering the plot framebuffer texture
-	m_plot_rect_style.use_texture = true;
-	m_plot_rect_style.apply_gamma = false;
-	m_plot_rect_style.feather_width = 0.0f;
+	m_rect_grid_style.use_texture = true;
+	m_rect_grid_style.apply_gamma = false;
+	m_rect_grid_style.feather_width = 0.0f;
 
 	// configure style for the plot points
 	m_point_style.use_blending = true;
@@ -452,6 +439,12 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_ellipse_style.apply_gamma = false;
 	m_ellipse_style.ring_width = 0.0f;
 	m_ellipse_style.border_width = 5.0f;
+
+	m_rect_box_style.use_blending = true;
+	m_rect_box_style.use_fill_color = true;
+	m_rect_box_style.apply_gamma = false;
+	m_rect_box_style.ring_width = 0.0f;
+	m_rect_box_style.border_width = 5.0f;
 
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;
@@ -580,7 +573,7 @@ void tf_editor_scatterplot::update_content() {
 	redraw(false);
 }
 
-void tf_editor_scatterplot::create_rectangles() {
+void tf_editor_scatterplot::create_grid() {
 	m_rectangles_draw.clear();
 	m_rectangles_calc.clear();
 
@@ -606,12 +599,14 @@ void tf_editor_scatterplot::create_rectangles() {
 	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.71f, size_y * 0.05f), vec2(size_x * 0.33f, size_y * 0.33f)));
 }
 
-void tf_editor_scatterplot::create_ellipses() {
+void tf_editor_scatterplot::create_primitive_shapes() {
 	m_ellipses.clear();
+	m_boxes.clear();
 
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 		// Ellipses for every centroid
 		std::vector<tf_editor_shared_data_types::ellipse> ellipses;
+		std::vector<tf_editor_shared_data_types::rectangle> boxes;
 
 		for (int j = 0; j < m_points.at(i).size(); j++) {
 			// Get the width for the point's protein stains
@@ -621,11 +616,14 @@ void tf_editor_scatterplot::create_ellipses() {
 			const auto width_x = width_stain_x * m_points.at(i).at(j).parent_rectangle->size_x();
 			const auto width_y = width_stain_y * m_points.at(i).at(j).parent_rectangle->size_y();
 			// Store
-			const auto position = vec2(m_points.at(i).at(j).pos.x() - width_x / 2, m_points.at(i).at(j).pos.y() - width_y / 2);
-			ellipses.push_back(tf_editor_shared_data_types::ellipse(position, vec2(width_x, width_y)));
+			const auto position_start = vec2(m_points.at(i).at(j).pos.x() - width_x / 2, m_points.at(i).at(j).pos.y() - width_y / 2);
+
+			m_shared_data_ptr->primitives.at(i).type == shared_data::TYPE_BOX ?
+				boxes.push_back(tf_editor_shared_data_types::rectangle(position_start, vec2(width_x, width_y))) :
+				ellipses.push_back(tf_editor_shared_data_types::ellipse(position_start, vec2(width_x, width_y)));
 		}
 
-		m_ellipses.push_back(ellipses);
+		m_shared_data_ptr->primitives.at(i).type == shared_data::TYPE_BOX ? m_boxes.push_back(boxes) : m_ellipses.push_back(ellipses);
 	}
 }
 
@@ -637,7 +635,7 @@ void tf_editor_scatterplot::add_centroids() {
 	// Create a new centroid and store it
 	shared_data::primitive centr;
 	m_shared_data_ptr->primitives.push_back(centr);
-	add_centroid_draggables();
+	add_centroid_draggables(true, m_shared_data_ptr->primitives.size() - 1);
 	// Add a corresponding point for every centroid
 	m_point_handles.clear();
 	for (unsigned i = 0; i < m_points.size(); ++i) {
@@ -711,40 +709,41 @@ bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 	// the amount of points that will be drawn in each step
 	int count = 500000;
 
-	// make sure to not draw more points than available
-	if (total_count + count > m_point_geometry_data.get_render_count())
-		count = m_point_geometry_data.get_render_count() - total_count;
+// make sure to not draw more points than available
+if (total_count + count > m_point_geometry_data.get_render_count())
+count = m_point_geometry_data.get_render_count() - total_count;
 
-	if (count > 0) {
-		auto& point_prog = m_point_renderer.ref_prog();
-		point_prog.enable(ctx);
-		content_canvas.set_view(ctx, point_prog);
-		m_point_style.apply(ctx, point_prog);
-		point_prog.set_attribute(ctx, "size", vec2(radius));
-		point_prog.disable(ctx);
-		m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_data, total_count, count);
-	}
+if (count > 0) {
+	auto& point_prog = m_point_renderer.ref_prog();
+	point_prog.enable(ctx);
+	content_canvas.set_view(ctx, point_prog);
+	m_point_style.apply(ctx, point_prog);
+	point_prog.set_attribute(ctx, "size", vec2(radius));
+	point_prog.disable(ctx);
+	m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_data, total_count, count);
+}
 
-	// accumulate the total amount of so-far drawn points
-	total_count += count;
+// accumulate the total amount of so-far drawn points
+total_count += count;
 
-	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
-	fbc_plot.disable(ctx);
+// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
+fbc_plot.disable(ctx);
 
-	// reset the blend function
-	if(use_tone_mapping) {
-		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	}
+// reset the blend function
+if (use_tone_mapping) {
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+}
 
-	// Stop the process if we have drawn all available lines,
-	// otherwise request drawing of another frame.
-	bool run = total_count < m_point_geometry_data.get_render_count();
-	if (run) {
-		post_redraw();
-	} else {
-		//std::cout << "done" << std::endl;
-	}
-	return !run;
+// Stop the process if we have drawn all available lines,
+// otherwise request drawing of another frame.
+bool run = total_count < m_point_geometry_data.get_render_count();
+if (run) {
+	post_redraw();
+}
+else {
+	//std::cout << "done" << std::endl;
+}
+return !run;
 }
 
 void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
@@ -779,6 +778,48 @@ void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 		point_prog.set_attribute(ctx, "size", vec2(16.0f));
 		point_prog.disable(ctx);
 		m_draggables_renderer.render(ctx, PT_POINTS, m_point_geometry_interacted);
+	}
+}
+
+void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
+	auto index_ellipses = 0;
+	auto index_boxes = 0;
+
+	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+		const auto& type = m_shared_data_ptr->primitives.at(i).type;
+
+		if (type == shared_data::TYPE_BOX) {
+			m_rect_box_style.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
+			m_rect_box_style.fill_color = m_shared_data_ptr->primitives.at(i).color;
+		}
+		else {
+			m_ellipse_style.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
+			m_ellipse_style.fill_color = m_shared_data_ptr->primitives.at(i).color;
+		}
+
+		auto& prog = type == shared_data::TYPE_BOX ? content_canvas.enable_shader(ctx, "rectangle") : content_canvas.enable_shader(ctx, "ellipse");
+		auto& index = type == shared_data::TYPE_BOX ? index_boxes : index_ellipses;
+
+		// For each primitive, we have either six boxes or six ellipses
+		for (int j = 0; j < 6; j++) {
+			// Prevent shapes overlapping rectangles
+			glEnable(GL_SCISSOR_TEST);
+			glScissor(m_rectangles_calc.at(j).start.x(), m_rectangles_calc.at(j).start.y(), m_rectangles_calc.at(j).size_x(), m_rectangles_calc.at(j).size_y());
+
+			if (type == shared_data::TYPE_BOX) {
+				m_rect_box_style.apply(ctx, prog);
+				content_canvas.draw_shape(ctx, m_boxes.at(index).at(j).start, m_boxes.at(index).at(j).end, rgba(0, 1, 1, 1));
+			}
+			else {
+				m_ellipse_style.apply(ctx, prog);
+				content_canvas.draw_shape(ctx, m_ellipses.at(index).at(j).pos, m_ellipses.at(index).at(j).size, rgba(0, 1, 1, 1));
+			}
+			
+			glDisable(GL_SCISSOR_TEST);
+		}
+
+		index++;
+		content_canvas.disable_current_shader(ctx);
 	}
 }
 
