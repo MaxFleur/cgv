@@ -142,16 +142,16 @@ void tf_editor_lines::on_set(void* member_ptr) {
 	}
 
 	// look for updated centroid data
-	for (int i = 0; i < m_shared_data_ptr->centroids.size(); ++i) {
+	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
 		auto value = 0.0f;
 
 		for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
-			if (member_ptr == &m_shared_data_ptr->centroids.at(i).centroids[c_protein_i] || 
-				member_ptr == &m_shared_data_ptr->centroids.at(i).color ||
-				member_ptr == &m_shared_data_ptr->centroids.at(i).widths[c_protein_i]) {
+			if (member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i] || 
+				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
+				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
 				// Move the according points if their position was changed
-				if (member_ptr == &m_shared_data_ptr->centroids.at(i).centroids[c_protein_i]) {
-					value = m_shared_data_ptr->centroids.at(i).centroids[c_protein_i];
+				if (member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i]) {
+					value = m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i];
 					const auto index = c_protein_i * 3;
 
 					m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate(value);
@@ -162,7 +162,7 @@ void tf_editor_lines::on_set(void* member_ptr) {
 					utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
 				}
 				// Every centroid for this index has to be redrawn if he width was adjusted
-				else if (member_ptr == &m_shared_data_ptr->centroids.at(i).widths[c_protein_i]) {
+				else if (member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
 					utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
 				}
 				// In all cases, we need to resynchronize
@@ -280,7 +280,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	// first draw the plot (the method will check internally if it needs an update)
 	bool done = draw_plot(ctx);
 
-	// enable the offline framebuffer
+	// enable the offline framebufferf
 	fbc.enable(ctx);
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -331,9 +331,9 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 		glDisable(GL_PRIMITIVE_RESTART);
 	}
 
-	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 		// Strip borders
-		m_line_style_strip_borders.border_color = rgba{ m_shared_data_ptr->centroids.at(i).color, 1.0f };
+		m_line_style_strip_borders.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
 		create_strip_borders(i);
 
 		line_prog.enable(ctx);
@@ -385,32 +385,36 @@ void tf_editor_lines::create_gui() {
 	connect_copy(add_centroid_button->click, rebind(this, &tf_editor_lines::add_centroids));
 
 	// Add GUI controls for the centroid
-	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++ ) {
-		const auto header_string = "Centroid " + std::to_string(i) + " parameters:";
+	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++ ) {
+		const auto header_string = "Primitive " + std::to_string(i + 1) + " parameters:";
 		add_decorator(header_string, "heading", "level=3");
+
+		add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=GTF, Box, Sphere");
+
 		// Color widget
-		add_member_control(this, "Color centroid", m_shared_data_ptr->centroids.at(i).color, "", "");
+		add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
 		// Centroid parameters themselves
-		add_member_control(this, "Centroid Myosin", m_shared_data_ptr->centroids.at(i).centroids[0], "value_slider",
-						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid Actin", m_shared_data_ptr->centroids.at(i).centroids[1], "value_slider",
-						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid Obscurin", m_shared_data_ptr->centroids.at(i).centroids[2], "value_slider",
-						   "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Centroid Sallimus", m_shared_data_ptr->centroids.at(i).centroids[3], "value_slider",
-						   "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centr_pos[0], "value_slider",
+			"min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centr_pos[1], "value_slider",
+			"min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centr_pos[2], "value_slider",
+			"min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centr_pos[3], "value_slider",
+			"min=0.0;max=1.0;step=0.0001;ticks=true");
+
 		// Gaussian width
-		add_member_control(this, "Width Myosin", m_shared_data_ptr->centroids.at(i).widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Width Actin", m_shared_data_ptr->centroids.at(i).widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Width Obscurin", m_shared_data_ptr->centroids.at(i).widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Width Salimus", m_shared_data_ptr->centroids.at(i).widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).centr_widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).centr_widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).centr_widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+		add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).centr_widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 	}
 }
 
 void tf_editor_lines::resynchronize() {
 
 	m_points.clear();
-	for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 		add_centroid_draggables(false, i);
 	}
 
@@ -570,10 +574,10 @@ void tf_editor_lines::update_content() {
 			rgb color_rgb(0.0f);
 			
 			if (vis_mode == VM_GTF) {
-				for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-					const auto& centroid = m_shared_data_ptr->centroids.at(i);
+				for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+					const auto& centroid = m_shared_data_ptr->primitives.at(i);
 
-					auto alpha = utils_functions::gaussian_transfer_function(v, centroid.centroids, centroid.widths);
+					auto alpha = utils_functions::gaussian_transfer_function(v, centroid.centr_pos, centroid.centr_widths);
 					alpha *= centroid.color.alpha();
 
 					color_rgb += alpha * rgb{ centroid.color.R(), centroid.color.G(), centroid.color.B() };
@@ -746,13 +750,13 @@ void tf_editor_lines::add_widget_lines() {
 
 void tf_editor_lines::add_centroids() {
 	// Hardcoded boundary, this might change later
-	if (m_shared_data_ptr->centroids.size() == 5) {
+	if (m_shared_data_ptr->primitives.size() == 5) {
 		return;
 	}
 
 	// Create a new centroid and store it
-	shared_data::centroid centr;
-	m_shared_data_ptr->centroids.push_back(centr);
+	shared_data::primitive centr;
+	m_shared_data_ptr->primitives.push_back(centr);
 	add_centroid_draggables();
 	// Add a corresponding point for every centroid
 	m_point_handles.clear();
@@ -793,7 +797,7 @@ void tf_editor_lines::add_centroid_draggables(bool new_point, int centroid_index
 				else if (i >= 12 && i < 115) {
 					index = 3;
 				}
-				value = m_shared_data_ptr->centroids.at(centroid_index).centroids[index];
+				value = m_shared_data_ptr->primitives.at(centroid_index).centr_pos[index];
 			}
 			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(value)), &m_widget_lines.at(i)));
 		}
@@ -860,12 +864,12 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 }
 
 void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
-	for (int i = 0; i < m_shared_data_ptr->centroids.size(); ++i) {
+	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
 		// Clear for each centroid because colors etc might change
 		m_point_geometry.clear();
 		m_point_geometry_interacted.clear();
 
-		const auto color = m_shared_data_ptr->centroids.at(i).color;
+		const auto color = m_shared_data_ptr->primitives.at(i).color;
 		// Apply color to the centroids, always do full opacity
 		m_draggable_style.fill_color = rgba{color.R(), color.G(), color.B(), 1.0f};
 		m_draggable_style_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
@@ -916,16 +920,16 @@ bool tf_editor_lines::create_centroid_boundaries() {
 
 	const auto calculate_values = [&](int i, int protein_index) {
 		// Get the relative position of the centroid and it's left and right boundary
-		relative_position = m_shared_data_ptr->centroids.at(i).centroids[protein_index];
-		boundary_left = relative_position - (m_shared_data_ptr->centroids.at(i).widths[protein_index] / 2.0f);
-		boundary_right = relative_position + (m_shared_data_ptr->centroids.at(i).widths[protein_index] / 2.0f);
+		relative_position = m_shared_data_ptr->primitives.at(i).centr_pos[protein_index];
+		boundary_left = relative_position - (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] / 2.0f);
+		boundary_right = relative_position + (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] / 2.0f);
 	};
 
 	// The case where all values have to be drawn
 	if (m_create_all_values) {
 		m_strip_border_points.clear();
 
-		for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+		for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 			// For each centroid, we want to create the lines of the boundaries
 			std::vector<float> centroid_boundary_values;
 
@@ -1019,8 +1023,8 @@ void tf_editor_lines::create_centroid_strips() {
 			};
 
 			// Now strips themselves
-			for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-				const auto color = m_shared_data_ptr->centroids.at(i).color;
+			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+				const auto color = m_shared_data_ptr->primitives.at(i).color;
 
 				add_points_to_strips(0, 1, 10, 11, i, color);
 				add_indices_to_strips(0, 4);
@@ -1114,8 +1118,8 @@ void tf_editor_lines::set_point_positions() {
 				int protein_index = j / 3;
 				// Remap to correct GUI vals
 				const auto GUI_value = (m_points[i][j].get_relative_line_position() - 0.1f) / 0.8f;
-				m_shared_data_ptr->centroids.at(i).centroids[protein_index] = GUI_value;
-				update_member(&m_shared_data_ptr->centroids.at(i).centroids[protein_index]);
+				m_shared_data_ptr->primitives.at(i).centr_pos[protein_index] = GUI_value;
+				update_member(&m_shared_data_ptr->primitives.at(i).centr_pos[protein_index]);
 
 				m_shared_data_ptr->set_synchronized();
 			}
@@ -1128,17 +1132,17 @@ void tf_editor_lines::set_point_positions() {
 void tf_editor_lines::update_point_positions()
 {
 	// update the point positions after a resize
-	if (m_shared_data_ptr && m_points.size() == m_shared_data_ptr->centroids.size()) {
+	if (m_shared_data_ptr && m_points.size() == m_shared_data_ptr->primitives.size()) {
 		for (size_t i = 0; i < m_points.size(); ++i) {
 			auto& points = m_points[i];
-			auto& centroid = m_shared_data_ptr->centroids[i];
+			auto& centroid = m_shared_data_ptr->primitives[i];
 
 			size_t idx = 0;
 			if (points.size() >= 4 * 3) {
 				for (int j = 0; j < 15; j++) {
 					// ignore the "back" lines of the widgets
 					if ((j + 1) % 4 != 0) {
-						float c = centroid.centroids[j / 4];
+						float c = centroid.centr_pos[j / 4];
 
 						points[idx].pos = m_widget_lines.at(j).interpolate(c);
 						//points.push_back(utils_data_types::point(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
@@ -1191,7 +1195,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 			if (negative_change) {
 				change *= -1.0f;
 			}
-			auto& width = m_shared_data_ptr->centroids[m_clicked_centroid_id].widths[i];
+			auto& width = m_shared_data_ptr->primitives[m_clicked_centroid_id].centr_widths[i];
 			width += change;
 			width = cgv::math::clamp(width, 0.0f, 1.0f);
 

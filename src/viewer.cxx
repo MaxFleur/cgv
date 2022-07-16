@@ -484,16 +484,16 @@ void viewer::draw(cgv::render::context& ctx) {
 			if(vr.enable(ctx)) {
 				auto& vol_prog = vr.ref_prog();
 
-				const int size = m_shared_data_ptr->centroids.size();
+				const int size = m_shared_data_ptr->primitives.size();
 				vol_prog.set_uniform(ctx, "centroid_values_size", size);
 
-				for(int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-					const auto color = m_shared_data_ptr->centroids.at(i).color;
+				for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+					const auto color = m_shared_data_ptr->primitives.at(i).color;
 					vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
 
 					const auto idx = std::to_string(i);
-					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->centroids.at(i).centroids);
-					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->centroids.at(i).widths);
+					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->primitives.at(i).centroids);
+					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->primitives.at(i).widths);
 					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
 				}
 
@@ -574,7 +574,7 @@ void viewer::create_gui() {
 		add_decorator("", "separator");
 
 		if(begin_tree_node("TF Editor - Lines", m_editor_lines_ptr, true)) {
-			add_member_control(this, "", m_shared_data_ptr->centroids, "");
+			add_member_control(this, "", m_shared_data_ptr->primitives, "");
 			align("\a");
 			inline_object_gui(m_editor_lines_ptr);
 			align("\b");

@@ -9,18 +9,26 @@ class shared_data {
 
 public:
 
-	struct centroid
+	enum Type {
+		TYPE_GTF = 0,
+		TYPE_BOX = 1,
+		TYPE_SPHERE = 2
+	};
+
+	struct primitive
 	{
+		Type type = TYPE_GTF;
+
 		// Default color: blue to see the new centroid better
 		rgba color{ 0.0f, 0.0f, 1.0f, 0.5f };
 
-		vec4 centroids{ 0.0f, 0.0f, 0.0f, 0.0f };
+		vec4 centr_pos{ 0.0f, 0.0f, 0.0f, 0.0f };
 
-		vec4 widths{ 0.5f, 0.5f, 0.5f, 0.5f };
+		vec4 centr_widths{ 0.5f, 0.5f, 0.5f, 0.5f };
 	};
 
 public:
-	std::vector<centroid> centroids;
+	std::vector<primitive> primitives;
 
 	void set_synchronized(bool is_line_editor = true) {
 		is_synchronized = true;
