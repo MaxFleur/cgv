@@ -49,12 +49,20 @@ namespace tf_editor_shared_functions
 		rgb color(0.0f);
 
 		for (int i = 0; i < primitives.size(); i++) {
-			const auto& centroid = primitives.at(i);
+			const auto& primitive = primitives.at(i);
+			float alpha;
 
-			auto alpha = tf_editor_shared_functions::gaussian_transfer_function(v, centroid.centr_pos, centroid.centr_widths);
-			alpha *= centroid.color.alpha();
+			switch (primitive.type) {
 
-			color += alpha * rgb{ centroid.color.R(), centroid.color.G(), centroid.color.B() };
+			case shared_data::TYPE_BOX:
+				alpha = tf_editor_shared_functions::box_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
+				break;
+			case shared_data::TYPE_GTF:
+				alpha = tf_editor_shared_functions::gaussian_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
+			}
+			alpha *= primitive.color.alpha();
+
+			color += alpha * rgb{ primitive.color.R(), primitive.color.G(), primitive.color.B() };
 		}
 
 		color.R() = cgv::math::clamp(color.R(), 0.0f, 1.0f);
