@@ -8,7 +8,7 @@
 #include <cgv/math/ftransform.h>
 #include <cgv_gl/gl/gl.h>
 
-#include "utils_functions.h"
+#include "tf_editor_shared_functions.h"
 
 tf_editor_lines::tf_editor_lines()
 {	
@@ -160,11 +160,11 @@ void tf_editor_lines::on_set(void* member_ptr) {
 					m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate(value);
 					// Set the strips
 					m_interacted_id_set = true;
-					utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
+					tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
 				}
 				// Every centroid for this index has to be redrawn if he width was adjusted
 				else if (member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
-					utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
+					tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
 				}
 				// In all cases, we need to resynchronize
 				m_shared_data_ptr->set_synchronized();
@@ -573,21 +573,9 @@ void tf_editor_lines::update_content() {
 		if(avg > threshold || force) {
 
 			rgb color_rgb(0.0f);
-			
 			if (vis_mode == VM_GTF) {
-				for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-					const auto& centroid = m_shared_data_ptr->primitives.at(i);
-
-					auto alpha = utils_functions::gaussian_transfer_function(v, centroid.centr_pos, centroid.centr_widths);
-					alpha *= centroid.color.alpha();
-
-					color_rgb += alpha * rgb{ centroid.color.R(), centroid.color.G(), centroid.color.B() };
-				}
+				color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
 			}
-
-			color_rgb.R() = cgv::math::clamp(color_rgb.R(), 0.0f, 1.0f);
-			color_rgb.G() = cgv::math::clamp(color_rgb.G(), 0.0f, 1.0f);
-			color_rgb.B() = cgv::math::clamp(color_rgb.B(), 0.0f, 1.0f);
 
 			rgba col(color_rgb, line_alpha);
 
@@ -1208,7 +1196,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 	// If we found something, we have to set the corresponding point ids and redraw
 	if (found) {
 		m_interacted_id_set = true;
-		utils_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, m_clicked_centroid_id, found_index);
+		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, m_clicked_centroid_id, found_index);
 
 		m_shared_data_ptr->set_synchronized();
 

@@ -150,6 +150,11 @@ private:
 
 	void end_drag() {
 		m_interacted_points.clear();
+
+		if (vis_mode == VM_GTF) {
+			update_content();
+			return;
+		}
 		has_damage = true;
 		post_redraw();
 	}
@@ -164,6 +169,11 @@ private:
 	}
 
 private:
+
+	enum VisualizationMode {
+		VM_SHAPES = 0,
+		VM_GTF = 1
+	} vis_mode;
 
 	/// store a pointer to the data set
 	sliced_volume_data_set* m_data_set_ptr = nullptr;

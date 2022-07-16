@@ -7,6 +7,8 @@
 #include <cgv_gl/gl/gl.h>
 #include <cgv_glutil/color_map.h>
 
+// #include "tf_editor_shared_functions.h"
+
 tf_editor_scatterplot::tf_editor_scatterplot() {
 	
 	set_name("PCP Overlay");
@@ -74,6 +76,17 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 	// return true if the event gets handled and stopped here or false if you want to pass it to the next plugin
 	unsigned et = e.get_kind();
 
+	if (et == cgv::gui::EID_KEY) {
+		cgv::gui::key_event& ke = (cgv::gui::key_event&)e;
+		if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == 'M') {
+			vis_mode == VM_SHAPES ? vis_mode = VM_GTF : vis_mode = VM_SHAPES;
+			on_set(&vis_mode);
+			update_content();
+
+			return true;
+		}
+	}
+
 	if (et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
@@ -106,6 +119,10 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 }
 
 void tf_editor_scatterplot::on_set(void* member_ptr) {
+
+	if (member_ptr == &vis_mode) {
+		update_content();
+	}
 
 	// react to changes of the point alpha parameter and update the styles
 	if(member_ptr == &alpha || member_ptr == &blur) {
@@ -281,6 +298,7 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
 		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
 		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
+		rectangle_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
 	}
 
 	m_rect_grid_style.use_blending = use_tone_mapping;
@@ -321,8 +339,10 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	content_canvas.pop_modelview_matrix(ctx);
 	
 	// Ellipses and Boxes are next 
-	create_primitive_shapes();
-	draw_primitive_shapes(ctx);
+	if (vis_mode == VM_SHAPES) {
+		create_primitive_shapes();
+		draw_primitive_shapes(ctx);
+	}
 
 	// Now the draggable points
 	draw_draggables(ctx);
@@ -360,6 +380,8 @@ void tf_editor_scatterplot::create_gui() {
 	add_member_control(this, "TM Norm Count", tm_normalization_count, "value_slider", "min=1;max=1000000;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "TM Alpha", tm_alpha, "value_slider", "min=0;max=50;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "TM Gamma", tm_gamma, "value_slider", "min=0;max=10;step=0.0001;log=true;ticks=true");
+
+	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Shape Mode, GTF Mode");
 
 	add_decorator("Stain Indices", "heading", "level=3;font_style=regular");
 	add_decorator("", "separator", "h=2");
@@ -524,13 +546,20 @@ void tf_editor_scatterplot::update_content() {
 	vec2 size = domain.size();
 
 	// Construct to add the points
-	const auto add_point = [&](vec2 pos, float x, float y) {
+	const auto add_point = [&](const vec4& v, vec2& pos, const float& x, const float& y) {
 		// Apply size and offset
 		pos.set(x, y);
 		pos *= size;
 		pos += org;
 
-		m_point_geometry_data.add(pos, rgba(rgb(0.0f), alpha));
+		rgb color_rgb(0.0f);
+		if (vis_mode == VM_GTF) {
+			// color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
+		}
+
+		rgba col(color_rgb, alpha);
+
+		m_point_geometry_data.add(pos, rgba(color_rgb, alpha));
 	};
 
 	// for each given sample of 4 protein densities, do:
@@ -550,7 +579,7 @@ void tf_editor_scatterplot::update_content() {
 			for (int i = 1; i < 4; i++) {
 				vec2 pos(v[0], v[i]);
 
-				add_point(pos, pos.x() * 0.33f, (pos.y() / 3.0f) + offset);
+				add_point(v, pos, pos.x() * 0.33f, (pos.y() / 3.0f) + offset);
 				offset += 0.33f;
 			}
 			// Second col
@@ -559,13 +588,13 @@ void tf_editor_scatterplot::update_content() {
 			for (int i = 1; i < 3; i++) {
 				vec2 pos(v[3], v[i]);
 
-				add_point(pos, (pos.x() * 0.33f) + 0.33f, (pos.y() / 3.0f) + offset);
+				add_point(v, pos, (pos.x() * 0.33f) + 0.33f, (pos.y() / 3.0f) + offset);
 				offset += 0.33f;
 			}
 			// Obscurin - Actin
 			vec2 pos(v[2], v[1]);
 
-			add_point(pos, (pos.x() * 0.33f) + 0.66f, (pos.y() / 3.0f));
+			add_point(v, pos, (pos.x() * 0.33f) + 0.66f, (pos.y() / 3.0f));
 			offset += 0.33f;
 		}
 	}

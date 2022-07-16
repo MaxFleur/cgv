@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "tf_editor_shared_data_types.h"
-
 /* This class contains data used by all myofibril editors. */
 class shared_data {
 
