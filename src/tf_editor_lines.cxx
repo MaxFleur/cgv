@@ -575,6 +575,17 @@ void tf_editor_lines::update_content() {
 			rgb color_rgb(0.0f);
 			if (vis_mode == VM_GTF) {
 				color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
+
+				/*
+				for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
+					const auto& centroid = m_shared_data_ptr->centroids.at(i);
+
+					auto alpha = utils_functions::gaussian_transfer_function(v, centroid.centroids, centroid.widths);
+					alpha *= centroid.color.alpha();
+
+					color_rgb += alpha * rgb{ centroid.color.R(), centroid.color.G(), centroid.color.B() };
+				}
+				*/
 			}
 
 			rgba col(color_rgb, line_alpha);
