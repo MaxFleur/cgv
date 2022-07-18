@@ -338,10 +338,8 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	content_canvas.pop_modelview_matrix(ctx);
 	
 	// Ellipses and Boxes are next 
-	if (vis_mode == VM_SHAPES) {
-		create_primitive_shapes();
-		draw_primitive_shapes(ctx);
-	}
+	create_primitive_shapes();
+	draw_primitive_shapes(ctx);
 
 	// Now the draggable points
 	draw_draggables(ctx);
@@ -458,13 +456,11 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_ellipse_style.use_blending = true;
 	m_ellipse_style.use_fill_color = true;
 	m_ellipse_style.apply_gamma = false;
-	m_ellipse_style.ring_width = 0.0f;
 	m_ellipse_style.border_width = 5.0f;
 
 	m_rect_box_style.use_blending = true;
 	m_rect_box_style.use_fill_color = true;
 	m_rect_box_style.apply_gamma = false;
-	m_rect_box_style.ring_width = 0.0f;
 	m_rect_box_style.border_width = 5.0f;
 
 	// configure style for the plot labels
@@ -819,10 +815,12 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 		if (type == shared_data::TYPE_BOX) {
 			m_rect_box_style.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
 			m_rect_box_style.fill_color = m_shared_data_ptr->primitives.at(i).color;
+			m_rect_box_style.ring_width = vis_mode == VM_SHAPES ? 0.0f : 3.0f;
 		}
 		else {
 			m_ellipse_style.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
 			m_ellipse_style.fill_color = m_shared_data_ptr->primitives.at(i).color;
+			m_ellipse_style.ring_width = vis_mode == VM_SHAPES ? 0.0f : 3.0f;
 		}
 
 		auto& prog = type == shared_data::TYPE_BOX ? content_canvas.enable_shader(ctx, "rectangle") : content_canvas.enable_shader(ctx, "ellipse");
