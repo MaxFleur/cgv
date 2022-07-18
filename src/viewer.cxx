@@ -266,6 +266,26 @@ void viewer::on_set(void* member_ptr) {
 		post_recreate_gui();
 	}
 
+	// look for updated centroid data
+	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
+		auto value = 0.0f;
+
+		for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
+			if (member_ptr == &m_shared_data_ptr->primitives.at(i).type ||
+				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i] ||
+				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
+				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
+
+				if (m_editor_lines_ptr) {
+					m_editor_lines_ptr->resynchronize();
+				}
+				if (m_editor_scatterplot_ptr) {
+					m_editor_scatterplot_ptr->resynchronize();
+				}
+			}
+		}
+	}
+
 	update_member(member_ptr);
 	post_redraw();
 }
@@ -335,6 +355,8 @@ void viewer::init_frame(cgv::render::context& ctx) {
 		else {
 			m_editor_lines_ptr->resynchronize();
 		}
+
+		post_recreate_gui();
 	}
 	/** END - MFLEURY **/
 }
@@ -582,11 +604,45 @@ void viewer::create_gui() {
 			end_tree_node(m_editor_lines_ptr);
 		}
 
-		if(begin_tree_node("SP", m_editor_scatterplot_ptr, false)) {
+		if(begin_tree_node("Scatterplot Matrix", m_editor_scatterplot_ptr, false)) {
 			align("\a");
 			inline_object_gui(m_editor_scatterplot_ptr);
 			align("\b");
 			end_tree_node(m_editor_scatterplot_ptr);
+		}
+
+		if (begin_tree_node("Primitives", dataset.sarcomere_count, false)) {
+			align("\a");
+
+			auto const add_primitive_button = add_button("Add Primitive");
+			connect_copy(add_primitive_button->click, rebind(this, &viewer::add_primitive));
+
+			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+				const auto header_string = "Primitive " + std::to_string(i + 1) + " Parameters:";
+				add_decorator(header_string, "heading", "level=3");
+
+				add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=GTF, Box, Sphere");
+
+				// Color widget
+				add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
+				// Centroid parameters themselves
+				add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centr_pos[0], "value_slider",
+					"min=0.0;max=1.0;step=0.0001;ticks=true");
+				add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centr_pos[1], "value_slider",
+					"min=0.0;max=1.0;step=0.0001;ticks=true");
+				add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centr_pos[2], "value_slider",
+					"min=0.0;max=1.0;step=0.0001;ticks=true");
+				add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centr_pos[3], "value_slider",
+					"min=0.0;max=1.0;step=0.0001;ticks=true");
+
+				// Gaussian width
+				add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).centr_widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+				add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).centr_widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+				add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).centr_widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+				add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).centr_widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+			}
+
+			align("\b");
 		}
 		/** END - MFLEURY **/
 	}
@@ -622,6 +678,24 @@ void viewer::create_gui() {
 		add_member_control(this, "", seg_idx, "wheel", "min=-1;step=0.25;max=100");
 
 		align("\b");
+	}
+}
+
+void viewer::add_primitive() {
+	// Hardcoded boundary, this might change later
+	if (m_shared_data_ptr->primitives.size() == 5) {
+		return;
+	}
+
+	// Create a new centroid and store it
+	shared_data::primitive centr;
+	m_shared_data_ptr->primitives.push_back(centr);
+
+	if (m_editor_lines_ptr) {
+		m_editor_lines_ptr->primitive_added();
+	}
+	if (m_editor_scatterplot_ptr) {
+		m_editor_scatterplot_ptr->primitive_added();
 	}
 }
 

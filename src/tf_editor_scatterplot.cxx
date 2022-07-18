@@ -139,54 +139,8 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 			labels.set_text(1, m_data_set_ptr->stain_names[y_idx]);
 	}
 
-	// look for updated centroid data
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
-		auto value = 0.0f;
-
-		for (int protein_id = 0; protein_id < 4; protein_id++) {
-			if (member_ptr == &m_shared_data_ptr->primitives.at(i).type ||
-				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[protein_id] ||
-				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
-				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[protein_id]) {
-
-				// Move the according points if their position was changed
-				if (member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[protein_id]) {
-					const auto org = static_cast<vec2>(domain.pos());
-					const auto size = domain.size();
-					value = m_shared_data_ptr->primitives.at(i).centr_pos[protein_id];
-					// Update points based on their distribution in the scatterplot
-					switch (protein_id) {
-					case 0:
-						m_points[i][0].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][0].pos.y());
-						m_points[i][1].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][1].pos.y());
-						m_points[i][2].pos.set(((value * size.x()) / 3) + org.x(), m_points[i][2].pos.y());
-						break;
-					case 1:
-						m_points[i][2].pos.set(m_points[i][2].pos.x(), ((value * size.y()) / 3) + org.y() + size.y() * 0.66f);
-						m_points[i][3].pos.set(((value * size.x()) / 3) + org.x() + size.x() * 0.33f, m_points[i][3].pos.y());
-						m_points[i][4].pos.set(((value * size.x()) / 3) + org.x() + size.x() * 0.33f, m_points[i][4].pos.y());
-						break;
-					case 2:
-						m_points[i][1].pos.set(m_points[i][1].pos.x(), ((value * size.y()) / 3) + size.y() * 0.33f + org.y());
-						m_points[i][4].pos.set(m_points[i][4].pos.x(), ((value * size.y()) / 3) + size.y() * 0.33f + org.y());
-						m_points[i][5].pos.set(((value * size.x()) / 3) + org.x() + size.x() * 0.66f, m_points[i][5].pos.y());
-						break;
-					case 3:
-						m_points[i][0].pos.set(m_points[i][0].pos.x(), ((value * size.y()) / 3) + org.y());
-						m_points[i][3].pos.set(m_points[i][3].pos.x(), ((value * size.y()) / 3) + org.y());
-						m_points[i][5].pos.set(m_points[i][5].pos.x(), ((value * size.y()) / 3) + org.y());
-						break;
-					}
-				}
-
-				// In all cases, we need to update
-				m_shared_data_ptr->set_synchronized(false);
-				break;
-			}
-		}
-	}
 	update_member(member_ptr);
-	redraw(false);
+	redraw();
 }
 
 bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
@@ -382,35 +336,6 @@ void tf_editor_scatterplot::create_gui() {
 
 	add_decorator("Stain Indices", "heading", "level=3;font_style=regular");
 	add_decorator("", "separator", "h=2");
-
-	// Create new centroids
-	auto const add_centroid_button = add_button("Add centroid");
-	connect_copy(add_centroid_button->click, rebind(this, &tf_editor_scatterplot::add_centroids));
-
-	// Add GUI controls for the centroid
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-		const auto header_string = "Primitive " + std::to_string(i + 1) + " parameters:";
-		add_decorator(header_string, "heading", "level=3");
-
-		add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=GTF, Box, Sphere");
-
-		// Color widget
-		add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
-		// Centroid parameters themselves
-		add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centr_pos[0], "value_slider",
-			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centr_pos[1], "value_slider",
-			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centr_pos[2], "value_slider",
-			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centr_pos[3], "value_slider",
-			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		// Gaussian width
-		add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).centr_widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).centr_widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).centr_widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).centr_widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-	}
 }
 
 void tf_editor_scatterplot::resynchronize() {
@@ -427,7 +352,7 @@ void tf_editor_scatterplot::resynchronize() {
 		}
 	}
 
-	redraw(false);
+	redraw();
 }
 
 void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
@@ -594,7 +519,7 @@ void tf_editor_scatterplot::update_content() {
 		}
 	}
 
-	redraw(false);
+	redraw();
 }
 
 void tf_editor_scatterplot::create_grid() {
@@ -651,14 +576,7 @@ void tf_editor_scatterplot::create_primitive_shapes() {
 	}
 }
 
-void tf_editor_scatterplot::add_centroids() {
-	if (m_shared_data_ptr->primitives.size() == 5) {
-		return;
-	}
-
-	// Create a new centroid and store it
-	shared_data::primitive centr;
-	m_shared_data_ptr->primitives.push_back(centr);
+void tf_editor_scatterplot::primitive_added() {
 	add_centroid_draggables(true, m_shared_data_ptr->primitives.size() - 1);
 	// Add a corresponding point for every centroid
 	m_point_handles.clear();
@@ -669,7 +587,7 @@ void tf_editor_scatterplot::add_centroids() {
 	}
 	m_shared_data_ptr->set_synchronized(false);
 
-	redraw(true);
+	redraw();
 }
 
 void tf_editor_scatterplot::add_centroid_draggables(bool new_point, int centroid_index) {
@@ -987,6 +905,6 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 
 		m_shared_data_ptr->set_synchronized(false);
 
-		redraw(true);
+		redraw();
 	}
 }

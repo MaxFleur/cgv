@@ -141,39 +141,8 @@ void tf_editor_lines::on_set(void* member_ptr) {
 		update_content();
 	}
 
-	// look for updated centroid data
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
-		auto value = 0.0f;
-
-		for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
-			if (member_ptr == &m_shared_data_ptr->primitives.at(i).type ||
-				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i] || 
-				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
-				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
-				// Move the according points if their position was changed
-				if (member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i]) {
-					value = m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i];
-					const auto index = c_protein_i * 3;
-
-					m_points[i][index].pos = m_widget_lines.at(index + (index / 3)).interpolate(value);
-					m_points[i][index + 1].pos = m_widget_lines.at(index + 1 + (index / 3)).interpolate(value);
-					m_points[i][index + 2].pos = m_widget_lines.at(index + 2 + (index / 3)).interpolate(value);
-					// Set the strips
-					m_interacted_id_set = true;
-					tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
-				}
-				// Every centroid for this index has to be redrawn if he width was adjusted
-				else if (member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
-					tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, i, c_protein_i);
-				}
-				// In all cases, we need to resynchronize
-				m_shared_data_ptr->set_synchronized();
-				break;
-			}
-		}
-	}
 	update_member(member_ptr);
-	redraw(false);
+	redraw();
 }
 
 bool tf_editor_lines::init(cgv::render::context& ctx) {
@@ -380,36 +349,6 @@ void tf_editor_lines::create_gui() {
 	add_member_control(this, "TM Gamma", tm_gamma, "value_slider", "min=0;max=10;step=0.0001;log=true;ticks=true");
 
 	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Quadstrip Mode, GTF Mode");
-
-	// Create new centroids
-	auto const add_centroid_button = add_button("Add centroid");
-	connect_copy(add_centroid_button->click, rebind(this, &tf_editor_lines::add_centroids));
-
-	// Add GUI controls for the centroid
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++ ) {
-		const auto header_string = "Primitive " + std::to_string(i + 1) + " parameters:";
-		add_decorator(header_string, "heading", "level=3");
-
-		add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=GTF, Box, Sphere");
-
-		// Color widget
-		add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
-		// Centroid parameters themselves
-		add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centr_pos[0], "value_slider",
-			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centr_pos[1], "value_slider",
-			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centr_pos[2], "value_slider",
-			"min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centr_pos[3], "value_slider",
-			"min=0.0;max=1.0;step=0.0001;ticks=true");
-
-		// Gaussian width
-		add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).centr_widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).centr_widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).centr_widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-		add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).centr_widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-	}
 }
 
 void tf_editor_lines::resynchronize() {
@@ -427,7 +366,7 @@ void tf_editor_lines::resynchronize() {
 	}
 	m_create_all_values = true;
 
-	redraw(false);
+	redraw();
 }
 
 void tf_editor_lines::init_styles(cgv::render::context& ctx) {
@@ -611,7 +550,7 @@ void tf_editor_lines::update_content() {
 		}
 	}
 	// content was updated, so redraw
-	redraw(false);
+	redraw();
 }
 
 void tf_editor_lines::init_widgets() {
@@ -748,15 +687,7 @@ void tf_editor_lines::add_widget_lines() {
 	}
 }
 
-void tf_editor_lines::add_centroids() {
-	// Hardcoded boundary, this might change later
-	if (m_shared_data_ptr->primitives.size() == 5) {
-		return;
-	}
-
-	// Create a new centroid and store it
-	shared_data::primitive centr;
-	m_shared_data_ptr->primitives.push_back(centr);
+void tf_editor_lines::primitive_added() {
 	add_centroid_draggables();
 	// Add a corresponding point for every centroid
 	m_point_handles.clear();
@@ -770,7 +701,7 @@ void tf_editor_lines::add_centroids() {
 	// Synchronize all other editors
 	m_shared_data_ptr->set_synchronized();
 
-	redraw(true);
+	redraw();
 }
 
 void tf_editor_lines::add_centroid_draggables(bool new_point, int centroid_index) {
@@ -1126,7 +1057,7 @@ void tf_editor_lines::set_point_positions() {
 		}
 	}
 
-	redraw(false);
+	redraw();
 }
 
 void tf_editor_lines::update_point_positions()
@@ -1179,7 +1110,7 @@ void tf_editor_lines::find_clicked_centroid(int x, int y) {
 	// If we found something, redraw 
 	if (found) {
 		m_clicked_centroid_id = found_index;
-		redraw(false);
+		redraw();
 	}
 }
 
@@ -1211,7 +1142,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 
 		m_shared_data_ptr->set_synchronized();
 
-		redraw(true);
+		redraw();
 	}
 }
 

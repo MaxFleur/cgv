@@ -118,6 +118,8 @@ public:
 	void create_gui();
 
 	void resynchronize();
+
+	void primitive_added();
 	
 	void set_data_set(sliced_volume_data_set* data_set_ptr) {
 		m_data_set_ptr = data_set_ptr;
@@ -131,8 +133,6 @@ private:
 	void create_grid();
 
 	void create_primitive_shapes();
-
-	void add_centroids();
 
 	void add_centroid_draggables(bool new_point = true, int centroid_index = 0);
 
@@ -160,11 +160,8 @@ private:
 	}
 
 	// redraw the plot contents excluding the data vis, optionally recreate the gui
-	void redraw(bool recreate_gui) {
+	void redraw() {
 		has_damage = true;
-		if (recreate_gui) {
-			post_recreate_gui();
-		}
 		post_redraw();
 	}
 

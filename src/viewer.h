@@ -251,6 +251,10 @@ public:
 
 	void create_gui();
 
+private:
+
+	void add_primitive();
+
 /** BEGIN - MFLEURY **/
 private:
 	shared_data_ptr m_shared_data_ptr;
