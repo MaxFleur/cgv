@@ -379,7 +379,6 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_line_style_relations.use_blending = true;
 	m_line_style_relations.use_fill_color = false;
 	m_line_style_relations.apply_gamma = false;
-	m_line_style_relations.fill_color = rgba(rgb(0.0f), line_alpha);
 	m_line_style_relations.width = 1.0f;
 
 	m_line_style_widgets.use_blending = true;
@@ -514,20 +513,9 @@ void tf_editor_lines::update_content() {
 			rgb color_rgb(0.0f);
 			if (vis_mode == VM_GTF) {
 				color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
-
-				/*
-				for (int i = 0; i < m_shared_data_ptr->centroids.size(); i++) {
-					const auto& centroid = m_shared_data_ptr->centroids.at(i);
-
-					auto alpha = utils_functions::gaussian_transfer_function(v, centroid.centroids, centroid.widths);
-					alpha *= centroid.color.alpha();
-
-					color_rgb += alpha * rgb{ centroid.color.R(), centroid.color.G(), centroid.color.B() };
-				}
-				*/
 			}
 
-			rgba col(color_rgb, line_alpha);
+			rgba col(color_rgb, use_tone_mapping ? 1.0f : line_alpha);
 
 			// Left to right
 			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]), col);
@@ -766,6 +754,7 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 		auto& line_prog = m_line_renderer.ref_prog();
 		line_prog.enable(ctx);
 		content_canvas.set_view(ctx, line_prog);
+		m_line_style_relations.fill_color = rgba(rgb(0.0f), line_alpha);
 		m_line_style_relations.apply(ctx, line_prog);
 		line_prog.disable(ctx);
 		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_relations, total_count, count);

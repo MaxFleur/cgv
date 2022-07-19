@@ -477,9 +477,9 @@ void tf_editor_scatterplot::update_content() {
 			color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
 		}
 
-		rgba col(color_rgb, alpha);
+		rgba col(color_rgb, use_tone_mapping ? 1.0f : alpha);
 
-		m_point_geometry_data.add(pos, rgba(color_rgb, alpha));
+		m_point_geometry_data.add(pos, col);
 	};
 
 	// for each given sample of 4 protein densities, do:
