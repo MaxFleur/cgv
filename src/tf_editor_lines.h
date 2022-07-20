@@ -109,11 +109,6 @@ private:
 
 private:
 
-	enum VisualizationMode {
-		VM_QUADSTRIP = 0,
-		VM_GTF = 1
-	} vis_mode;
-
 	cgv::glutil::line2d_style m_line_style_relations;
 	cgv::glutil::line2d_style m_line_style_widgets;
 	cgv::glutil::line2d_style m_line_style_polygons;

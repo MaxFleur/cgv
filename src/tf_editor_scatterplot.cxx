@@ -98,16 +98,6 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
 	}
-	// label change
-	if(member_ptr == &x_idx) {
-		x_idx = cgv::math::clamp(x_idx, 0, 3);
-		if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3 && labels.size() > 1)
-			labels.set_text(0, m_data_set_ptr->stain_names[x_idx]);
-	} else if(member_ptr == &y_idx) {
-		y_idx = cgv::math::clamp(y_idx, 0, 3);
-		if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3 && labels.size() > 1)
-			labels.set_text(1, m_data_set_ptr->stain_names[y_idx]);
-	}
 
 	update_member(member_ptr);
 	redraw();

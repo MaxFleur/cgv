@@ -109,11 +109,6 @@ private:
 
 private:
 
-	enum VisualizationMode {
-		VM_SHAPES = 0,
-		VM_GTF = 1
-	} vis_mode;
-
 	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
 	cgv::glutil::shape2d_style m_rectangle_style;

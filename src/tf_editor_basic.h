@@ -50,6 +50,13 @@ protected:
 	}
 
 protected:
+
+	// different visualization modes used in both editors
+	enum VisualizationMode {
+		VM_SHAPES= 0,
+		VM_GTF = 1
+	} vis_mode;
+
 	// whether we need to redraw the contents of this overlay
 	bool has_damage = true;
 

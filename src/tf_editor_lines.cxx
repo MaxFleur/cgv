@@ -53,7 +53,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 	if (et == cgv::gui::EID_KEY) {
 		cgv::gui::key_event& ke = (cgv::gui::key_event&)e;
 		if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == 'M') {
-			vis_mode == VM_QUADSTRIP ? vis_mode = VM_GTF : vis_mode = VM_QUADSTRIP;
+			vis_mode == VM_SHAPES ? vis_mode = VM_GTF : vis_mode = VM_SHAPES;
 			on_set(&vis_mode);
 			update_content();
 
@@ -95,15 +95,6 @@ void tf_editor_lines::on_set(void* member_ptr) {
 	if(member_ptr == &m_alpha) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
-	}
-	// change the labels if the GUI index is updated
-	for (int i = 0; i < 4; i++) {
-		if (member_ptr == &m_text_ids[i]) {
-			m_text_ids[i] = cgv::math::clamp(m_text_ids[i], 0, 3);
-			if (m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3 && m_labels.size() > 1)
-				m_labels.set_text(i, m_data_set_ptr->stain_names[m_text_ids[i]]);
-			break;
-		}
 	}
 
 	if (member_ptr == &vis_mode) {
@@ -229,7 +220,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	// Now create the centroid boundaries and strips
 	create_centroid_strips();
 
-	if (vis_mode == VM_QUADSTRIP) {
+	if (vis_mode == VM_SHAPES) {
 		auto& line_prog_polygon = m_polygon_renderer.ref_prog();
 		line_prog_polygon.enable(ctx);
 		content_canvas.set_view(ctx, line_prog_polygon);
@@ -414,7 +405,8 @@ void tf_editor_lines::create_labels() {
 		m_labels.add_text("3", ivec2(centers[3]), cgv::render::TA_NONE, 0.0f);
 
 		for(int i = 0; i < 4; i++) {
-			on_set(&m_text_ids[i]);
+			m_text_ids[i] = cgv::math::clamp(m_text_ids[i], 0, 3);
+			m_labels.set_text(i, m_data_set_ptr->stain_names[m_text_ids[i]]);
 		}
 	}
 }
@@ -861,7 +853,7 @@ void tf_editor_lines::create_centroid_strips() {
 		if (!create_centroid_boundaries()) {
 			return;
 		}
-		if (vis_mode == VM_QUADSTRIP) {
+		if (vis_mode == VM_SHAPES) {
 			m_strips.clear();
 			m_line_geometry_strip_borders.clear();
 
