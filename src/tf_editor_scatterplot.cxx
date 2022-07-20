@@ -10,31 +10,10 @@
 
 tf_editor_scatterplot::tf_editor_scatterplot() {
 	
-	set_name("PCP Overlay");
-	// prevent the mouse events from reaching throug this overlay to the underlying elements
-	block_events = true;
-
-	// setup positioning and size
-	set_overlay_alignment(AO_START, AO_END);
-	set_overlay_stretch(SO_NONE);
-	set_overlay_margin(ivec2(-3));
+	set_name("TF Editor Scatterplot Overlay");
 	set_overlay_size(ivec2(700, 700));
-	
-	// add a color attachment to the content frame buffer with support for transparency (alpha)
-	fbc.add_attachment("color", "flt32[R,G,B,A]");
-	// change its size to be the same as the overlay
-	fbc.set_size(get_overlay_size());
 
-	fbc_plot.add_attachment("color", "flt32[R,G,B,A]");
-	fbc_plot.set_size(get_overlay_size());
-
-	// register a rectangle shader for the content canvas, to draw a frame around the plot
-	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 	content_canvas.register_shader("ellipse", cgv::glutil::canvas::shaders_2d::ellipse);
-	content_canvas.register_shader("plot_tone_mapping", "plot_tone_mapping.glpr");
-
-	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main frame buffer
-	viewport_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
 	m_point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
@@ -124,7 +103,7 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 	}
 
 	// react to changes of the point alpha parameter and update the styles
-	if(member_ptr == &alpha || member_ptr == &blur) {
+	if(member_ptr == &m_alpha || member_ptr == &blur) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
 	}
@@ -195,36 +174,8 @@ void tf_editor_scatterplot::init_frame(cgv::render::context& ctx) {
 		create_labels();
 
 		has_damage = true;
-		reset_plot = true;
+		m_reset_plot = true;
 	}
-}
-
-void tf_editor_scatterplot::draw(cgv::render::context& ctx) {
-
-	if(!show)
-		return;
-
-	// disable depth testing to place this overlay on top of everything in the viewport
-	glDisable(GL_DEPTH_TEST);
-
-	// redraw the contents if they are damaged (i.e. they need to change)
-	if(has_damage)
-		draw_content(ctx);
-
-	// draw frame buffer texture to screen using a rectangle shape
-	viewport_canvas.enable_shader(ctx, "rectangle");
-	// enable the color attachment from the offline frame buffer as a texture
-	fbc.enable_attachment(ctx, "color", 0);
-	// Invoke the drawing of a simple shape with given position and size.
-	// Since the rectange shader is active, this will produce a rectangle
-	// and since we configured the shader with our style, the final color
-	// of the rectangle will be determined by the texture.
-	viewport_canvas.draw_shape(ctx, get_overlay_position(), get_overlay_size());
-	fbc.disable_attachment(ctx, "color");
-	viewport_canvas.disable_current_shader(ctx);
-
-	// make sure to re-enable the depth test after we are done
-	glEnable(GL_DEPTH_TEST);
 }
 
 void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
@@ -322,8 +273,8 @@ void tf_editor_scatterplot::create_gui() {
 	// add a button to trigger a content update by redrawing
 	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_scatterplot::update_content));
 	// add controls for parameters
-	add_member_control(this, "Threshold", threshold, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "Alpha", alpha, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "Threshold", m_threshold, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "Alpha", m_alpha, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "Blur", blur, "value_slider", "min=0;max=20;step=0.0001;ticks=true");
 	add_member_control(this, "Radius", radius, "value_slider", "min=0;max=10;step=0.0001;ticks=true");
 
@@ -367,7 +318,7 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_point_style.use_fill_color = false;
 	m_point_style.apply_gamma = false;
 	m_point_style.position_is_center = true;
-	m_point_style.fill_color = rgba(rgb(0.0f), alpha);
+	m_point_style.fill_color = rgba(rgb(0.0f), m_alpha);
 	m_point_style.feather_width = blur;
 
 	// Style for the grid
@@ -458,7 +409,7 @@ void tf_editor_scatterplot::update_content() {
 	const auto& data = m_data_set_ptr->voxel_data;
 
 	// reset previous total count and point geometry
-	total_count = 0;
+	m_total_count = 0;
 	m_point_geometry_data.clear();
 
 	// setup plot origin and sizes
@@ -476,8 +427,7 @@ void tf_editor_scatterplot::update_content() {
 		if (vis_mode == VM_GTF) {
 			color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
 		}
-
-		rgba col(color_rgb, use_tone_mapping ? 1.0f : alpha);
+		rgba col(color_rgb, use_tone_mapping ? 1.0f : m_alpha);
 
 		m_point_geometry_data.add(pos, col);
 	};
@@ -490,7 +440,7 @@ void tf_editor_scatterplot::update_content() {
 		float avg = v[0] + v[1] + v[2] + v[3];
 		avg *= 0.25f;
 
-		if(avg > threshold) {
+		if(avg > m_threshold) {
 			// Draw the points for each protein
 			// First column
 			float offset = 0.0f;
@@ -639,34 +589,36 @@ bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 	}
 
 	// make sure to reset the color buffer if we update the content from scratch
-	if (total_count == 0 || reset_plot) {
+	if (m_total_count == 0 || m_reset_plot) {
 		if(use_tone_mapping)
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		else
 			glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		reset_plot = false;
+		m_reset_plot = false;
 	}
 
 	// the amount of points that will be drawn in each step
 	int count = 500000;
 
 // make sure to not draw more points than available
-if (total_count + count > m_point_geometry_data.get_render_count())
-count = m_point_geometry_data.get_render_count() - total_count;
+if (m_total_count + count > m_point_geometry_data.get_render_count())
+count = m_point_geometry_data.get_render_count() - m_total_count;
 
 if (count > 0) {
 	auto& point_prog = m_point_renderer.ref_prog();
 	point_prog.enable(ctx);
 	content_canvas.set_view(ctx, point_prog);
+	std::cout << m_alpha << std::endl;
+	m_point_style.fill_color = rgba(rgb(0.0f), m_alpha);
 	m_point_style.apply(ctx, point_prog);
 	point_prog.set_attribute(ctx, "size", vec2(radius));
 	point_prog.disable(ctx);
-	m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_data, total_count, count);
+	m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_data, m_total_count, count);
 }
 
 // accumulate the total amount of so-far drawn points
-total_count += count;
+m_total_count += count;
 
 // disable the offline frame buffer so subsequent draw calls render into the main frame buffer
 fbc_plot.disable(ctx);
@@ -678,7 +630,7 @@ if (use_tone_mapping) {
 
 // Stop the process if we have drawn all available lines,
 // otherwise request drawing of another frame.
-bool run = total_count < m_point_geometry_data.get_render_count();
+bool run = m_total_count < m_point_geometry_data.get_render_count();
 if (run) {
 	post_redraw();
 }

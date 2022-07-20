@@ -1,15 +1,9 @@
 #pragma once
 
-#include <cgv_glutil/frame_buffer_container.h>
 #include <cgv_glutil/generic_renderer.h>
-#include <cgv_glutil/2d/canvas.h>
-#include <cgv_glutil/2d/shape2d_styles.h>
 #include <cgv_glutil/msdf_gl_font_renderer.h>
-#include <plot/plot2d.h>
 
-#include "sliced_volume_data_set.h"
-#include "shared_editor_data.h"
-#include "tf_editor_shared_data_types.h"
+#include "tf_editor_basic.h"
 
 /*
 This class provides an example to render a scatter plot (SP), depicting 2 dimensions of the given 4 dimensional data.
@@ -27,33 +21,9 @@ Even though only 2 dimensions are displayed, the filtering considers the all dim
 
 This example further demonstrates how to render 2d text. The text is used to display labels on the coordinate axes.
 */
-class tf_editor_scatterplot : public cgv::glutil::overlay {
+class tf_editor_scatterplot : public tf_editor_basic {
 protected:
-	/// whether we need to redraw the contents of this overlay
-	bool has_damage = true;
 
-	/// a frame buffer container, storing the offline frame buffer of this overlay content
-	cgv::glutil::frame_buffer_container fbc;
-
-	/// a frame buffer container, storing the offline frame buffer of the plot points
-	cgv::glutil::frame_buffer_container fbc_plot;
-
-	/// canvas to draw content into (same size as overlay)
-	cgv::glutil::canvas content_canvas;
-	/// canvas to draw overlay into (same size as viewport/main framebuffer)
-	cgv::glutil::canvas viewport_canvas;
-	/// final style for the overlay when rendering into main framebuffer
-	cgv::glutil::shape2d_style overlay_style;
-
-	/// rectangle defining the draw area of the actual plot
-	cgv::glutil::rect domain;
-
-	/// keeps track of the amount of points that have been rendred so-far
-	int total_count = 0;
-	/// threshold that is applied to protein desnity samples before plotting
-	float threshold = 0.25f;
-	/// alpha value of individual points in plot
-	float alpha = 0.1f;
 	/// point radius
 	float radius = 2.0f;
 	/// point blur amount
@@ -94,39 +64,40 @@ protected:
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
 	/// create the label texts
-	void create_labels();
+	void create_labels() override;
 	/// update the overlay content (called by a button in the gui)
 	void update_content();
 
 public:
 	tf_editor_scatterplot();
-	std::string get_type_name() const { return "sp_overlay"; }
+	std::string get_type_name() const { return "tf_editor_scatterplot_overlay"; }
 
 	void clear(cgv::render::context& ctx);
 
 	bool self_reflect(cgv::reflect::reflection_handler& _rh);
-	void stream_help(std::ostream& os) {}
 
 	bool handle_event(cgv::gui::event& e);
 	void on_set(void* member_ptr);
 
 	bool init(cgv::render::context& ctx);
 	void init_frame(cgv::render::context& ctx);
-	void draw(cgv::render::context& ctx);
-	void draw_content(cgv::render::context& ctx);
+
+	void draw_content(cgv::render::context& ctx) override;
 	
 	void create_gui();
 
 	void resynchronize();
 
 	void primitive_added();
-	
+
 	void set_data_set(sliced_volume_data_set* data_set_ptr) {
 		m_data_set_ptr = data_set_ptr;
 		create_labels();
 	}
 
-	void set_shared_data(shared_data_ptr data_ptr) { m_shared_data_ptr = data_ptr; }
+	void set_shared_data(shared_data_ptr data_ptr) {
+		m_shared_data_ptr = data_ptr;
+	}
 
 private:
 
@@ -155,12 +126,6 @@ private:
 			update_content();
 			return;
 		}
-		has_damage = true;
-		post_redraw();
-	}
-
-	// redraw the plot contents excluding the data vis, optionally recreate the gui
-	void redraw() {
 		has_damage = true;
 		post_redraw();
 	}
@@ -202,13 +167,6 @@ private:
 	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
 
 	cgv::glutil::shape2d_style m_rect_grid_style;
-
-	bool use_tone_mapping = false;
-	unsigned tm_normalization_count = 1000;
-	float tm_alpha = 1.0f;
-	float tm_gamma = 1.0f;
-
-	bool reset_plot = true;
 
 	// Has a point been clicked?
 	bool m_is_point_clicked = false;

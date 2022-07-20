@@ -12,34 +12,12 @@
 
 tf_editor_lines::tf_editor_lines()
 {	
-	set_name("PCP Overlay");
-	// prevent the mouse events from reaching through this overlay to the underlying elements
-	block_events = true;
-
-	// setup positioning and size
-	set_overlay_alignment(AO_START, AO_END);
-	set_overlay_stretch(SO_NONE);
-	set_overlay_margin(ivec2(-3));
+	set_name("TF Editor Lines Overlay");
 	// set the size with an aspect ratio that makes lets the editor nicely fit inside
 	// aspect ratio is w:h = 1:0.875
 	set_overlay_size(ivec2(600, 525));
-	
-	// add a color attachment to the content frame buffer with support for transparency (alpha)
-	fbc.add_attachment("color", "flt32[R,G,B,A]");
-	// change its size to be the same as the overlay
-	fbc.set_size(get_overlay_size());
 
-	fbc_plot.add_attachment("color", "flt32[R,G,B,A]");
-	fbc_plot.set_size(get_overlay_size());
-
-	// register a rectangle shader for the content canvas, to draw a frame around the plot
-	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
-	content_canvas.register_shader("plot_tone_mapping", "plot_tone_mapping.glpr");
-
-	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main
-	// frame buffer
-	viewport_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
 	// initialize the renderers
 	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
@@ -70,10 +48,6 @@ void tf_editor_lines::clear(cgv::render::context& ctx) {
 	m_point_renderer.destruct(ctx);
 	m_point_geometry.destruct(ctx);
 	m_point_geometry_interacted.destruct(ctx);
-}
-
-bool tf_editor_lines::self_reflect(cgv::reflect::reflection_handler& _rh) {
-	return true;
 }
 
 bool tf_editor_lines::handle_event(cgv::gui::event& e) {
@@ -123,7 +97,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 
 void tf_editor_lines::on_set(void* member_ptr) {
 	// react to changes of the line alpha parameter and update the styles
-	if(member_ptr == &line_alpha) {
+	if(member_ptr == &m_alpha) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
 	}
@@ -208,36 +182,8 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 		m_create_all_values = true;
 
 		has_damage = true;
-		reset_plot = true;
+		m_reset_plot = true;
 	}
-}
-
-void tf_editor_lines::draw(cgv::render::context& ctx) {
-
-	if(!show)
-		return;
-
-	// disable depth testing to place this overlay on top of everything in the viewport
-	glDisable(GL_DEPTH_TEST);
-
-	// redraw the contents if they are damaged (i.e. they need to change)
-	if(has_damage)
-		draw_content(ctx);
-	
-	// draw frame buffer texture to screen using a rectangle shape
-	viewport_canvas.enable_shader(ctx, "rectangle");
-	// enable the color attachment from the offline frame buffer as a texture
-	fbc.enable_attachment(ctx, "color", 0);
-	// Invoke the drawing of a simple shape with given position and size.
-	// Since the rectange shader is active, this will produce a rectangle
-	// and since we configured the shader with our style, the final color
-	// of the rectangle will be determined by the texture.
-	viewport_canvas.draw_shape(ctx, get_overlay_position(), get_overlay_size());
-	fbc.disable_attachment(ctx, "color");
-	viewport_canvas.disable_current_shader(ctx);
-	
-	// make sure to re-enable the depth test after we are done
-	glEnable(GL_DEPTH_TEST);
 }
 
 void tf_editor_lines::draw_content(cgv::render::context& ctx) {
@@ -339,8 +285,8 @@ void tf_editor_lines::create_gui() {
 	// add a button to trigger a content update by redrawing
 	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_lines::update_content));
 	// add controls for parameters
-	add_member_control(this, "Threshold", threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "Line Alpha", line_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "Threshold", m_threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "Line Alpha", m_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
 	add_member_control(this, "other_threshold", other_threshold, "check");
 
 	add_member_control(this, "Use Tone Mapping", use_tone_mapping, "check");
@@ -390,7 +336,7 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_line_style_polygons.use_blending = true;
 	m_line_style_polygons.use_fill_color = false;
 	m_line_style_polygons.apply_gamma = false;
-	m_line_style_polygons.fill_color = rgba(1.0f, 0.0f, 0.0f, line_alpha);
+	m_line_style_polygons.fill_color = rgba(1.0f, 0.0f, 0.0f, m_alpha);
 
 	m_line_style_strip_borders.use_blending = true;
 	m_line_style_strip_borders.use_fill_color = false;
@@ -489,7 +435,7 @@ void tf_editor_lines::update_content() {
 	m_interacted_id_set = false;
 
 	// reset previous total count and line geometry
-	total_count = 0;
+	m_total_count = 0;
 	m_line_geometry_relations.clear();
 
 	// for each given sample of 4 protein densities, do:
@@ -502,20 +448,20 @@ void tf_editor_lines::update_content() {
 		bool force = false;
 		if(other_threshold) {
 			force =
-				v[0] > threshold ||
-				v[1] > threshold ||
-				v[2] > threshold ||
-				v[3] > threshold;
+				v[0] > m_threshold ||
+				v[1] > m_threshold ||
+				v[2] > m_threshold ||
+				v[3] > m_threshold;
 		}
 
-		if(avg > threshold || force) {
+		if(avg > m_threshold || force) {
 
 			rgb color_rgb(0.0f);
 			if (vis_mode == VM_GTF) {
 				color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
 			}
 
-			rgba col(color_rgb, use_tone_mapping ? 1.0f : line_alpha);
+			rgba col(color_rgb, use_tone_mapping ? 1.0f : m_alpha);
 
 			// Left to right
 			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]), col);
@@ -734,34 +680,34 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 	}
 
 	// make sure to reset the color buffer if we update the content from scratch
-	if (total_count == 0 || reset_plot) {
+	if (m_total_count == 0 || m_reset_plot) {
 		if (use_tone_mapping)
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		else
 			glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		reset_plot = false;
+		m_reset_plot = false;
 	}
 
 	// the amount of lines that will be drawn in each step
 	int count = 1000000;
 
 	// make sure not to draw more lines than available
-	if(total_count + count > m_line_geometry_relations.get_render_count())
-		count = m_line_geometry_relations.get_render_count() - total_count;
+	if(m_total_count + count > m_line_geometry_relations.get_render_count())
+		count = m_line_geometry_relations.get_render_count() - m_total_count;
 	// draw the relations
 	if(count > 0) {
 		auto& line_prog = m_line_renderer.ref_prog();
 		line_prog.enable(ctx);
 		content_canvas.set_view(ctx, line_prog);
-		m_line_style_relations.fill_color = rgba(rgb(0.0f), line_alpha);
+		m_line_style_relations.fill_color = rgba(rgb(0.0f), m_alpha);
 		m_line_style_relations.apply(ctx, line_prog);
 		line_prog.disable(ctx);
-		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_relations, total_count, count);
+		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_relations, m_total_count, count);
 	}
 
 	// accumulate the total amount of so-far drawn lines
-	total_count += count;
+	m_total_count += count;
 
 	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
 	fbc_plot.disable(ctx);
@@ -773,7 +719,7 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 
 	// Stop the process if we have drawn all available lines,
 	// otherwise request drawing of another frame.
-	bool run = total_count < m_line_geometry_relations.get_render_count();
+	bool run = m_total_count < m_line_geometry_relations.get_render_count();
 	if(run) {
 		post_redraw();
 	} else {

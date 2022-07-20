@@ -2,47 +2,14 @@
 
 #pragma once
 
-#include <cgv_glutil/frame_buffer_container.h>
 #include <cgv_glutil/generic_renderer.h>
 #include <cgv_glutil/msdf_gl_font_renderer.h>
-#include <cgv_glutil/2d/canvas.h>
-#include <cgv_glutil/2d/shape2d_styles.h>
-#include <plot/plot2d.h>
 
-#include "sliced_volume_data_set.h"
-#include "shared_editor_data.h"
-#include "tf_editor_shared_data_types.h"
+#include "tf_editor_basic.h"
 
 /* This class provides the editor of the transfer function. The values are synchronized with the GUI */
-class tf_editor_lines : public cgv::glutil::overlay {
+class tf_editor_lines : public tf_editor_basic {
 protected:
-	/// whether we need to redraw the contents of this overlay
-	bool has_damage = true;
-
-	/// a frame buffer container, storing the offline frame buffer of this overlay content
-	cgv::glutil::frame_buffer_container fbc;
-
-	/// a frame buffer container, storing the offline frame buffer of the plot lines
-	cgv::glutil::frame_buffer_container fbc_plot;
-
-	/// canvas to draw content into (same size as overlay)
-	cgv::glutil::canvas content_canvas;
-	/// canvas to draw overlay into (same size as viewport/main framebuffer)
-	cgv::glutil::canvas viewport_canvas;
-	/// final style for the overlay when rendering into main framebuffer
-	cgv::glutil::shape2d_style overlay_style;
-
-	/// rectangle defining the draw area of the actual plot
-	cgv::glutil::rect domain;
-
-	/// whether the plot shall be reset and its framebuffer cleared
-	bool reset_plot = true;
-	/// keeps track of the amount of lines that have been rendred so-far
-	int total_count = 0;
-	/// threshold that is applied to protein desnity samples before plotting
-	float threshold = 0.3f;
-	/// alpha value of individual lines in plot
-	float line_alpha = 0.0001f;
 
 	bool other_threshold = false;
 
@@ -74,26 +41,23 @@ protected:
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
 	/// create the label texts
-	void create_labels();
+	void create_labels() override;
 	/// update the overlay content (called by a button in the gui)
 	void update_content();
 
 public:
 	tf_editor_lines();
-	std::string get_type_name() const { return "pcp_overlay"; }
+	std::string get_type_name() const { return "tf_editor_lines_overlay"; }
 
 	void clear(cgv::render::context& ctx);
-
-	bool self_reflect(cgv::reflect::reflection_handler& _rh);
-	void stream_help(std::ostream& os) {}
 
 	bool handle_event(cgv::gui::event& e);
 	void on_set(void* member_ptr);
 
 	bool init(cgv::render::context& ctx);
 	void init_frame(cgv::render::context& ctx);
-	void draw(cgv::render::context& ctx);
-	void draw_content(cgv::render::context& ctx);
+
+	void draw_content(cgv::render::context& ctx) override;
 	
 	void create_gui();
 	
@@ -106,7 +70,9 @@ public:
 		create_labels();
 	}
 
-	void set_shared_data(shared_data_ptr data_ptr) { m_shared_data_ptr = data_ptr; }
+	void set_shared_data(shared_data_ptr data_ptr) {
+		m_shared_data_ptr = data_ptr;
+	}
 
 private:
 
@@ -147,23 +113,12 @@ private:
 		post_redraw();
 	}
 
-	// redraw the plot contents excluding the data vis, optionally recreate the gui
-	void redraw() {
-		has_damage = true;
-		post_redraw();
-	}
-
 private:
 
 	enum VisualizationMode {
 		VM_QUADSTRIP = 0,
 		VM_GTF = 1
 	} vis_mode;
-
-	/// store a pointer to the data set
-	sliced_volume_data_set* m_data_set_ptr = nullptr;
-
-	shared_data_ptr m_shared_data_ptr;
 
 	cgv::glutil::line2d_style m_line_style_relations;
 	cgv::glutil::line2d_style m_line_style_widgets;
@@ -187,10 +142,6 @@ private:
 	std::vector<tf_editor_shared_data_types::point_line*> m_interacted_points;
 
 	cgv::glutil::shape2d_style m_plot_line_style;
-	bool use_tone_mapping = false;
-	unsigned tm_normalization_count = 1000;
-	float tm_alpha = 1.0f;
-	float tm_gamma = 1.0f;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 1.0f };
