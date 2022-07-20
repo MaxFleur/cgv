@@ -6,20 +6,8 @@
 #include "tf_editor_basic.h"
 
 /*
-This class provides an example to render a scatter plot (SP), depicting 2 dimensions of the given 4 dimensional data.
-Points are drawn on a 2 dimensional domain, where each orthogonal axis represents a different data dimension.
-Due to the large amount of input data, points are drawn in batches to prevent program stalls during rendering.
-Press the "Update" button in the GUi to force the plot to redraw its contents.
-
-A x and y index determine the index of the data dimension to be displayed.
-
-Points are drawn transparent, using the standard over blending operator, to achieve an accumulative effect
-in the final image, emphasizing regions of many overlapping lines.
-Point size and blur can be adjusted in the GUI. The effect will be visible after pressing "Update".
-To filter the data before drawing, points whose average sample values are lower than a given threshold are removed.
-Even though only 2 dimensions are displayed, the filtering considers the all dimensions.
-
-This example further demonstrates how to render 2d text. The text is used to display labels on the coordinate axes.
+This class provides a 2D-scatterplot matrix (SPLOM). Added primitives can be modified here. 
+If primitive values were modified, they are synchronized with the GUI and line based editor.
 */
 class tf_editor_scatterplot : public tf_editor_basic {
 protected:
@@ -37,8 +25,6 @@ protected:
 
 	/// renderer for the 2d plot points
 	cgv::glutil::generic_renderer m_point_renderer;
-	// renderer for grid lines
-	cgv::glutil::generic_renderer m_line_renderer;
 	// renderer for the draggables
 	cgv::glutil::generic_renderer m_draggables_renderer;
 
@@ -90,15 +76,6 @@ public:
 
 	void primitive_added();
 
-	void set_data_set(sliced_volume_data_set* data_set_ptr) {
-		m_data_set_ptr = data_set_ptr;
-		create_labels();
-	}
-
-	void set_shared_data(shared_data_ptr data_ptr) {
-		m_shared_data_ptr = data_ptr;
-	}
-
 private:
 
 	void create_grid();
@@ -137,11 +114,6 @@ private:
 		VM_GTF = 1
 	} vis_mode;
 
-	/// store a pointer to the data set
-	sliced_volume_data_set* m_data_set_ptr = nullptr;
-
-	shared_data_ptr m_shared_data_ptr;
-
 	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
 	cgv::glutil::shape2d_style m_rectangle_style;
@@ -168,16 +140,8 @@ private:
 
 	cgv::glutil::shape2d_style m_rect_grid_style;
 
-	// Has a point been clicked?
-	bool m_is_point_clicked = false;
-
 	// Store the indices of to be updated centroids if a point has been interacted with
 	std::pair<int, int> m_interacted_point_id;
-	// Has a point been dragged?
-	bool m_interacted_id_set = false;
-
-	// Id of the centroid layer whose point was clicked
-	int m_clicked_centroid_id;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_scatterplot> tf_editor_scatterplot_ptr;

@@ -12,13 +12,12 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	
 	set_name("TF Editor Scatterplot Overlay");
 	set_overlay_size(ivec2(700, 700));
+	m_alpha = 0.1f;
 
 	content_canvas.register_shader("ellipse", cgv::glutil::canvas::shaders_2d::ellipse);
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
 	m_point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
-
-	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 	m_draggables_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 
 	// callbacks for the moving of centroids
@@ -27,19 +26,11 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 }
 
 void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
-
-	// destruct all previously initialized members
-	content_canvas.destruct(ctx);
-	viewport_canvas.destruct(ctx);
-	fbc.clear(ctx);
-	fbc_plot.clear(ctx);
-
 	m_point_renderer.destruct(ctx);
 	m_point_geometry_data.destruct(ctx);
 	m_point_geometry.destruct(ctx);
 	m_point_geometry_interacted.destruct(ctx);
 
-	m_line_renderer.destruct(ctx);
 	m_draggables_renderer.destruct(ctx);
 
 	font.destruct(ctx);
@@ -133,7 +124,6 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	success &= viewport_canvas.init(ctx);
 	success &= m_point_renderer.init(ctx);
 	success &= font_renderer.init(ctx);
-	success &= m_line_renderer.init(ctx);
 	success &= m_draggables_renderer.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
@@ -792,7 +782,7 @@ void tf_editor_scatterplot::set_point_positions() {
 				m_shared_data_ptr->primitives.at(i).centr_pos[m_points[i][j].m_stain_second] = gui_value_second;
 				update_member(&m_shared_data_ptr->primitives.at(i).centr_pos[m_points[i][j].m_stain_second]);
 
-				m_interacted_id_set = true;
+				m_is_point_dragged = true;
 
 				m_shared_data_ptr->set_synchronized(false);
 			}
@@ -853,7 +843,7 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 	}
 	// If we found something, we have to set the corresponding point ids and redraw
 	if (found) {
-		m_interacted_id_set = true;
+		m_is_point_dragged = true;
 
 		m_shared_data_ptr->set_synchronized(false);
 

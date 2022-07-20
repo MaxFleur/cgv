@@ -30,11 +30,6 @@ tf_editor_lines::tf_editor_lines()
 }
 
 void tf_editor_lines::clear(cgv::render::context& ctx) {
-	content_canvas.destruct(ctx);
-	viewport_canvas.destruct(ctx);
-	fbc.clear(ctx);
-	fbc_plot.clear(ctx);
-
 	m_line_renderer.destruct(ctx);
 	m_line_geometry_relations.destruct(ctx);
 	m_line_geometry_widgets.destruct(ctx);
@@ -432,7 +427,7 @@ void tf_editor_lines::update_content() {
 	const auto& data = m_data_set_ptr->voxel_data;
 
 	m_create_all_values = true;
-	m_interacted_id_set = false;
+	m_is_point_dragged = false;
 
 	// reset previous total count and line geometry
 	m_total_count = 0;
@@ -835,7 +830,7 @@ bool tf_editor_lines::create_centroid_boundaries() {
 	}
 	// If a centroid is dragged in the editor, it would make no sense to redraw everything
 	// So we redraw only the centroids that were updated
-	else if (m_interacted_id_set) {
+	else if (m_is_point_dragged) {
 		// Recalculate values
 		calculate_values(m_interacted_centroid_ids[0], m_interacted_centroid_ids[1] / 3);
 
@@ -979,7 +974,7 @@ void tf_editor_lines::set_point_positions() {
 					set_points(i, j, -1, -2);
 				}
 
-				m_interacted_id_set = true;
+				m_is_point_dragged = true;
 
 				int protein_index = j / 3;
 				// Remap to correct GUI vals
@@ -1072,7 +1067,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 	}
 	// If we found something, we have to set the corresponding point ids and redraw
 	if (found) {
-		m_interacted_id_set = true;
+		m_is_point_dragged = true;
 		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, m_clicked_centroid_id, found_index);
 
 		m_shared_data_ptr->set_synchronized();

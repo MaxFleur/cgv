@@ -7,7 +7,10 @@
 
 #include "tf_editor_basic.h"
 
-/* This class provides the editor of the transfer function. The values are synchronized with the GUI */
+/* 
+This class provides the line based editor of the transfer function. Added primitives can be modified here. 
+If primitive values were modified, they are synchronized with the GUI and scatterplot.
+*/
 class tf_editor_lines : public tf_editor_basic {
 protected:
 
@@ -64,15 +67,6 @@ public:
 	void resynchronize();
 
 	void primitive_added();
-
-	void set_data_set(sliced_volume_data_set* data_set_ptr) {
-		m_data_set_ptr = data_set_ptr;
-		create_labels();
-	}
-
-	void set_shared_data(shared_data_ptr data_ptr) {
-		m_shared_data_ptr = data_ptr;
-	}
 
 private:
 
@@ -155,13 +149,6 @@ private:
 	bool m_strips_created = true;
 	// Do we need to update all values?
 	bool m_create_all_values = true;
-	// Has a point been dragged?
-	bool m_interacted_id_set = false;
-
-	// Has a point been clicked?
-	bool m_is_point_clicked = false;
-	// Id of the centroid layer whose point was clicked
-	int m_clicked_centroid_id;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_lines> tf_editor_lines_ptr;

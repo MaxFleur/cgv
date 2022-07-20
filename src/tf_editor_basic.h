@@ -20,10 +20,21 @@ public:
 
 	bool self_reflect(cgv::reflect::reflection_handler& _rh) { return true; }
 
+	void set_data_set(sliced_volume_data_set* data_set_ptr) {
+		m_data_set_ptr = data_set_ptr;
+		create_labels();
+	}
+
+	void set_shared_data(shared_data_ptr data_ptr) {
+		m_shared_data_ptr = data_ptr;
+	}
+
 protected:
 
 	// Main drawing function
 	void draw(cgv::render::context& ctx);
+
+	void clear(cgv::render::context& ctx);
 
 	// Draw all contents of the editor, exlcuding the plot. This is customized in the
 	// deriving editors.
@@ -32,7 +43,7 @@ protected:
 	// Label creation needed if the sliced data is set, customized in the deriving editors.
 	virtual void create_labels() = 0;
 
-	// redraw the plot contents excluding the data vis
+	// redraw the plot contents
 	void redraw() {
 		has_damage = true;
 		post_redraw();
@@ -73,10 +84,17 @@ protected:
 	float tm_alpha = 1.0f;
 	float tm_gamma = 1.0f;
 
+	// Point parameters
+	// Has a point been clicked?
+	bool m_is_point_clicked = false;
+	// Has a point been dragged?
+	bool m_is_point_dragged = false;
+	// id of the centroid layer whose point was clicked
+	int m_clicked_centroid_id;
+
 	// store a pointer to the data set
 	sliced_volume_data_set* m_data_set_ptr = nullptr;
-
-	// A pointer to the shared primitive data
+	// a pointer to the shared primitive data
 	shared_data_ptr m_shared_data_ptr;
 };
 

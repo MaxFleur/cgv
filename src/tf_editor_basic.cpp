@@ -57,4 +57,11 @@ void tf_editor_basic::draw(cgv::render::context& ctx) {
 	glEnable(GL_DEPTH_TEST);
 }
 
+void tf_editor_basic::clear(cgv::render::context& ctx) {
+	content_canvas.destruct(ctx);
+	viewport_canvas.destruct(ctx);
+	fbc.clear(ctx);
+	fbc_plot.clear(ctx);
+}
+
 /** END - MFLEURY **/
