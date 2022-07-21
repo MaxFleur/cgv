@@ -1,6 +1,7 @@
+/** BEGIN - MFLEURY **/
+
 #include "tf_editor_scatterplot.h"
 
-#include <cgv/gui/animate.h>
 #include <cgv/gui/key_event.h>
 #include <cgv/gui/mouse_event.h>
 #include <cgv/math/ftransform.h>
@@ -12,13 +13,15 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	
 	set_name("TF Editor Scatterplot Overlay");
 	set_overlay_size(ivec2(700, 700));
+	// Reset alpha so points are better visisble at the start
 	m_alpha = 0.1f;
 
+	// Register additional ellipses
 	content_canvas.register_shader("ellipse", cgv::glutil::canvas::shaders_2d::ellipse);
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
-	m_point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
-	m_draggables_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
+	m_renderer_plot_points = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
+	m_renderer_draggables = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 
 	// callbacks for the moving of centroids
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_scatterplot::set_point_positions, this));
@@ -26,19 +29,15 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 }
 
 void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
-	m_point_renderer.destruct(ctx);
-	m_point_geometry_data.destruct(ctx);
+	m_renderer_plot_points.destruct(ctx);
+	m_geometry_plot_points.destruct(ctx);
 	m_geometry_draggables.destruct(ctx);
 	m_geometry_draggables_interacted.destruct(ctx);
 
-	m_draggables_renderer.destruct(ctx);
+	m_renderer_draggables.destruct(ctx);
 
 	m_font.destruct(ctx);
 	m_renderer_fonts.destruct(ctx);
-}
-
-bool tf_editor_scatterplot::self_reflect(cgv::reflect::reflection_handler& _rh) {
-	return true;
 }
 
 bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
@@ -59,10 +58,10 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 	if (et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
-		ivec2 mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
+		const auto mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
 		// Search for points if RMB is pressed
 		if (me.get_action() == cgv::gui::MA_PRESS && me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
-			find_clicked_centroid(mpos.x(), mpos.y());
+			find_clicked_draggable(mpos.x(), mpos.y());
 		}
 
 		// Set width if a scroll is done
@@ -83,20 +82,19 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 		return handled;
 	}
 
-	// return true if the event gets handled and stopped here or false if you want to pass it to the next plugin
 	return false;
 }
 
 void tf_editor_scatterplot::on_set(void* member_ptr) {
-
-	if (member_ptr == &vis_mode) {
-		update_content();
-	}
-
 	// react to changes of the point alpha parameter and update the styles
 	if(member_ptr == &m_alpha || member_ptr == &blur) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
+	}
+
+	// Update if the visualization mode has changed
+	if (member_ptr == &vis_mode) {
+		update_content();
 	}
 
 	update_member(member_ptr);
@@ -112,9 +110,9 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	success &= fbc_plot.ensure(ctx);
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
-	success &= m_point_renderer.init(ctx);
+	success &= m_renderer_plot_points.init(ctx);
 	success &= m_renderer_fonts.init(ctx);
-	success &= m_draggables_renderer.init(ctx);
+	success &= m_renderer_draggables.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
 	if(success)
@@ -158,94 +156,6 @@ void tf_editor_scatterplot::init_frame(cgv::render::context& ctx) {
 	}
 }
 
-void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
-
-	// enable the OpenGL blend functionalities
-	glEnable(GL_BLEND);
-	// setup a suitable blend function for color and alpha values (following the over-operator)
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-	// first draw the plot (the method will check internally if it needs an update)
-	bool done = draw_scatterplot(ctx);
-	
-	// enable the offline frame buffer, so all things are drawn into its attached textures
-	fbc.enable(ctx);
-	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	// draw the plot content from its own framebuffer texture
-	fbc_plot.enable_attachment(ctx, "color", 0);
-
-	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
-	
-	if(use_tone_mapping) {
-		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
-		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
-		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
-		rectangle_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
-	}
-
-	m_rect_grid_style.use_blending = use_tone_mapping;
-	m_rect_grid_style.apply(ctx, rectangle_prog);
-
-	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
-	content_canvas.disable_current_shader(ctx);
-	fbc_plot.disable_attachment(ctx, "color");
-
-	// ...and axis labels
-	// this is pretty much the same as for the generic renderer
-	auto& font_prog = m_renderer_fonts.ref_prog();
-	font_prog.enable(ctx);
-	content_canvas.set_view(ctx, font_prog);
-	font_prog.disable(ctx);
-	// draw the first label only
-	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels, 0, 3);
-
-	// save the current view matrix
-	content_canvas.push_modelview_matrix();
-	// Rotate the view, so the second label is drawn sideways.
-	// Objects are rotated around the origin, so we first need to move the text to the origin.
-	// Transformations are applied in reverse order:
-	//  3 - move text to origin
-	//  2 - rotate 90 degrees
-	//  1 - move text back to its position
-	//content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(labels.ref_texts()[1].position));	// 1
-	content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(90.0f));							// 2
-	content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(vec2(0.0f, -40.0f)));	// 3
-
-	// now render the second label
-	font_prog.enable(ctx);
-	content_canvas.set_view(ctx, font_prog);
-	font_prog.disable(ctx);
-	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels, 3, 6);
-		
-	// restore the previous view matrix
-	content_canvas.pop_modelview_matrix(ctx);
-	
-	// Ellipses and Boxes are next 
-	create_primitive_shapes();
-	draw_primitive_shapes(ctx);
-
-	// Now the draggable points
-	draw_draggables(ctx);
-
-	// Create and draw the scatterplot grids
-	create_grid();
-	auto& rect_prog = content_canvas.enable_shader(ctx, "rectangle");
-	m_rectangle_style.apply(ctx, rect_prog);
-	for (const auto rectangle : m_rectangles_draw) {
-		content_canvas.draw_shape(ctx, rectangle.start, rectangle.end, m_rectangle_style.border_color);
-	}
-	content_canvas.disable_current_shader(ctx);
-
-	fbc.disable(ctx);
-
-	// don't forget to disable blending
-	glDisable(GL_BLEND);
-
-	has_damage = !done;
-}
-
 void tf_editor_scatterplot::create_gui() {
 
 	create_overlay_gui();
@@ -270,7 +180,7 @@ void tf_editor_scatterplot::create_gui() {
 }
 
 void tf_editor_scatterplot::resynchronize() {
-
+	// Clear and readd points
 	m_points.clear();
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 		add_centroid_draggables(true, i);
@@ -282,6 +192,20 @@ void tf_editor_scatterplot::resynchronize() {
 			m_point_handles.add(&m_points[i][j]);
 		}
 	}
+	// Then redraw strips etc
+	redraw();
+}
+
+void tf_editor_scatterplot::primitive_added() {
+	add_centroid_draggables(true, m_shared_data_ptr->primitives.size() - 1);
+	// Add a corresponding draggable point for every centroid
+	m_point_handles.clear();
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			m_point_handles.add(&m_points[i][j]);
+		}
+	}
+	m_shared_data_ptr->set_synchronized(false);
 
 	redraw();
 }
@@ -289,17 +213,17 @@ void tf_editor_scatterplot::resynchronize() {
 void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 
 	// configure style for rendering the plot framebuffer texture
-	m_rect_grid_style.use_texture = true;
-	m_rect_grid_style.apply_gamma = false;
-	m_rect_grid_style.feather_width = 0.0f;
+	m_style_grid.use_texture = true;
+	m_style_grid.apply_gamma = false;
+	m_style_grid.feather_width = 0.0f;
 
 	// configure style for the plot points
-	m_point_style.use_blending = true;
-	m_point_style.use_fill_color = false;
-	m_point_style.apply_gamma = false;
-	m_point_style.position_is_center = true;
-	m_point_style.fill_color = rgba(rgb(0.0f), m_alpha);
-	m_point_style.feather_width = blur;
+	m_style_plot_points.use_blending = true;
+	m_style_plot_points.use_fill_color = false;
+	m_style_plot_points.apply_gamma = false;
+	m_style_plot_points.position_is_center = true;
+	m_style_plot_points.fill_color = rgba(rgb(0.0f), m_alpha);
+	m_style_plot_points.feather_width = blur;
 
 	// Style for the grid
 	m_rectangle_style.border_color = rgba(0.4f, 0.4f, 0.4f, 1.0f);
@@ -308,16 +232,11 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_rectangle_style.use_fill_color = false;
 	m_rectangle_style.ring_width = 0.5f;
 
-	// Ellipses
-	m_ellipse_style.use_blending = true;
-	m_ellipse_style.use_fill_color = true;
-	m_ellipse_style.apply_gamma = false;
-	m_ellipse_style.border_width = 5.0f;
-
-	m_rect_box_style.use_blending = true;
-	m_rect_box_style.use_fill_color = true;
-	m_rect_box_style.apply_gamma = false;
-	m_rect_box_style.border_width = 5.0f;
+	// Shapes
+	m_style_shapes.use_blending = true;
+	m_style_shapes.use_fill_color = true;
+	m_style_shapes.apply_gamma = false;
+	m_style_shapes.border_width = 5.0f;
 
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;
@@ -328,14 +247,14 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	text_style.apply_gamma = false;
 
 	// draggables style
-	m_draggable_style.position_is_center = true;
-	m_draggable_style.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
-	m_draggable_style.border_width = 1.5f;
-	m_draggable_style.use_blending = true;
-	m_draggable_style_interacted.position_is_center = true;
-	m_draggable_style_interacted.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
-	m_draggable_style_interacted.border_width = 1.5f;
-	m_draggable_style_interacted.use_blending = true;
+	m_style_draggables.position_is_center = true;
+	m_style_draggables.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
+	m_style_draggables.border_width = 1.5f;
+	m_style_draggables.use_blending = true;
+	m_style_draggables_interacted.position_is_center = true;
+	m_style_draggables_interacted.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
+	m_style_draggables_interacted.border_width = 1.5f;
+	m_style_draggables_interacted.use_blending = true;
 	
 	auto& font_prog = m_renderer_fonts.ref_prog();
 	font_prog.enable(ctx);
@@ -357,44 +276,20 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	viewport_canvas.disable_current_shader(ctx);
 }
 
-void tf_editor_scatterplot::create_labels() {
-	
-	m_labels.clear();
-
-	std::vector<std::string> texts = { "0", "1", "2", "3" };
-
-	if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3) {
-		texts = m_data_set_ptr->stain_names;
-	}
-
-	if(m_font.is_initialized()) {
-		const auto x = domain.pos().x() + 100;
-		const auto y = domain.pos().y() - label_space / 2;
-
-		m_labels.add_text(texts[0], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
-
-		m_labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
-	}
-}
-
 void tf_editor_scatterplot::update_content() {
 
-	if(!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
+	if (!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
 
 	const auto& data = m_data_set_ptr->voxel_data;
 
 	// reset previous total count and point geometry
 	m_total_count = 0;
-	m_point_geometry_data.clear();
+	m_geometry_plot_points.clear();
 
 	// setup plot origin and sizes
-	vec2 org = static_cast<vec2>(domain.pos());
-	vec2 size = domain.size();
+	const auto org = static_cast<vec2>(domain.pos());
+	const auto size = domain.size();
 
 	// Construct to add the points
 	const auto add_point = [&](const vec4& v, vec2& pos, const float& x, const float& y) {
@@ -409,21 +304,21 @@ void tf_editor_scatterplot::update_content() {
 		}
 		rgba col(color_rgb, use_tone_mapping ? 1.0f : m_alpha);
 
-		m_point_geometry_data.add(pos, col);
+		m_geometry_plot_points.add(pos, col);
 	};
 
 	// for each given sample of 4 protein densities, do:
-	for(size_t i = 0; i < data.size(); ++i) {
-		const vec4& v = data[i];
+	for (size_t i = 0; i < data.size(); ++i) {
+		const auto& v = data[i];
 
 		// calculate the average to allow filtering with the given threshold
-		float avg = v[0] + v[1] + v[2] + v[3];
+		auto avg = v[0] + v[1] + v[2] + v[3];
 		avg *= 0.25f;
 
-		if(avg > m_threshold) {
+		if (avg > m_threshold) {
 			// Draw the points for each protein
 			// First column
-			float offset = 0.0f;
+			auto offset = 0.0f;
 
 			// Myosin - Actin, Myosin - Obscurin, Myosin - Salimus
 			for (int i = 1; i < 4; i++) {
@@ -450,6 +345,30 @@ void tf_editor_scatterplot::update_content() {
 	}
 
 	redraw();
+}
+
+void tf_editor_scatterplot::create_labels() {
+	
+	m_labels.clear();
+
+	std::vector<std::string> texts = { "0", "1", "2", "3" };
+
+	if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3) {
+		texts = m_data_set_ptr->stain_names;
+	}
+
+	if(m_font.is_initialized()) {
+		const auto x = domain.pos().x() + 100;
+		const auto y = domain.pos().y() - label_space / 2;
+
+		m_labels.add_text(texts[0], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+
+		m_labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+	}
 }
 
 void tf_editor_scatterplot::create_grid() {
@@ -506,20 +425,6 @@ void tf_editor_scatterplot::create_primitive_shapes() {
 	}
 }
 
-void tf_editor_scatterplot::primitive_added() {
-	add_centroid_draggables(true, m_shared_data_ptr->primitives.size() - 1);
-	// Add a corresponding point for every centroid
-	m_point_handles.clear();
-	for (unsigned i = 0; i < m_points.size(); ++i) {
-		for (int j = 0; j < m_points[i].size(); j++) {
-			m_point_handles.add(&m_points[i][j]);
-		}
-	}
-	m_shared_data_ptr->set_synchronized(false);
-
-	redraw();
-}
-
 void tf_editor_scatterplot::add_centroid_draggables(bool new_point, int centroid_index) {
 	std::vector<tf_editor_shared_data_types::point_scatterplot> points;
 	const auto org = static_cast<vec2>(domain.pos());
@@ -559,6 +464,95 @@ void tf_editor_scatterplot::add_centroid_draggables(bool new_point, int centroid
 	}
 }
 
+void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
+
+	// enable the OpenGL blend functionalities
+	glEnable(GL_BLEND);
+	// setup a suitable blend function for color and alpha values (following the over-operator)
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+	// first draw the plot (the method will check internally if it needs an update)
+	bool done = draw_scatterplot(ctx);
+
+	// enable the offline frame buffer, so all things are drawn into its attached textures
+	fbc.enable(ctx);
+	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	// draw the plot content from its own framebuffer texture
+	fbc_plot.enable_attachment(ctx, "color", 0);
+
+	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
+
+	// Aply tone mapping using the tone mapping shader
+	if (use_tone_mapping) {
+		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
+		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
+		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
+		rectangle_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
+	}
+
+	m_style_grid.use_blending = use_tone_mapping;
+	m_style_grid.apply(ctx, rectangle_prog);
+
+	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
+	content_canvas.disable_current_shader(ctx);
+	fbc_plot.disable_attachment(ctx, "color");
+
+	// ...and axis labels
+	// this is pretty much the same as for the generic renderer
+	auto& font_prog = m_renderer_fonts.ref_prog();
+	font_prog.enable(ctx);
+	content_canvas.set_view(ctx, font_prog);
+	font_prog.disable(ctx);
+	// draw the first label only
+	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels, 0, 3);
+
+	// save the current view matrix
+	content_canvas.push_modelview_matrix();
+	// Rotate the view, so the second label is drawn sideways.
+	// Objects are rotated around the origin, so we first need to move the text to the origin.
+	// Transformations are applied in reverse order:
+	//  3 - move text to origin
+	//  2 - rotate 90 degrees
+	//  1 - move text back to its position
+	//content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(labels.ref_texts()[1].position));	// 1
+	content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(90.0f));							// 2
+	content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(vec2(0.0f, -40.0f)));	// 3
+
+	// now render the second label
+	font_prog.enable(ctx);
+	content_canvas.set_view(ctx, font_prog);
+	font_prog.disable(ctx);
+	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels, 3, 6);
+
+	// restore the previous view matrix
+	content_canvas.pop_modelview_matrix(ctx);
+
+	// Shapes are next 
+	create_primitive_shapes();
+	draw_primitive_shapes(ctx);
+
+	// Now the draggables
+	draw_draggables(ctx);
+
+	// Create and draw the scatterplot grids
+	create_grid();
+	auto& rect_prog = content_canvas.enable_shader(ctx, "rectangle");
+	m_rectangle_style.apply(ctx, rect_prog);
+	for (const auto rectangle : m_rectangles_draw) {
+		content_canvas.draw_shape(ctx, rectangle.start, rectangle.end, m_rectangle_style.border_color);
+	}
+	content_canvas.disable_current_shader(ctx);
+
+	fbc.disable(ctx);
+
+	// don't forget to disable blending
+	glDisable(GL_BLEND);
+
+	has_damage = !done;
+}
+
 bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 
 	// enable the offline plot frame buffer, so all things are drawn into its attached textures
@@ -579,45 +573,45 @@ bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 	}
 
 	// the amount of points that will be drawn in each step
-	int count = 500000;
+	auto count = 500000;
 
-// make sure to not draw more points than available
-if (m_total_count + count > m_point_geometry_data.get_render_count())
-count = m_point_geometry_data.get_render_count() - m_total_count;
+	// make sure to not draw more points than available
+	if (m_total_count + count > m_geometry_plot_points.get_render_count()) 
+		count = m_geometry_plot_points.get_render_count() - m_total_count;
 
-if (count > 0) {
-	auto& point_prog = m_point_renderer.ref_prog();
-	point_prog.enable(ctx);
-	content_canvas.set_view(ctx, point_prog);
-	std::cout << m_alpha << std::endl;
-	m_point_style.fill_color = rgba(rgb(0.0f), m_alpha);
-	m_point_style.apply(ctx, point_prog);
-	point_prog.set_attribute(ctx, "size", vec2(radius));
-	point_prog.disable(ctx);
-	m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_data, m_total_count, count);
-}
+	if (count > 0) {
+		auto& point_prog = m_renderer_plot_points.ref_prog();
+		point_prog.enable(ctx);
+		content_canvas.set_view(ctx, point_prog);
+		std::cout << m_alpha << std::endl;
+		m_style_plot_points.fill_color = rgba(rgb(0.0f), m_alpha);
+		m_style_plot_points.apply(ctx, point_prog);
+		point_prog.set_attribute(ctx, "size", vec2(radius));
+		point_prog.disable(ctx);
+		m_renderer_plot_points.render(ctx, PT_POINTS, m_geometry_plot_points, m_total_count, count);
+	}
 
-// accumulate the total amount of so-far drawn points
-m_total_count += count;
+	// accumulate the total amount of so-far drawn points
+	m_total_count += count;
 
-// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
-fbc_plot.disable(ctx);
+	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
+	fbc_plot.disable(ctx);
 
-// reset the blend function
-if (use_tone_mapping) {
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-}
+	// reset the blend function
+	if (use_tone_mapping) {
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	}
 
-// Stop the process if we have drawn all available lines,
-// otherwise request drawing of another frame.
-bool run = m_total_count < m_point_geometry_data.get_render_count();
-if (run) {
-	post_redraw();
-}
-else {
-	//std::cout << "done" << std::endl;
-}
-return !run;
+	// Stop the process if we have drawn all available lines,
+	// otherwise request drawing of another frame.
+	bool run = m_total_count < m_geometry_plot_points.get_render_count();
+	if (run) {
+		post_redraw();
+	}
+	else {
+		//std::cout << "done" << std::endl;
+	}
+	return !run;
 }
 
 void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
@@ -628,8 +622,8 @@ void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 
 		const auto color = m_shared_data_ptr->primitives.at(i).color;
 		// Apply color to the centroids, always do full opacity
-		m_draggable_style.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
-		m_draggable_style_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
+		m_style_draggables.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
+		m_style_draggables_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 
 		for (int j = 0; j < m_points[i].size(); j++) {
 			// Add the points based on if they have been interacted with
@@ -639,19 +633,19 @@ void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 		}
 
 		// Draw 
-		shader_program& point_prog = m_draggables_renderer.ref_prog();
+		shader_program& point_prog = m_renderer_draggables.ref_prog();
 		point_prog.enable(ctx);
 		content_canvas.set_view(ctx, point_prog);
-		m_draggable_style.apply(ctx, point_prog);
+		m_style_draggables.apply(ctx, point_prog);
 		point_prog.set_attribute(ctx, "size", vec2(12.0f));
 		point_prog.disable(ctx);
-		m_draggables_renderer.render(ctx, PT_POINTS, m_geometry_draggables);
+		m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables);
 
 		point_prog.enable(ctx);
-		m_draggable_style_interacted.apply(ctx, point_prog);
+		m_style_draggables_interacted.apply(ctx, point_prog);
 		point_prog.set_attribute(ctx, "size", vec2(16.0f));
 		point_prog.disable(ctx);
-		m_draggables_renderer.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
+		m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
 	}
 }
 
@@ -662,16 +656,9 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 		const auto& type = m_shared_data_ptr->primitives.at(i).type;
 
-		if (type == shared_data::TYPE_BOX) {
-			m_rect_box_style.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
-			m_rect_box_style.fill_color = m_shared_data_ptr->primitives.at(i).color;
-			m_rect_box_style.ring_width = vis_mode == VM_SHAPES ? 0.0f : 3.0f;
-		}
-		else {
-			m_ellipse_style.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
-			m_ellipse_style.fill_color = m_shared_data_ptr->primitives.at(i).color;
-			m_ellipse_style.ring_width = vis_mode == VM_SHAPES ? 0.0f : 3.0f;
-		}
+		m_style_shapes.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
+		m_style_shapes.fill_color = m_shared_data_ptr->primitives.at(i).color;
+		m_style_shapes.ring_width = vis_mode == VM_SHAPES ? 0.0f : 3.0f;
 
 		auto& prog = type == shared_data::TYPE_BOX ? content_canvas.enable_shader(ctx, "rectangle") : content_canvas.enable_shader(ctx, "ellipse");
 		auto& index = type == shared_data::TYPE_BOX ? index_boxes : index_ellipses;
@@ -682,15 +669,11 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 			glEnable(GL_SCISSOR_TEST);
 			glScissor(m_rectangles_calc.at(j).start.x(), m_rectangles_calc.at(j).start.y(), m_rectangles_calc.at(j).size_x(), m_rectangles_calc.at(j).size_y());
 
-			if (type == shared_data::TYPE_BOX) {
-				m_rect_box_style.apply(ctx, prog);
-				content_canvas.draw_shape(ctx, m_boxes.at(index).at(j).start, m_boxes.at(index).at(j).end, rgba(0, 1, 1, 1));
-			}
-			else {
-				m_ellipse_style.apply(ctx, prog);
+			m_style_shapes.apply(ctx, prog);
+			type == shared_data::TYPE_BOX ?
+				content_canvas.draw_shape(ctx, m_boxes.at(index).at(j).start, m_boxes.at(index).at(j).end, rgba(0, 1, 1, 1)) :
 				content_canvas.draw_shape(ctx, m_ellipses.at(index).at(j).pos, m_ellipses.at(index).at(j).size, rgba(0, 1, 1, 1));
-			}
-			
+
 			glDisable(GL_SCISSOR_TEST);
 		}
 
@@ -783,7 +766,7 @@ void tf_editor_scatterplot::set_point_positions() {
 	post_redraw();
 }
 
-void tf_editor_scatterplot::find_clicked_centroid(int x, int y) {
+void tf_editor_scatterplot::find_clicked_draggable(int x, int y) {
 	const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y) };
 	auto found = false;
 	int found_index;
@@ -836,7 +819,8 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 		m_is_point_dragged = true;
 
 		m_shared_data_ptr->set_synchronized(false);
-
 		redraw();
 	}
 }
+
+/** END - MFLEURY **/

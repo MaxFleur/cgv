@@ -2,7 +2,6 @@
 
 #include "tf_editor_lines.h"
 
-#include <cgv/gui/animate.h>
 #include <cgv/gui/key_event.h>
 #include <cgv/gui/mouse_event.h>
 #include <cgv/math/ftransform.h>
@@ -994,7 +993,6 @@ void tf_editor_lines::update_point_positions()
 						float c = centroid.centr_pos[j / 4];
 
 						points[idx].pos = m_widget_lines.at(j).interpolate(c);
-						//points.push_back(utils_data_types::point(vec2(m_widget_lines.at(i).interpolate(0.0f)), &m_widget_lines.at(i)));
 						++idx;
 					}
 				}
@@ -1059,7 +1057,6 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_primitive_ids, m_clicked_centroid_id, found_index);
 
 		m_shared_data_ptr->set_synchronized();
-
 		redraw();
 	}
 }

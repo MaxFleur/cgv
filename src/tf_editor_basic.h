@@ -80,6 +80,11 @@ protected:
 	// If a centroid position is dragged, its size will increase, so we need two different geometries and styles
 	tf_editor_shared_data_types::point_geometry_draggable m_geometry_draggables;
 	tf_editor_shared_data_types::point_geometry_draggable m_geometry_draggables_interacted;
+	// Renderer for draggables
+	cgv::glutil::generic_renderer m_renderer_draggables;
+	// Style of the draggables, interacted are drawn differently
+	cgv::glutil::shape2d_style m_style_draggables;
+	cgv::glutil::shape2d_style m_style_draggables_interacted;
 
 	// Font storage and renderer
 	cgv::glutil::msdf_font m_font;

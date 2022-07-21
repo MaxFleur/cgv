@@ -1,3 +1,5 @@
+/** BEGIN - MFLEURY **/
+
 #pragma once
 
 #include <cgv_glutil/generic_renderer.h>
@@ -9,31 +11,6 @@ This class provides a 2D-scatterplot matrix (SPLOM). Added primitives can be mod
 If primitive values were modified, they are synchronized with the GUI and line based editor.
 */
 class tf_editor_scatterplot : public tf_editor_basic {
-protected:
-
-	/// point radius
-	float radius = 2.0f;
-	/// point blur amount
-	float blur = 0.5f;
-
-	const int label_space = 20;
-
-	/// renderer for the 2d plot points
-	cgv::glutil::generic_renderer m_point_renderer;
-	// renderer for the draggables
-	cgv::glutil::generic_renderer m_draggables_renderer;
-
-	/// define a geometry class holding 2d positions and rgba colors for each point
-	tf_editor_shared_data_types::point_geometry_data m_point_geometry_data;
-
-	tf_editor_shared_data_types::line_geometry m_line_geometry_grid;
-
-	/// initialize styles
-	void init_styles(cgv::render::context& ctx);
-	/// create the label texts
-	void create_labels() override;
-	/// update the overlay content (called by a button in the gui)
-	void update_content();
 
 public:
 	tf_editor_scatterplot();
@@ -41,15 +18,13 @@ public:
 
 	void clear(cgv::render::context& ctx);
 
-	bool self_reflect(cgv::reflect::reflection_handler& _rh);
-
 	bool handle_event(cgv::gui::event& e);
+
 	void on_set(void* member_ptr);
 
 	bool init(cgv::render::context& ctx);
-	void init_frame(cgv::render::context& ctx);
 
-	void draw_content(cgv::render::context& ctx) override;
+	void init_frame(cgv::render::context& ctx);
 	
 	void create_gui();
 
@@ -59,11 +34,19 @@ public:
 
 private:
 
+	void init_styles(cgv::render::context& ctx);
+
+	void update_content();
+
+	void create_labels() override;
+
 	void create_grid();
 
 	void create_primitive_shapes();
 
 	void add_centroid_draggables(bool new_point = true, int centroid_index = 0);
+
+	void draw_content(cgv::render::context& ctx) override;
 
 	bool draw_scatterplot(cgv::render::context& ctx);
 
@@ -73,7 +56,7 @@ private:
 
 	void set_point_positions();
 
-	void find_clicked_centroid(int x, int y);
+	void find_clicked_draggable(int x, int y);
 
 	void scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed);
 
@@ -90,7 +73,14 @@ private:
 
 private:
 
-	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
+	// renderer and geometry for the plot points
+	cgv::glutil::generic_renderer m_renderer_plot_points;
+	tf_editor_shared_data_types::point_geometry_data m_geometry_plot_points;
+
+	// Stles for the recangle grid, drawn centroid position shapes and the data plot points
+	cgv::glutil::shape2d_style m_style_grid;
+	cgv::glutil::shape2d_style m_style_shapes;
+	cgv::glutil::shape2d_style m_style_plot_points;
 
 	cgv::glutil::shape2d_style m_rectangle_style;
 	// Rectangles used for drawing
@@ -98,27 +88,27 @@ private:
 	// Rectangles used for calculations
 	std::vector<tf_editor_shared_data_types::rectangle> m_rectangles_calc;
 
-	// Style of the draggables, interacted ones are drawn differently
-	cgv::glutil::shape2d_style m_draggable_style;
-	cgv::glutil::shape2d_style m_draggable_style_interacted;
-
-	cgv::glutil::shape2d_style m_ellipse_style;
+	// Store ellipses and boxes for the centroid positioning shapes
 	std::vector<std::vector<tf_editor_shared_data_types::ellipse>> m_ellipses;
-
-	cgv::glutil::shape2d_style m_rect_box_style;
 	std::vector<std::vector<tf_editor_shared_data_types::rectangle>> m_boxes;
 
-	cgv::glutil::shape2d_style m_point_style;
 	std::vector<std::vector<tf_editor_shared_data_types::point_scatterplot>> m_points;
 	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
 
 	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
 
-	cgv::glutil::shape2d_style m_rect_grid_style;
-
-	// Store the indices of to be updated centroids if a point has been interacted with
+	// Store the indices of to be updated centroid poition if a draggable has been interacted with
 	std::pair<int, int> m_interacted_point_id;
+
+	// plot point radius and blir
+	float radius = 2.0f;
+	float blur = 0.5f;
+
+	const int label_space = 20;
+
+	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 };
 
 typedef cgv::data::ref_ptr<tf_editor_scatterplot> tf_editor_scatterplot_ptr;
 
+/** END - MFLEURY **/

@@ -81,10 +81,9 @@ private:
 
 private:
 
-	// renderer for the 2d plot lines, quadstrips and draggable points
+	// renderer for the 2d plot lines and quadstrips
 	cgv::glutil::generic_renderer m_renderer_lines;
 	cgv::glutil::generic_renderer m_renderer_strips;
-	cgv::glutil::generic_renderer m_renderer_draggables;
 
 	// Geometry for the quadstrips and line relations
 	tf_editor_shared_data_types::polygon_geometry m_geometry_strips;
@@ -99,8 +98,6 @@ private:
 	cgv::glutil::line2d_style m_style_polygons;
 	cgv::glutil::line2d_style m_style_strip_borders;
 
-	cgv::glutil::shape2d_style m_style_draggables;
-	cgv::glutil::shape2d_style m_style_draggables_interacted;
 	cgv::glutil::shape2d_style m_style_plot;
 
 	cgv::glutil::arrow2d_style m_style_arrows;
