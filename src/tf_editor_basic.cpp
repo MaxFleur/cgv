@@ -64,4 +64,27 @@ void tf_editor_basic::clear(cgv::render::context& ctx) {
 	fbc_plot.clear(ctx);
 }
 
+void tf_editor_basic::create_basic_gui() {
+	// add a button to trigger a content update by redrawing
+	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_basic::update_content));
+
+	add_decorator("Basic Parameters", "heading", "level=3");
+	add_member_control(this, "Threshold", m_threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+	add_member_control(this, "Line Alpha", m_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+}
+
+void tf_editor_basic::create_tm_gui() {
+	if (begin_tree_node("Tone Mapping", this, true)) {
+		align("\a");
+
+		add_member_control(this, "Use Tone Mapping", use_tone_mapping, "check");
+		add_member_control(this, "TM Norm Count", tm_normalization_count, "value_slider", "min=1;max=1000000;step=0.0001;log=true;ticks=true");
+		add_member_control(this, "TM Alpha", tm_alpha, "value_slider", "min=0;max=50;step=0.0001;log=true;ticks=true");
+		add_member_control(this, "TM Gamma", tm_gamma, "value_slider", "min=0;max=10;step=0.0001;log=true;ticks=true");
+
+		align("\b");
+		end_tree_node(this);
+	}
+}
+
 /** END - MFLEURY **/

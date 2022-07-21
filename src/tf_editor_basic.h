@@ -37,12 +37,19 @@ protected:
 
 	void clear(cgv::render::context& ctx);
 
+	// Basic GUI for relation visualization
+	void create_basic_gui();
+	// GUI for tone mapping parameters
+	void create_tm_gui();
+
 	// Draw all contents of the editor, exlcuding the plot. This is customized in the
 	// deriving editors.
 	virtual void draw_content(cgv::render::context& ctx) = 0;
 
 	// Label creation needed if the sliced data is set, customized in the deriving editors.
 	virtual void create_labels() = 0;
+
+	virtual void update_content() = 0;
 
 	// redraw the plot contents
 	void redraw() {

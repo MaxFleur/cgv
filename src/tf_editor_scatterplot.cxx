@@ -160,23 +160,14 @@ void tf_editor_scatterplot::create_gui() {
 
 	create_overlay_gui();
 
-	// add a button to trigger a content update by redrawing
-	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_scatterplot::update_content));
-	// add controls for parameters
-	add_member_control(this, "Threshold", m_threshold, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "Alpha", m_alpha, "value_slider", "min=0;max=1;step=0.0001;log=true;ticks=true");
+	tf_editor_basic::create_basic_gui();
 	add_member_control(this, "Blur", blur, "value_slider", "min=0;max=20;step=0.0001;ticks=true");
 	add_member_control(this, "Radius", radius, "value_slider", "min=0;max=10;step=0.0001;ticks=true");
 
-	add_member_control(this, "Use Tone Mapping", use_tone_mapping, "check");
-	add_member_control(this, "TM Norm Count", tm_normalization_count, "value_slider", "min=1;max=1000000;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "TM Alpha", tm_alpha, "value_slider", "min=0;max=50;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "TM Gamma", tm_gamma, "value_slider", "min=0;max=10;step=0.0001;log=true;ticks=true");
+	add_decorator("Interpolation Mode", "heading", "level=3");
+	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Shapes, GTF ");
 
-	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Shape Mode, GTF Mode");
-
-	add_decorator("Stain Indices", "heading", "level=3;font_style=regular");
-	add_decorator("", "separator", "h=2");
+	tf_editor_basic::create_tm_gui();
 }
 
 void tf_editor_scatterplot::resynchronize() {
@@ -583,7 +574,6 @@ bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 		auto& point_prog = m_renderer_plot_points.ref_prog();
 		point_prog.enable(ctx);
 		content_canvas.set_view(ctx, point_prog);
-		std::cout << m_alpha << std::endl;
 		m_style_plot_points.fill_color = rgba(rgb(0.0f), m_alpha);
 		m_style_plot_points.apply(ctx, point_prog);
 		point_prog.set_attribute(ctx, "size", vec2(radius));

@@ -36,7 +36,7 @@ private:
 
 	void init_styles(cgv::render::context& ctx);
 
-	void update_content();
+	void update_content() override;
 
 	void create_labels() override;
 

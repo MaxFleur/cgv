@@ -175,19 +175,13 @@ void tf_editor_lines::create_gui() {
 
 	create_overlay_gui();
 
-	// add a button to trigger a content update by redrawing
-	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_lines::update_content));
-	// add controls for parameters
-	add_member_control(this, "Threshold", m_threshold, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "Line Alpha", m_alpha, "value_slider", "min=0.0;max=1.0;step=0.0001;log=true;ticks=true");
+	tf_editor_basic::create_basic_gui();
 	add_member_control(this, "other_threshold", other_threshold, "check");
 
-	add_member_control(this, "Use Tone Mapping", use_tone_mapping, "check");
-	add_member_control(this, "TM Norm Count", tm_normalization_count, "value_slider", "min=1;max=1000000;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "TM Alpha", tm_alpha, "value_slider", "min=0;max=50;step=0.0001;log=true;ticks=true");
-	add_member_control(this, "TM Gamma", tm_gamma, "value_slider", "min=0;max=10;step=0.0001;log=true;ticks=true");
+	add_decorator("Interpolation Mode", "heading", "level=3");
+	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Quadstrips, GTF");
 
-	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Quadstrip Mode, GTF Mode");
+	tf_editor_basic::create_tm_gui();
 }
 
 // Called if something in the primitives has been updated
