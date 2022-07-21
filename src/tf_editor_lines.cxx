@@ -16,33 +16,33 @@ tf_editor_lines::tf_editor_lines()
 	// set the size with an aspect ratio that makes lets the editor nicely fit inside
 	// aspect ratio is w:h = 1:0.875
 	set_overlay_size(ivec2(600, 525));
-
+	// Register an additional arrow shader
 	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
 
 	// initialize the renderers
-	m_line_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
-	m_point_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
-	m_polygon_renderer = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::polygon);
+	m_renderer_lines = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
+	m_renderer_draggables = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
+	m_renderer_strips = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::polygon);
 
-	// callbacks for the moving of centroids
+	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_lines::set_point_positions, this));
 	m_point_handles.set_drag_end_callback(std::bind(&tf_editor_lines::end_drag, this));
 }
 
 void tf_editor_lines::clear(cgv::render::context& ctx) {
-	m_line_renderer.destruct(ctx);
-	m_line_geometry_relations.destruct(ctx);
-	m_line_geometry_widgets.destruct(ctx);
-	m_line_geometry_strip_borders.destruct(ctx);
+	m_renderer_lines.destruct(ctx);
+	m_geometry_relations.destruct(ctx);
+	m_geometry_widgets.destruct(ctx);
+	m_geometry_strip_borders.destruct(ctx);
 
 	m_font.destruct(ctx);
-	m_font_renderer.destruct(ctx);
+	m_renderer_fonts.destruct(ctx);
 
-	m_polygon_renderer.destruct(ctx);
+	m_renderer_strips.destruct(ctx);
 
-	m_point_renderer.destruct(ctx);
-	m_point_geometry.destruct(ctx);
-	m_point_geometry_interacted.destruct(ctx);
+	m_renderer_draggables.destruct(ctx);
+	m_geometry_draggables.destruct(ctx);
+	m_geometry_draggables_interacted.destruct(ctx);
 }
 
 bool tf_editor_lines::handle_event(cgv::gui::event& e) {
@@ -66,7 +66,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 		const auto mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
 		// Search for points if RMB is pressed
 		if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
-			find_clicked_centroid(mpos.x(), mpos.y());
+			find_clicked_draggable(mpos.x(), mpos.y());
 		}
 
 		// Set width if a scroll is done
@@ -78,7 +78,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 			scroll_centroid_width(mpos.x(), mpos.y(), negative_change, shift_pressed);
 		}
 
-		bool handled = false;
+		auto handled = false;
 		handled |= m_point_handles.handle(e, last_viewport_size, container);
 
 		if (handled)
@@ -96,7 +96,7 @@ void tf_editor_lines::on_set(void* member_ptr) {
 		if(auto ctx_ptr = get_context())
 			init_styles(*ctx_ptr);
 	}
-
+	// Update if the vis mode is changed
 	if (member_ptr == &vis_mode) {
 		update_content();
 	}
@@ -107,17 +107,17 @@ void tf_editor_lines::on_set(void* member_ptr) {
 
 bool tf_editor_lines::init(cgv::render::context& ctx) {
 
-	bool success = true;
+	auto success = true;
 
 	// initialize the offline frame buffer, canvases and line renderer
 	success &= fbc.ensure(ctx);
 	success &= fbc_plot.ensure(ctx);
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
-	success &= m_line_renderer.init(ctx);
-	success &= m_font_renderer.init(ctx);
-	success &= m_point_renderer.init(ctx);
-	success &= m_polygon_renderer.init(ctx);
+	success &= m_renderer_lines.init(ctx);
+	success &= m_renderer_fonts.init(ctx);
+	success &= m_renderer_draggables.init(ctx);
+	success &= m_renderer_strips.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
 	if (success)
@@ -154,7 +154,7 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 		content_canvas.set_resolution(ctx, overlay_size);
 		viewport_canvas.set_resolution(ctx, get_viewport_size());
 
-		init_widgets();
+		create_widget_lines();
 		add_widget_lines();
 
 		m_point_handles.set_constraint(domain);
@@ -170,98 +170,6 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 		has_damage = true;
 		m_reset_plot = true;
 	}
-}
-
-void tf_editor_lines::draw_content(cgv::render::context& ctx) {
-
-	// enable the OpenGL blend functionalities
-	glEnable(GL_BLEND);
-	// setup a suitable blend function for color and alpha values (following the over-operator)
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	
-	// first draw the plot (the method will check internally if it needs an update)
-	bool done = draw_plot(ctx);
-
-	// enable the offline framebufferf
-	fbc.enable(ctx);
-	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	// draw the plot content from its own framebuffer texture
-	fbc_plot.enable_attachment(ctx, "color", 0);
-
-	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
-
-	if (use_tone_mapping) {
-		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
-		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
-		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
-		rectangle_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
-	}
-
-	m_plot_line_style.use_blending = use_tone_mapping;
-	m_plot_line_style.apply(ctx, rectangle_prog);
-
-	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
-	content_canvas.disable_current_shader(ctx);
-	fbc_plot.disable_attachment(ctx, "color");
-
-	// draw lines first
-	auto& line_prog = m_line_renderer.ref_prog();
-	line_prog.enable(ctx);
-	content_canvas.set_view(ctx, line_prog);
-	m_line_style_widgets.apply(ctx, line_prog);
-	line_prog.disable(ctx);
-	m_line_renderer.render(ctx, PT_LINES, m_line_geometry_widgets);
-
-	// then arrows on top
-	draw_arrows(ctx);
-
-	// Now create the centroid boundaries and strips
-	create_centroid_strips();
-
-	if (vis_mode == VM_SHAPES) {
-		auto& line_prog_polygon = m_polygon_renderer.ref_prog();
-		line_prog_polygon.enable(ctx);
-		content_canvas.set_view(ctx, line_prog_polygon);
-		line_prog_polygon.disable(ctx);
-
-		// draw the lines from the given geometry with offset and count
-		glEnable(GL_PRIMITIVE_RESTART);
-		glPrimitiveRestartIndex(0xFFFFFFFF);
-		m_polygon_renderer.render(ctx, PT_TRIANGLE_STRIP, m_strips);
-		glDisable(GL_PRIMITIVE_RESTART);
-	}
-
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-		// Strip borders
-		m_line_style_strip_borders.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
-		create_strip_borders(i);
-
-		line_prog.enable(ctx);
-		content_canvas.set_view(ctx, line_prog);
-		m_line_style_strip_borders.apply(ctx, line_prog);
-		line_prog.disable(ctx);
-		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_strip_borders);
-	}
-
-	
-	// then labels
-	auto& font_prog = m_font_renderer.ref_prog();
-	font_prog.enable(ctx);
-	content_canvas.set_view(ctx, font_prog);
-	font_prog.disable(ctx);
-	m_font_renderer.render(ctx, get_overlay_size(), m_labels);
-
-	// draggables are the last thing to be drawn so they are above everything else
-	draw_draggables(ctx);
-
-	fbc.disable(ctx);
-
-	// don't forget to disable blending
-	glDisable(GL_BLEND);
-
-	has_damage = !done;
 }
 
 void tf_editor_lines::create_gui() {
@@ -283,11 +191,12 @@ void tf_editor_lines::create_gui() {
 	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Quadstrip Mode, GTF Mode");
 }
 
+// Called if something in the primitives has been updated
 void tf_editor_lines::resynchronize() {
-
+	// Clear and readd points
 	m_points.clear();
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-		add_centroid_draggables(false, i);
+		add_draggables(false, i);
 	}
 
 	m_point_handles.clear();
@@ -297,63 +206,80 @@ void tf_editor_lines::resynchronize() {
 		}
 	}
 	m_create_all_values = true;
+	// Then redraw strips etc
+	redraw();
+}
 
+void tf_editor_lines::primitive_added() {
+	add_draggables();
+	// Add a corresponding draggable point for every centroid
+	m_point_handles.clear();
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			m_point_handles.add(&m_points[i][j]);
+		}
+	}
+	// A new primitive was added, so we need to redraw completely
+	m_create_all_values = true;
+
+	// Synchronize everything else and redraw
+	m_shared_data_ptr->set_synchronized();
 	redraw();
 }
 
 void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 
 	// configure style for rendering the plot framebuffer texture
-	m_plot_line_style.use_texture = true;
-	m_plot_line_style.apply_gamma = false;
-	m_plot_line_style.feather_width = 0.0f;
+	m_style_plot.use_texture = true;
+	m_style_plot.apply_gamma = false;
+	m_style_plot.feather_width = 0.0f;
 
-	m_line_style_relations.use_blending = true;
-	m_line_style_relations.use_fill_color = false;
-	m_line_style_relations.apply_gamma = false;
-	m_line_style_relations.width = 1.0f;
+	m_style_relations.use_blending = true;
+	m_style_relations.use_fill_color = false;
+	m_style_relations.apply_gamma = false;
+	m_style_relations.width = 1.0f;
 
-	m_line_style_widgets.use_blending = true;
-	m_line_style_widgets.use_fill_color = true;
-	m_line_style_widgets.apply_gamma = false;
-	m_line_style_widgets.fill_color = m_gray_widgets;
-	m_line_style_widgets.width = 3.0f;
+	m_style_widgets.use_blending = true;
+	m_style_widgets.use_fill_color = true;
+	m_style_widgets.apply_gamma = false;
+	m_style_widgets.fill_color = m_gray_widgets;
+	m_style_widgets.width = 3.0f;
 
-	m_line_style_polygons.use_blending = true;
-	m_line_style_polygons.use_fill_color = false;
-	m_line_style_polygons.apply_gamma = false;
-	m_line_style_polygons.fill_color = rgba(1.0f, 0.0f, 0.0f, m_alpha);
+	m_style_polygons.use_blending = true;
+	m_style_polygons.use_fill_color = false;
+	m_style_polygons.apply_gamma = false;
+	m_style_polygons.fill_color = rgba(1.0f, 0.0f, 0.0f, m_alpha);
 
-	m_line_style_strip_borders.use_blending = true;
-	m_line_style_strip_borders.use_fill_color = false;
-	m_line_style_strip_borders.border_width = 1.5f;
-	m_line_style_strip_borders.apply_gamma = false;
+	m_style_strip_borders.use_blending = true;
+	m_style_strip_borders.use_fill_color = false;
+	m_style_strip_borders.border_width = 1.5f;
+	m_style_strip_borders.apply_gamma = false;
 
 	// TODO: the polygon does not use a line style
-	auto& line_prog = m_polygon_renderer.ref_prog();
+	auto& line_prog = m_renderer_strips.ref_prog();
 	line_prog.enable(ctx);
-	m_line_style_polygons.apply(ctx, line_prog);
+	m_style_polygons.apply(ctx, line_prog);
 	line_prog.disable(ctx);
 
-	m_draggable_style.position_is_center = true;
-	m_draggable_style.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
-	m_draggable_style.border_width = 1.5f;
-	m_draggable_style.use_blending = true;
+	m_style_draggables.position_is_center = true;
+	m_style_draggables.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
+	m_style_draggables.border_width = 1.5f;
+	m_style_draggables.use_blending = true;
 
-	m_draggable_style_interacted.position_is_center = true;
-	m_draggable_style_interacted.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
-	m_draggable_style_interacted.border_width = 1.5f;
-	m_draggable_style_interacted.use_blending = true;
+	m_style_draggables_interacted.position_is_center = true;
+	m_style_draggables_interacted.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
+	m_style_draggables_interacted.border_width = 1.5f;
+	m_style_draggables_interacted.use_blending = true;
 
-	m_arrow_style.head_width = 10.0f;
-	m_arrow_style.absolute_head_length = 8.0f;
-	m_arrow_style.stem_width = 0.0f;
-	m_arrow_style.feather_width = 0.0f;
-	m_arrow_style.head_length_is_relative = false;
-	m_arrow_style.fill_color = m_gray_arrows;
-	m_arrow_style.border_color = m_gray_arrows;
-	m_arrow_style.use_fill_color = true;
-	m_arrow_style.use_blending = true;
+	m_style_arrows.head_width = 10.0f;
+	m_style_arrows.absolute_head_length = 8.0f;
+	m_style_arrows.stem_width = 0.0f;
+	m_style_arrows.feather_width = 0.0f;
+	m_style_arrows.head_length_is_relative = false;
+	m_style_arrows.fill_color = m_gray_arrows;
+	m_style_arrows.border_color = m_gray_arrows;
+	m_style_arrows.use_fill_color = true;
+	m_style_arrows.use_blending = true;
 
 	cgv::glutil::shape2d_style plot_rect_style;
 	plot_rect_style.use_texture = true;
@@ -368,7 +294,7 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	text_style.use_blending = true;
 	text_style.apply_gamma = false;
 
-	auto& font_prog = m_font_renderer.ref_prog();
+	auto& font_prog = m_renderer_fonts.ref_prog();
 	font_prog.enable(ctx);
 	text_style.apply(ctx, font_prog);
 	font_prog.disable(ctx);
@@ -388,93 +314,87 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	viewport_canvas.disable_current_shader(ctx);
 }
 
-void tf_editor_lines::create_labels() {
-
-	m_labels.clear();
-
-	// Set the font texts
-	if(m_font.is_initialized() && m_widget_polygons.size() > 3) {
-
-		vec2 centers[4];
-		for(int i = 0; i < 4; i++)
-			centers[i] = m_widget_polygons[m_text_ids[i]].get_center();
-		
-		m_labels.add_text("0", ivec2(centers[0]), cgv::render::TA_NONE, 60.0f);
-		m_labels.add_text("1", ivec2(centers[1]), cgv::render::TA_NONE, -60.0f);
-		m_labels.add_text("2", ivec2(centers[2]), cgv::render::TA_NONE, 0.0);
-		m_labels.add_text("3", ivec2(centers[3]), cgv::render::TA_NONE, 0.0f);
-
-		for(int i = 0; i < 4; i++) {
-			m_text_ids[i] = cgv::math::clamp(m_text_ids[i], 0, 3);
-			m_labels.set_text(i, m_data_set_ptr->stain_names[m_text_ids[i]]);
-		}
-	}
-}
-
 void tf_editor_lines::update_content() {
-	
-	if(!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
+
+	if (!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
 
 	const auto& data = m_data_set_ptr->voxel_data;
-
+	// Everythin needs to be updated, also nothing is dragged the moment the button is pressed
 	m_create_all_values = true;
 	m_is_point_dragged = false;
 
 	// reset previous total count and line geometry
 	m_total_count = 0;
-	m_line_geometry_relations.clear();
+	m_geometry_relations.clear();
 
 	// for each given sample of 4 protein densities, do:
-	for(size_t i = 0; i < data.size(); ++i) {
-		const vec4& v = data[i];
+	for (size_t i = 0; i < data.size(); ++i) {
+		const auto& v = data[i];
 
 		// calculate the average to allow filtering with the given threshold
 		auto avg = (v[0] + v[1] + v[2] + v[3]) * 0.25f;
 
 		bool force = false;
-		if(other_threshold) {
-			force =
-				v[0] > m_threshold ||
-				v[1] > m_threshold ||
-				v[2] > m_threshold ||
-				v[3] > m_threshold;
+		if (other_threshold) {
+			force = v[0] > m_threshold || v[1] > m_threshold || v[2] > m_threshold || v[3] > m_threshold;
 		}
 
-		if(avg > m_threshold || force) {
-
+		if (avg > m_threshold || force) {
 			rgb color_rgb(0.0f);
 			if (vis_mode == VM_GTF) {
 				color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
 			}
-
+			// Use full alpha for enabled tone mapping
 			rgba col(color_rgb, use_tone_mapping ? 1.0f : m_alpha);
 
 			// Left to right
-			m_line_geometry_relations.add(m_widget_lines.at(0).interpolate(v[m_text_ids[0]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(6).interpolate(v[m_text_ids[1]]), col);
+			m_geometry_relations.add(m_widget_lines.at(0).interpolate(v[0]), col);
+			m_geometry_relations.add(m_widget_lines.at(6).interpolate(v[1]), col);
 			// Left to center
-			m_line_geometry_relations.add(m_widget_lines.at(1).interpolate(v[m_text_ids[0]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(12).interpolate(v[m_text_ids[3]]), col);
+			m_geometry_relations.add(m_widget_lines.at(1).interpolate(v[0]), col);
+			m_geometry_relations.add(m_widget_lines.at(12).interpolate(v[3]), col);
 			// Left to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(2).interpolate(v[m_text_ids[0]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(8).interpolate(v[m_text_ids[2]]), col);
+			m_geometry_relations.add(m_widget_lines.at(2).interpolate(v[0]), col);
+			m_geometry_relations.add(m_widget_lines.at(8).interpolate(v[2]), col);
 			// Right to bottom
-			m_line_geometry_relations.add(m_widget_lines.at(4).interpolate(v[m_text_ids[1]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(10).interpolate(v[m_text_ids[2]]), col);
+			m_geometry_relations.add(m_widget_lines.at(4).interpolate(v[1]), col);
+			m_geometry_relations.add(m_widget_lines.at(10).interpolate(v[2]), col);
 			// Right to center
-			m_line_geometry_relations.add(m_widget_lines.at(5).interpolate(v[m_text_ids[1]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(13).interpolate(v[m_text_ids[3]]), col);
+			m_geometry_relations.add(m_widget_lines.at(5).interpolate(v[1]), col);
+			m_geometry_relations.add(m_widget_lines.at(13).interpolate(v[3]), col);
 			// Bottom to center
-			m_line_geometry_relations.add(m_widget_lines.at(9).interpolate(v[m_text_ids[2]]), col);
-			m_line_geometry_relations.add(m_widget_lines.at(14).interpolate(v[m_text_ids[3]]), col);
+			m_geometry_relations.add(m_widget_lines.at(9).interpolate(v[2]), col);
+			m_geometry_relations.add(m_widget_lines.at(14).interpolate(v[3]), col);
 		}
 	}
 	// content was updated, so redraw
 	redraw();
 }
 
-void tf_editor_lines::init_widgets() {
+void tf_editor_lines::create_labels() {
+
+	m_labels.clear();
+
+	// Set the font texts
+	if (m_font.is_initialized() && m_widget_polygons.size() > 3) {
+
+		vec2 centers[4];
+		for (int i = 0; i < 4; i++)
+			centers[i] = m_widget_polygons[i].get_center();
+
+		m_labels.add_text("0", ivec2(centers[0]), cgv::render::TA_NONE, 60.0f);
+		m_labels.add_text("1", ivec2(centers[1]), cgv::render::TA_NONE, -60.0f);
+		m_labels.add_text("2", ivec2(centers[2]), cgv::render::TA_NONE, 0.0);
+		m_labels.add_text("3", ivec2(centers[3]), cgv::render::TA_NONE, 0.0f);
+
+		for (int i = 0; i < 4; i++) {
+			m_labels.set_text(i, m_data_set_ptr->stain_names[i]);
+		}
+	}
+}
+
+void tf_editor_lines::create_widget_lines() {
 	m_widget_lines.clear();
 	m_widget_polygons.clear();
 
@@ -599,180 +519,13 @@ void tf_editor_lines::init_widgets() {
 	}
 }
 
-void tf_editor_lines::add_widget_lines() {
-	m_line_geometry_widgets.clear();
-
-	for (const auto l : m_widget_lines) {
-		m_line_geometry_widgets.add(l.a);
-		m_line_geometry_widgets.add(l.b);
-	}
-}
-
-void tf_editor_lines::primitive_added() {
-	add_centroid_draggables();
-	// Add a corresponding point for every centroid
-	m_point_handles.clear();
-	for (unsigned i = 0; i < m_points.size(); ++i) {
-		for (int j = 0; j < m_points[i].size(); j++) {
-			m_point_handles.add(&m_points[i][j]);
-		}
-	}
-	// A new centroid was added, so we need to redraw completely
-	m_create_all_values = true;
-	// Synchronize all other editors
-	m_shared_data_ptr->set_synchronized();
-
-	redraw();
-}
-
-void tf_editor_lines::add_centroid_draggables(bool new_point, int centroid_index) {
-	std::vector<tf_editor_shared_data_types::point_line> points;
-	// Add the new centroid points to the widget lines, start with the left side
-	for (int i = 0; i < 15; i++) {
-		// ignore the "back" lines of the widgets
-		if ((i + 1) % 4 != 0) {
-			float value;
-			if (new_point) {
-				value = 0.0f;
-			}
-			else {
-				int index;
-				if (i < 3) {
-					index = 0;
-				}
-				else if (i >= 4 && i < 7) {
-					index = 1;
-				}
-				else if (i >= 8 && i < 11) {
-					index = 2;
-				}
-				else if (i >= 12 && i < 115) {
-					index = 3;
-				}
-				value = m_shared_data_ptr->primitives.at(centroid_index).centr_pos[index];
-			}
-			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(value)), &m_widget_lines.at(i)));
-		}
-	}
-	m_points.push_back(points);
-}
-
-bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
-
-	// enable the offline plot frame buffer, so all things are drawn into its attached textures
-	fbc_plot.enable(ctx);
-
-	if (use_tone_mapping) {
-		glBlendFunc(GL_ONE, GL_ONE);
-	}
-
-	// make sure to reset the color buffer if we update the content from scratch
-	if (m_total_count == 0 || m_reset_plot) {
-		if (use_tone_mapping)
-			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		else
-			glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-		m_reset_plot = false;
-	}
-
-	// the amount of lines that will be drawn in each step
-	int count = 1000000;
-
-	// make sure not to draw more lines than available
-	if(m_total_count + count > m_line_geometry_relations.get_render_count())
-		count = m_line_geometry_relations.get_render_count() - m_total_count;
-	// draw the relations
-	if(count > 0) {
-		auto& line_prog = m_line_renderer.ref_prog();
-		line_prog.enable(ctx);
-		content_canvas.set_view(ctx, line_prog);
-		m_line_style_relations.fill_color = rgba(rgb(0.0f), m_alpha);
-		m_line_style_relations.apply(ctx, line_prog);
-		line_prog.disable(ctx);
-		m_line_renderer.render(ctx, PT_LINES, m_line_geometry_relations, m_total_count, count);
-	}
-
-	// accumulate the total amount of so-far drawn lines
-	m_total_count += count;
-
-	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
-	fbc_plot.disable(ctx);
-
-	// reset the blend function
-	if (use_tone_mapping) {
-		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	}
-
-	// Stop the process if we have drawn all available lines,
-	// otherwise request drawing of another frame.
-	bool run = m_total_count < m_line_geometry_relations.get_render_count();
-	if(run) {
-		post_redraw();
-	} else {
-		//std::cout << "done" << std::endl;
-		m_strips_created = false;
-	}
-	return !run;
-}
-
-void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
-		// Clear for each centroid because colors etc might change
-		m_point_geometry.clear();
-		m_point_geometry_interacted.clear();
-
-		const auto color = m_shared_data_ptr->primitives.at(i).color;
-		// Apply color to the centroids, always do full opacity
-		m_draggable_style.fill_color = rgba{color.R(), color.G(), color.B(), 1.0f};
-		m_draggable_style_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
-
-		for (int j = 0; j < m_points[i].size(); j++) {
-			// Add the points based on if they have been interacted with
-			std::find(m_interacted_points.begin(), m_interacted_points.end(), &m_points[i][j]) != m_interacted_points.end() ?
-				m_point_geometry_interacted.add(m_points[i][j].get_render_position()) :
-				m_point_geometry.add(m_points[i][j].get_render_position());
-		}
-
-		// Draw 
-		shader_program& point_prog = m_point_renderer.ref_prog();
-		point_prog.enable(ctx);
-		content_canvas.set_view(ctx, point_prog);
-		m_draggable_style.apply(ctx, point_prog);
-		point_prog.set_attribute(ctx, "size", vec2(12.0f));
-		point_prog.disable(ctx);
-		m_point_renderer.render(ctx, PT_POINTS, m_point_geometry);
-
-		point_prog.enable(ctx);
-		m_draggable_style_interacted.apply(ctx, point_prog);
-		point_prog.set_attribute(ctx, "size", vec2(16.0f));
-		point_prog.disable(ctx);
-		m_point_renderer.render(ctx, PT_POINTS, m_point_geometry_interacted);
-	}
-}
-
-void tf_editor_lines::draw_arrows(cgv::render::context& ctx) {
-	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
-	m_arrow_style.apply(ctx, arrow_prog);
-	
-	// draw arrows indicating where the maximum value is
-	for (int i = 0; i < 15; i++) {
-		// ignore the "back" lines of the widgets, they don't need arrows
-		if ((i + 1) % 4 != 0) {
-			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, m_gray_widgets, m_gray_widgets);
-		}
-	}
-	// dont forget to disable the curent shader when we don't need it anymore
-	content_canvas.disable_current_shader(ctx);
-}
-
 bool tf_editor_lines::create_centroid_boundaries() {
 	float relative_position;
 	float boundary_left;
 	float boundary_right;
 
 	const auto calculate_values = [&](int i, int protein_index) {
-		// Get the relative position of the centroid and it's left and right boundary
+		// Get the relative position of the centroid and its left and right boundary
 		relative_position = m_shared_data_ptr->primitives.at(i).centr_pos[protein_index];
 		boundary_left = relative_position - (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] / 2.0f);
 		boundary_right = relative_position + (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] / 2.0f);
@@ -798,7 +551,7 @@ bool tf_editor_lines::create_centroid_boundaries() {
 			}
 
 			// Now the strips
-			int boundary_index = 0;
+			auto boundary_index = 0;
 			std::vector<vec2> strip_coordinates;
 
 			// Iterate over widgets, ignore the back widget as usual
@@ -820,30 +573,30 @@ bool tf_editor_lines::create_centroid_boundaries() {
 
 		return true;
 	}
-	// If a centroid is dragged in the editor, it would make no sense to redraw everything
-	// So we redraw only the centroids that were updated
+	// If a centroid's position is dragged in the editor, it would make no sense to redraw everything
+	// So we redraw only for the positionss that were updated
 	else if (m_is_point_dragged) {
 		// Recalculate values
-		calculate_values(m_interacted_centroid_ids[0], m_interacted_centroid_ids[1] / 3);
+		calculate_values(m_interacted_primitive_ids[0], m_interacted_primitive_ids[1] / 3);
 
 		// No need to iterate over the first array entry
 		for (int i = 1; i < 4; i++) {
-			// Get the overall centroid layer and the parent line
-			const auto centroid_layer = m_interacted_centroid_ids[0];
-			auto& line = m_points[centroid_layer][m_interacted_centroid_ids[i]].m_parent_line;
+			// Get the overall primitive layer and the parent line
+			const auto primitive_layer = m_interacted_primitive_ids[0];
+			auto& line = m_points[primitive_layer][m_interacted_primitive_ids[i]].m_parent_line;
 
-			const auto id_left = m_interacted_centroid_ids[i] * 2;
-			const auto id_right = m_interacted_centroid_ids[i] * 2 + 1;
+			const auto id_left = m_interacted_primitive_ids[i] * 2;
+			const auto id_right = m_interacted_primitive_ids[i] * 2 + 1;
 			// Update the other centroids belonging to the widget as well
-			m_strip_border_points[centroid_layer][id_left] = line->interpolate(boundary_left);
-			m_strip_border_points[centroid_layer][id_right] = line->interpolate(boundary_right);
+			m_strip_border_points[primitive_layer][id_left] = line->interpolate(boundary_left);
+			m_strip_border_points[primitive_layer][id_right] = line->interpolate(boundary_right);
 		}
 		return true;
 	}
 	return false;
 }
 
-void tf_editor_lines::create_centroid_strips() {
+void tf_editor_lines::create_strips() {
 	// Don't do anything if there are no points yet
 	if (m_points.empty()) {
 		return;
@@ -853,26 +606,27 @@ void tf_editor_lines::create_centroid_strips() {
 		if (!create_centroid_boundaries()) {
 			return;
 		}
+		// Only draw quadstrips for the shape mode
 		if (vis_mode == VM_SHAPES) {
-			m_strips.clear();
-			m_line_geometry_strip_borders.clear();
+			m_geometry_strips.clear();
+			m_geometry_strip_borders.clear();
 
-			int strip_index = 0;
+			auto strip_index = 0;
 
 			// Add four points to the strip, because every strip is between two widgets with two points each
 			const auto add_points_to_strips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
-				m_strips.add(m_strip_border_points.at(i).at(strip_id_1), color);
-				m_strips.add(m_strip_border_points.at(i).at(strip_id_2), color);
-				m_strips.add(m_strip_border_points.at(i).at(strip_id_3), color);
-				m_strips.add(m_strip_border_points.at(i).at(strip_id_4), color);
+				m_geometry_strips.add(m_strip_border_points.at(i).at(strip_id_1), color);
+				m_geometry_strips.add(m_strip_border_points.at(i).at(strip_id_2), color);
+				m_geometry_strips.add(m_strip_border_points.at(i).at(strip_id_3), color);
+				m_geometry_strips.add(m_strip_border_points.at(i).at(strip_id_4), color);
 			};
 			// Add indices for the strips
 			const auto add_indices_to_strips = [&](int offset_start, int offset_end) {
 				for (int i = offset_start; i < offset_end; i++) {
-					m_strips.add_idx(strip_index + i);
+					m_geometry_strips.add_idx(strip_index + i);
 				}
 				// If done, end this strip
-				m_strips.add_idx(0xFFFFFFFF);
+				m_geometry_strips.add_idx(0xFFFFFFFF);
 			};
 
 			// Now strips themselves
@@ -906,11 +660,11 @@ void tf_editor_lines::create_strip_borders(int index) {
 		return;
 	}
 
-	m_line_geometry_strip_borders.clear();
+	m_geometry_strip_borders.clear();
 
 	const auto add_indices_to_strip_borders = [&](int index, int a, int b) {
-		m_line_geometry_strip_borders.add(m_strip_border_points.at(index).at(a));
-		m_line_geometry_strip_borders.add(m_strip_border_points.at(index).at(b));
+		m_geometry_strip_borders.add(m_strip_border_points.at(index).at(a));
+		m_geometry_strip_borders.add(m_strip_border_points.at(index).at(b));
 	};
 
 	add_indices_to_strip_borders(index, 0, 10);
@@ -927,6 +681,248 @@ void tf_editor_lines::create_strip_borders(int index) {
 	add_indices_to_strip_borders(index, 15, 23);
 }
 
+void tf_editor_lines::add_widget_lines() {
+	m_geometry_widgets.clear();
+
+	for (const auto l : m_widget_lines) {
+		m_geometry_widgets.add(l.a);
+		m_geometry_widgets.add(l.b);
+	}
+}
+
+void tf_editor_lines::add_draggables(bool new_point, int primitive_index) {
+	std::vector<tf_editor_shared_data_types::point_line> points;
+	// Add the new draggable points to the widget lines, start with the left side
+	for (int i = 0; i < 15; i++) {
+		// ignore the "back" lines of the widgets
+		if ((i + 1) % 4 != 0) {
+			float value;
+			if (new_point) {
+				value = 0.0f;
+			}
+			else {
+				int index;
+				if (i < 3) {
+					index = 0;
+				}
+				else if (i >= 4 && i < 7) {
+					index = 1;
+				}
+				else if (i >= 8 && i < 11) {
+					index = 2;
+				}
+				else if (i >= 12 && i < 115) {
+					index = 3;
+				}
+				value = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[index];
+			}
+			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(value)), &m_widget_lines.at(i)));
+		}
+	}
+	m_points.push_back(points);
+}
+
+void tf_editor_lines::draw_content(cgv::render::context& ctx) {
+
+	// enable the OpenGL blend functionalities
+	glEnable(GL_BLEND);
+	// setup a suitable blend function for color and alpha values (following the over-operator)
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+	// first draw the plot (the method will check internally if it needs an update)
+	bool done = draw_plot(ctx);
+
+	// enable the offline framebufferf
+	fbc.enable(ctx);
+	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	// draw the plot content from its own framebuffer texture
+	fbc_plot.enable_attachment(ctx, "color", 0);
+
+	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
+	// Apply tone mapping via the tone mapping shader
+	if (use_tone_mapping) {
+		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
+		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
+		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
+		rectangle_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
+	}
+
+	m_style_plot.use_blending = use_tone_mapping;
+	m_style_plot.apply(ctx, rectangle_prog);
+
+	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
+	content_canvas.disable_current_shader(ctx);
+	fbc_plot.disable_attachment(ctx, "color");
+
+	// draw lines first
+	auto& line_prog = m_renderer_lines.ref_prog();
+	line_prog.enable(ctx);
+	content_canvas.set_view(ctx, line_prog);
+	m_style_widgets.apply(ctx, line_prog);
+	line_prog.disable(ctx);
+	m_renderer_lines.render(ctx, PT_LINES, m_geometry_widgets);
+
+	// then arrows on top
+	draw_arrows(ctx);
+
+	// Now create the centroid boundaries and strips
+	create_strips();
+
+	if (vis_mode == VM_SHAPES) {
+		auto& line_prog_polygon = m_renderer_strips.ref_prog();
+		line_prog_polygon.enable(ctx);
+		content_canvas.set_view(ctx, line_prog_polygon);
+		line_prog_polygon.disable(ctx);
+
+		// draw the lines from the given geometry with offset and count
+		glEnable(GL_PRIMITIVE_RESTART);
+		glPrimitiveRestartIndex(0xFFFFFFFF);
+		m_renderer_strips.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips);
+		glDisable(GL_PRIMITIVE_RESTART);
+	}
+
+	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+		// Strip borders
+		m_style_strip_borders.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
+		create_strip_borders(i);
+
+		line_prog.enable(ctx);
+		content_canvas.set_view(ctx, line_prog);
+		m_style_strip_borders.apply(ctx, line_prog);
+		line_prog.disable(ctx);
+		m_renderer_lines.render(ctx, PT_LINES, m_geometry_strip_borders);
+	}
+
+	// then labels
+	auto& font_prog = m_renderer_fonts.ref_prog();
+	font_prog.enable(ctx);
+	content_canvas.set_view(ctx, font_prog);
+	font_prog.disable(ctx);
+	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels);
+
+	// draggables are the last thing to be drawn so they are above everything else
+	draw_draggables(ctx);
+
+	fbc.disable(ctx);
+
+	// don't forget to disable blending
+	glDisable(GL_BLEND);
+
+	has_damage = !done;
+}
+
+bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
+
+	// enable the offline plot frame buffer, so all things are drawn into its attached textures
+	fbc_plot.enable(ctx);
+
+	if (use_tone_mapping) {
+		glBlendFunc(GL_ONE, GL_ONE);
+	}
+
+	// make sure to reset the color buffer if we update the content from scratch
+	if (m_total_count == 0 || m_reset_plot) {
+		if (use_tone_mapping)
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		else
+			glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		m_reset_plot = false;
+	}
+
+	// the amount of lines that will be drawn in each step
+	auto count = 1000000;
+
+	// make sure not to draw more lines than available
+	if (m_total_count + count > m_geometry_relations.get_render_count())
+		count = m_geometry_relations.get_render_count() - m_total_count;
+	// draw the relations
+	if (count > 0) {
+		auto& line_prog = m_renderer_lines.ref_prog();
+		line_prog.enable(ctx);
+		content_canvas.set_view(ctx, line_prog);
+		m_style_relations.fill_color = rgba(rgb(0.0f), m_alpha);
+		m_style_relations.apply(ctx, line_prog);
+		line_prog.disable(ctx);
+		m_renderer_lines.render(ctx, PT_LINES, m_geometry_relations, m_total_count, count);
+	}
+
+	// accumulate the total amount of so-far drawn lines
+	m_total_count += count;
+
+	// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
+	fbc_plot.disable(ctx);
+
+	// reset the blend function
+	if (use_tone_mapping) {
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	}
+
+	// Stop the process if we have drawn all available lines,
+	// otherwise request drawing of another frame.
+	auto run = m_total_count < m_geometry_relations.get_render_count();
+	if (run) {
+		post_redraw();
+	}
+	else {
+		//std::cout << "done" << std::endl;
+		m_strips_created = false;
+	}
+	return !run;
+}
+
+void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
+	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
+		// Clear for each centroid because colors etc might change
+		m_geometry_draggables.clear();
+		m_geometry_draggables_interacted.clear();
+
+		const auto color = m_shared_data_ptr->primitives.at(i).color;
+		// Apply color to the centroids, always do full opacity
+		m_style_draggables.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
+		m_style_draggables_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
+
+		for (int j = 0; j < m_points[i].size(); j++) {
+			// Add the points based on if they have been interacted with
+			std::find(m_interacted_points.begin(), m_interacted_points.end(), &m_points[i][j]) != m_interacted_points.end() ?
+				m_geometry_draggables_interacted.add(m_points[i][j].get_render_position()) :
+				m_geometry_draggables.add(m_points[i][j].get_render_position());
+		}
+
+		// Draw 
+		shader_program& point_prog = m_renderer_draggables.ref_prog();
+		point_prog.enable(ctx);
+		content_canvas.set_view(ctx, point_prog);
+		m_style_draggables.apply(ctx, point_prog);
+		point_prog.set_attribute(ctx, "size", vec2(12.0f));
+		point_prog.disable(ctx);
+		m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables);
+
+		point_prog.enable(ctx);
+		m_style_draggables_interacted.apply(ctx, point_prog);
+		point_prog.set_attribute(ctx, "size", vec2(16.0f));
+		point_prog.disable(ctx);
+		m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
+	}
+}
+
+void tf_editor_lines::draw_arrows(cgv::render::context& ctx) {
+	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
+	m_style_arrows.apply(ctx, arrow_prog);
+
+	// draw arrows indicating where the maximum value is
+	for (int i = 0; i < 15; i++) {
+		// ignore the "back" lines of the widgets, they don't need arrows
+		if ((i + 1) % 4 != 0) {
+			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, m_gray_widgets, m_gray_widgets);
+		}
+	}
+	// dont forget to disable the curent shader when we don't need it anymore
+	content_canvas.disable_current_shader(ctx);
+}
+
 void tf_editor_lines::set_point_positions() {
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
@@ -940,28 +936,28 @@ void tf_editor_lines::set_point_positions() {
 		const auto relative_position = (m_points[index_row][index_col].get_relative_line_position() - 0.1f) / 0.8f;
 		m_points[index_row][index_col + pos_1].move_along_line(relative_position);
 		m_points[index_row][index_col + pos_2].move_along_line(relative_position);
-		m_interacted_centroid_ids[2] = index_col + pos_1;
-		m_interacted_centroid_ids[3] = index_col + pos_2;
+		m_interacted_primitive_ids[2] = index_col + pos_1;
+		m_interacted_primitive_ids[3] = index_col + pos_2;
 	};
 
 	for (unsigned i = 0; i < m_points.size(); ++i) {
 		for (int j = 0; j < m_points[i].size(); j++) {
-			// Now the relating centroid points in the widget have to be updated
+			// Now the relating draggables in the widget have to be updated
 			if (&m_points[i][j] == m_point_handles.get_dragged()) {
 				m_interacted_points.push_back(&m_points[i][j]);
 
-				m_interacted_centroid_ids[0] = i;
-				m_interacted_centroid_ids[1] = j;
+				m_interacted_primitive_ids[0] = i;
+				m_interacted_primitive_ids[1] = j;
 
-				// Left widget point was moved, update center and right
+				// Left widget draggable was moved, update center and right
 				if (j % 3 == 0) {
 					set_points(i, j, 1, 2);
 				}
-				// Center widget point was moved, update left and right
+				// Center widget draggable was moved, update left and right
 				else if (j % 3 == 1) {
 					set_points(i, j, -1, 1);
 				}
-				// Right widget point was moved, update left and center
+				// Right widget draggable was moved, update left and center
 				else if (j % 3 == 2) {
 					set_points(i, j, -1, -2);
 				}
@@ -1007,7 +1003,7 @@ void tf_editor_lines::update_point_positions()
 	}
 }
 
-void tf_editor_lines::find_clicked_centroid(int x, int y) {
+void tf_editor_lines::find_clicked_draggable(int x, int y) {
 	const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y)};
 	auto found = false;
 	int found_index;
@@ -1060,7 +1056,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 	// If we found something, we have to set the corresponding point ids and redraw
 	if (found) {
 		m_is_point_dragged = true;
-		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_centroid_ids, m_clicked_centroid_id, found_index);
+		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_primitive_ids, m_clicked_centroid_id, found_index);
 
 		m_shared_data_ptr->set_synchronized();
 

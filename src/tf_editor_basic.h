@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cgv_glutil/frame_buffer_container.h>
+#include <cgv_glutil/msdf_gl_font_renderer.h>
 #include <cgv_glutil/2d/canvas.h>
 #include <cgv_glutil/2d/shape2d_styles.h>
 #include <plot/plot2d.h>
@@ -11,8 +12,8 @@
 #include "shared_editor_data.h"
 #include "tf_editor_shared_data_types.h"
 
-/* This class provides the basic class used for designing the transfer functions. The lines and 
-   scatterplot editor derive from this basic editor. */
+/* This class provides the basic class used for designing the transfer functions. It contains all
+data types which are used by both editors as well as some functions. */
 class tf_editor_basic : public cgv::glutil::overlay {
 
 public:
@@ -75,6 +76,18 @@ protected:
 	// rectangle defining the draw area of the actual plot
 	cgv::glutil::rect domain;
 
+	// These geometries are used in both editors to drag points representing centroid positions
+	// If a centroid position is dragged, its size will increase, so we need two different geometries and styles
+	tf_editor_shared_data_types::point_geometry_draggable m_geometry_draggables;
+	tf_editor_shared_data_types::point_geometry_draggable m_geometry_draggables_interacted;
+
+	// Font storage and renderer
+	cgv::glutil::msdf_font m_font;
+	cgv::glutil::msdf_gl_font_renderer m_renderer_fonts;
+	// Text geometry, storing individual labels
+	cgv::glutil::msdf_text_geometry m_labels;
+	const float m_font_size = 18.0f;
+
 	// whether the plot shall be reset and its framebuffer cleared
 	bool m_reset_plot = true;
 
@@ -85,13 +98,13 @@ protected:
 	// alpha value of individual data values in the plot
 	float m_alpha = 0.0001f;
 
-	// Tone Mapping parameters
+	// tone mapping parameters
 	bool use_tone_mapping = false;
 	unsigned tm_normalization_count = 1000;
 	float tm_alpha = 1.0f;
 	float tm_gamma = 1.0f;
 
-	// Point parameters
+	// point parameters
 	// Has a point been clicked?
 	bool m_is_point_clicked = false;
 	// Has a point been dragged?

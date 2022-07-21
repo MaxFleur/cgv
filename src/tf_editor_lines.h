@@ -3,7 +3,6 @@
 #pragma once
 
 #include <cgv_glutil/generic_renderer.h>
-#include <cgv_glutil/msdf_gl_font_renderer.h>
 
 #include "tf_editor_basic.h"
 
@@ -12,41 +11,6 @@ This class provides the line based editor of the transfer function. Added primit
 If primitive values were modified, they are synchronized with the GUI and scatterplot.
 */
 class tf_editor_lines : public tf_editor_basic {
-protected:
-
-	bool other_threshold = false;
-
-	/// renderer for the 2d plot lines
-	cgv::glutil::generic_renderer m_line_renderer;
-	// strips renderer
-	cgv::glutil::generic_renderer m_polygon_renderer;
-
-	tf_editor_shared_data_types::polygon_geometry m_strips;
-
-	tf_editor_shared_data_types::relation_line_geometry m_line_geometry_relations;
-
-	// widget boundaries and strip border lines
-	tf_editor_shared_data_types::line_geometry m_line_geometry_widgets;
-	tf_editor_shared_data_types::line_geometry m_line_geometry_strip_borders;
-
-	// If a centroid is dragged, the size of the other centroids will decrease
-	// so we need two different geometries and styles as well
-	tf_editor_shared_data_types::point_geometry_draggable m_point_geometry_interacted;
-	tf_editor_shared_data_types::point_geometry_draggable m_point_geometry;
-
-	cgv::glutil::generic_renderer m_point_renderer;
-
-	cgv::glutil::msdf_font m_font;
-	cgv::glutil::msdf_gl_font_renderer m_font_renderer;
-	cgv::glutil::msdf_text_geometry m_labels;
-	const float m_font_size = 18.0f;
-
-	/// initialize styles
-	void init_styles(cgv::render::context& ctx);
-	/// create the label texts
-	void create_labels() override;
-	/// update the overlay content (called by a button in the gui)
-	void update_content();
 
 public:
 	tf_editor_lines();
@@ -55,12 +19,12 @@ public:
 	void clear(cgv::render::context& ctx);
 
 	bool handle_event(cgv::gui::event& e);
+
 	void on_set(void* member_ptr);
 
 	bool init(cgv::render::context& ctx);
-	void init_frame(cgv::render::context& ctx);
 
-	void draw_content(cgv::render::context& ctx) override;
+	void init_frame(cgv::render::context& ctx);
 	
 	void create_gui();
 	
@@ -70,11 +34,25 @@ public:
 
 private:
 
-	void init_widgets();
+	void init_styles(cgv::render::context& ctx);
+
+	void update_content();
+
+	void create_labels() override;
+
+	void create_widget_lines();
+
+	bool create_centroid_boundaries();
+
+	void create_strips();
+
+	void create_strip_borders(int index);
 
 	void add_widget_lines();
 
-	void add_centroid_draggables(bool new_point = true, int centroid_index = 0);
+	void add_draggables(bool new_point = true, int centroid_index = 0);
+
+	void draw_content(cgv::render::context& ctx) override;
 
 	bool draw_plot(cgv::render::context& ctx);
 
@@ -82,17 +60,11 @@ private:
 
 	void draw_arrows(cgv::render::context& ctx);
 
-	bool create_centroid_boundaries();
-
-	void create_centroid_strips();
-
-	void create_strip_borders(int index);
-
 	void set_point_positions();
 
 	void update_point_positions();
 
-	void find_clicked_centroid(int x, int y);
+	void find_clicked_draggable(int x, int y);
 
 	void scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed);
 
@@ -109,15 +81,29 @@ private:
 
 private:
 
-	cgv::glutil::line2d_style m_line_style_relations;
-	cgv::glutil::line2d_style m_line_style_widgets;
-	cgv::glutil::line2d_style m_line_style_polygons;
-	cgv::glutil::line2d_style m_line_style_strip_borders;
+	// renderer for the 2d plot lines, quadstrips and draggable points
+	cgv::glutil::generic_renderer m_renderer_lines;
+	cgv::glutil::generic_renderer m_renderer_strips;
+	cgv::glutil::generic_renderer m_renderer_draggables;
 
-	cgv::glutil::shape2d_style m_draggable_style;
-	cgv::glutil::shape2d_style m_draggable_style_interacted;
+	// Geometry for the quadstrips and line relations
+	tf_editor_shared_data_types::polygon_geometry m_geometry_strips;
+	tf_editor_shared_data_types::relation_line_geometry m_geometry_relations;
 
-	cgv::glutil::arrow2d_style m_arrow_style;
+	// widget and strip border lines
+	tf_editor_shared_data_types::line_geometry m_geometry_widgets;
+	tf_editor_shared_data_types::line_geometry m_geometry_strip_borders;
+
+	cgv::glutil::line2d_style m_style_relations;
+	cgv::glutil::line2d_style m_style_widgets;
+	cgv::glutil::line2d_style m_style_polygons;
+	cgv::glutil::line2d_style m_style_strip_borders;
+
+	cgv::glutil::shape2d_style m_style_draggables;
+	cgv::glutil::shape2d_style m_style_draggables_interacted;
+	cgv::glutil::shape2d_style m_style_plot;
+
+	cgv::glutil::arrow2d_style m_style_arrows;
 
 	std::vector<tf_editor_shared_data_types::line> m_widget_lines;
 	std::vector<tf_editor_shared_data_types::polygon> m_widget_polygons;
@@ -130,20 +116,17 @@ private:
 
 	std::vector<tf_editor_shared_data_types::point_line*> m_interacted_points;
 
-	cgv::glutil::shape2d_style m_plot_line_style;
-
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 1.0f };
 
-	// ids used for the texts inside the widgets
-	int m_text_ids[4] = { 0, 1, 2, 3 };
-
 	// Store the indices of to be updated centroids if a point has been interacted with
-	int m_interacted_centroid_ids[4];
+	int m_interacted_primitive_ids[4];
 	// Were strips created?
 	bool m_strips_created = true;
 	// Do we need to update all values?
 	bool m_create_all_values = true;
+
+	bool other_threshold = false;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_lines> tf_editor_lines_ptr;

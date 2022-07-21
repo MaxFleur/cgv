@@ -28,13 +28,13 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 	m_point_renderer.destruct(ctx);
 	m_point_geometry_data.destruct(ctx);
-	m_point_geometry.destruct(ctx);
-	m_point_geometry_interacted.destruct(ctx);
+	m_geometry_draggables.destruct(ctx);
+	m_geometry_draggables_interacted.destruct(ctx);
 
 	m_draggables_renderer.destruct(ctx);
 
-	font.destruct(ctx);
-	font_renderer.destruct(ctx);
+	m_font.destruct(ctx);
+	m_renderer_fonts.destruct(ctx);
 }
 
 bool tf_editor_scatterplot::self_reflect(cgv::reflect::reflection_handler& _rh) {
@@ -113,7 +113,7 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
 	success &= m_point_renderer.init(ctx);
-	success &= font_renderer.init(ctx);
+	success &= m_renderer_fonts.init(ctx);
 	success &= m_draggables_renderer.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
@@ -121,9 +121,9 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 		init_styles(ctx);
 
 	// setup the font type and size to use for the label geometry
-	if(font.init(ctx)) {
-		labels.set_msdf_font(&font);
-		labels.set_font_size(font_size);
+	if(m_font.init(ctx)) {
+		m_labels.set_msdf_font(&m_font);
+		m_labels.set_font_size(m_font_size);
 	}
 
 	return success;
@@ -194,12 +194,12 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 
 	// ...and axis labels
 	// this is pretty much the same as for the generic renderer
-	auto& font_prog = font_renderer.ref_prog();
+	auto& font_prog = m_renderer_fonts.ref_prog();
 	font_prog.enable(ctx);
 	content_canvas.set_view(ctx, font_prog);
 	font_prog.disable(ctx);
 	// draw the first label only
-	font_renderer.render(ctx, get_overlay_size(), labels, 0, 3);
+	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels, 0, 3);
 
 	// save the current view matrix
 	content_canvas.push_modelview_matrix();
@@ -217,7 +217,7 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	font_prog.enable(ctx);
 	content_canvas.set_view(ctx, font_prog);
 	font_prog.disable(ctx);
-	font_renderer.render(ctx, get_overlay_size(), labels, 3, 6);
+	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels, 3, 6);
 		
 	// restore the previous view matrix
 	content_canvas.pop_modelview_matrix(ctx);
@@ -337,7 +337,7 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_draggable_style_interacted.border_width = 1.5f;
 	m_draggable_style_interacted.use_blending = true;
 	
-	auto& font_prog = font_renderer.ref_prog();
+	auto& font_prog = m_renderer_fonts.ref_prog();
 	font_prog.enable(ctx);
 	text_style.apply(ctx, font_prog);
 	font_prog.disable(ctx);
@@ -359,7 +359,7 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 
 void tf_editor_scatterplot::create_labels() {
 	
-	labels.clear();
+	m_labels.clear();
 
 	std::vector<std::string> texts = { "0", "1", "2", "3" };
 
@@ -367,17 +367,17 @@ void tf_editor_scatterplot::create_labels() {
 		texts = m_data_set_ptr->stain_names;
 	}
 
-	if(font.is_initialized()) {
+	if(m_font.is_initialized()) {
 		const auto x = domain.pos().x() + 100;
 		const auto y = domain.pos().y() - label_space / 2;
 
-		labels.add_text(texts[0], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-		labels.add_text(texts[1], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-		labels.add_text(texts[2], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[0], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
 
-		labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-		labels.add_text(texts[2], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-		labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
 	}
 }
 
@@ -623,8 +623,8 @@ return !run;
 void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
 		// Clear for each centroid because colors etc might change
-		m_point_geometry.clear();
-		m_point_geometry_interacted.clear();
+		m_geometry_draggables.clear();
+		m_geometry_draggables_interacted.clear();
 
 		const auto color = m_shared_data_ptr->primitives.at(i).color;
 		// Apply color to the centroids, always do full opacity
@@ -634,8 +634,8 @@ void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 		for (int j = 0; j < m_points[i].size(); j++) {
 			// Add the points based on if they have been interacted with
 			std::find(m_interacted_points.begin(), m_interacted_points.end(), &m_points[i][j]) != m_interacted_points.end() ?
-				m_point_geometry_interacted.add(m_points[i][j].get_render_position()) :
-				m_point_geometry.add(m_points[i][j].get_render_position());
+				m_geometry_draggables_interacted.add(m_points[i][j].get_render_position()) :
+				m_geometry_draggables.add(m_points[i][j].get_render_position());
 		}
 
 		// Draw 
@@ -645,13 +645,13 @@ void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 		m_draggable_style.apply(ctx, point_prog);
 		point_prog.set_attribute(ctx, "size", vec2(12.0f));
 		point_prog.disable(ctx);
-		m_draggables_renderer.render(ctx, PT_POINTS, m_point_geometry);
+		m_draggables_renderer.render(ctx, PT_POINTS, m_geometry_draggables);
 
 		point_prog.enable(ctx);
 		m_draggable_style_interacted.apply(ctx, point_prog);
 		point_prog.set_attribute(ctx, "size", vec2(16.0f));
 		point_prog.disable(ctx);
-		m_draggables_renderer.render(ctx, PT_POINTS, m_point_geometry_interacted);
+		m_draggables_renderer.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
 	}
 }
 

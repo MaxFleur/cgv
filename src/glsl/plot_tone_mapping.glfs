@@ -43,8 +43,10 @@ void main() {
 	vec2 uv = tex_scaling * tex_coord;
 
 	float intensity = texture(tex, uv).a;
+	// BEGIN - MFLEURY
 	vec4 color_values = texture(tex, uv);
 	vec3 adjusted_color = use_color ? vec3(color_values.r, color_values.g, color_values.b) / intensity : vec3(0.0f, 0.0f, 0.0f);
+	// END - MFLEURY
 
 	intensity = clamp(normalization_factor * intensity, 0.0, 1.0);
 
@@ -56,9 +58,6 @@ void main() {
 
 	vec4 color = vec4(adjusted_color, pow(tmi, gamma));
 	color = clamp(color, 0.0, 1.0);
-	
-	//vec3 col = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), clamp(intensity/10000.0, 0.0, 1.0));
-	//vec4 color = vec4(col, intensity > 0.0 ? 1.0 : 0.0);
 	
 	finish_sdf_fragment2d(dist, color);
 }

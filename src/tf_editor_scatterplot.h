@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cgv_glutil/generic_renderer.h>
-#include <cgv_glutil/msdf_gl_font_renderer.h>
 
 #include "tf_editor_basic.h"
 
@@ -27,21 +26,7 @@ protected:
 	/// define a geometry class holding 2d positions and rgba colors for each point
 	tf_editor_shared_data_types::point_geometry_data m_point_geometry_data;
 
-	// If a centroid is dragged, the size of the other centroids will decrease
-	// so we need two different geometries and styles as well
-	tf_editor_shared_data_types::point_geometry_draggable m_point_geometry_interacted;
-	tf_editor_shared_data_types::point_geometry_draggable m_point_geometry;
-
 	tf_editor_shared_data_types::line_geometry m_line_geometry_grid;
-
-	/// stores the actually used font (atlas)
-	cgv::glutil::msdf_font font;
-	/// a font renderer that supplies the shader program and renders given text geometry
-	cgv::glutil::msdf_gl_font_renderer font_renderer;
-	/// text geometry storing the individual labels
-	cgv::glutil::msdf_text_geometry labels;
-	/// size to use when rendering the labels
-	float font_size = 18.0f;
 
 	/// initialize styles
 	void init_styles(cgv::render::context& ctx);
