@@ -23,7 +23,7 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	m_renderer_plot_points = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 	m_renderer_draggables = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 
-	// callbacks for the moving of centroids
+	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_scatterplot::set_point_positions, this));
 	m_point_handles.set_drag_end_callback(std::bind(&tf_editor_scatterplot::end_drag, this));
 }
@@ -174,7 +174,7 @@ void tf_editor_scatterplot::resynchronize() {
 	// Clear and readd points
 	m_points.clear();
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-		add_centroid_draggables(true, i);
+		add_draggables(true, i);
 	}
 
 	m_point_handles.clear();
@@ -188,7 +188,7 @@ void tf_editor_scatterplot::resynchronize() {
 }
 
 void tf_editor_scatterplot::primitive_added() {
-	add_centroid_draggables(true, m_shared_data_ptr->primitives.size() - 1);
+	add_draggables(true, m_shared_data_ptr->primitives.size() - 1);
 	// Add a corresponding draggable point for every centroid
 	m_point_handles.clear();
 	for (unsigned i = 0; i < m_points.size(); ++i) {
@@ -393,7 +393,6 @@ void tf_editor_scatterplot::create_primitive_shapes() {
 	m_boxes.clear();
 
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-		// Ellipses for every centroid
 		std::vector<tf_editor_shared_data_types::ellipse> ellipses;
 		std::vector<tf_editor_shared_data_types::rectangle> boxes;
 
@@ -416,14 +415,14 @@ void tf_editor_scatterplot::create_primitive_shapes() {
 	}
 }
 
-void tf_editor_scatterplot::add_centroid_draggables(bool new_point, int centroid_index) {
+void tf_editor_scatterplot::add_draggables(bool new_point, int primitive_index) {
 	std::vector<tf_editor_shared_data_types::point_scatterplot> points;
 	const auto org = static_cast<vec2>(domain.pos());
 	const auto size = domain.size();
 
-	// Add the new centroid points to the scatter plot
+	// Add the new draggables to the scatter plot
 	if (new_point) {
-		const auto& centroid_positions = m_shared_data_ptr->primitives.at(centroid_index).centr_pos;
+		const auto& centroid_positions = m_shared_data_ptr->primitives.at(primitive_index).centr_pos;
 		auto pos = m_rectangles_calc.at(0).point_in_rect(vec2(centroid_positions[0], centroid_positions[3]));
 		points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 3, &m_rectangles_calc.at(0)));
 
@@ -606,12 +605,12 @@ bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 
 void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
-		// Clear for each centroid because colors etc might change
+		// Clear for each draggable because colors etc might change
 		m_geometry_draggables.clear();
 		m_geometry_draggables_interacted.clear();
 
 		const auto color = m_shared_data_ptr->primitives.at(i).color;
-		// Apply color to the centroids, always do full opacity
+		// Apply color to the draggables, always do full opacity
 		m_style_draggables.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 		m_style_draggables_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 
@@ -686,7 +685,7 @@ void tf_editor_scatterplot::set_point_positions() {
 
 	for (unsigned i = 0; i < m_points.size(); ++i) {
 		for (int j = 0; j < m_points[i].size(); j++) {
-			// Now the relating centroid point in the scatter plot has to be updated
+			// Now the relating draggable in the scatter plot has to be updated
 			if (&m_points[i][j] == m_point_handles.get_dragged()) {
 				m_interacted_points.push_back(&m_points[i][j]);
 				const auto& found_point = m_points[i][j];
@@ -793,8 +792,8 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 	for (int i = 0; i < m_rectangles_calc.size(); i++) {
 		if (m_rectangles_calc.at(i).is_inside(x, y)) {
 			// If the rectangle is found, update the point's width in it depending on the ctrl modifier
-			auto& centroids = m_shared_data_ptr->primitives[m_clicked_centroid_id];
-			auto& width = centroids.centr_widths[ctrl_pressed ? m_points[m_clicked_centroid_id][i].m_stain_first : m_points[m_clicked_centroid_id][i].m_stain_second];
+			auto& primitives = m_shared_data_ptr->primitives[m_clicked_centroid_id];
+			auto& width = primitives.centr_widths[ctrl_pressed ? m_points[m_clicked_centroid_id][i].m_stain_first : m_points[m_clicked_centroid_id][i].m_stain_second];
 			// auto width = 0.0f;
 			width += negative_change ? -0.02f : 0.02f;
 			width = cgv::math::clamp(width, 0.0f, 1.0f);

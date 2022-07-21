@@ -44,7 +44,7 @@ private:
 
 	void create_primitive_shapes();
 
-	void add_centroid_draggables(bool new_point = true, int centroid_index = 0);
+	void add_draggables(bool new_point = true, int centroid_index = 0);
 
 	void draw_content(cgv::render::context& ctx) override;
 
