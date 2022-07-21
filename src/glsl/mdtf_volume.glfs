@@ -232,6 +232,7 @@ float gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, vec4 gaus
 	return exp(-exponent);
 }
 
+// Apply an alpha value of 1 or 0 based on if the input values are inside the centroid's width
 float box_transfer_function(vec4 density, vec4 centroid_positions, vec4 width) {
 	float ret = 1.0f;
 	for(int i = 0; i < 4; i++) {
@@ -241,6 +242,8 @@ float box_transfer_function(vec4 density, vec4 centroid_positions, vec4 width) {
 	return ret;
 }
 
+// Apply an alpha value of 1 or 0 based on if the input values are inside the centroid's width
+// Similar to the box function, but with a sphere distance
 float sphere_transfer_function(vec4 density, vec4 centroid_positions, vec4 width) {
 	float ret = 1.0f;
 	for (int i = 0; i < 4; i++) {
@@ -253,6 +256,7 @@ float sphere_transfer_function(vec4 density, vec4 centroid_positions, vec4 width
 	return ret;
 }
 
+// Calculate a color for a relations type, based on the current primitive type
 vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 	
 	vec3 color_sum = vec3(0.0);
@@ -262,7 +266,7 @@ vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 		gtf_data gtf = gtfs[i];
 
 		float alpha;
-
+		// Calculate the alpha value based on the primitive type
 		switch(gtf.type) {
 			case 0:
 				alpha = gaussian_transfer_function(density, gtf.c, gtf.width);
@@ -275,10 +279,11 @@ vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 				break;
 			
 		}
-
+		// Apply global opacity and primitive color alpha
 		alpha *= gtf.color.a;
 		alpha *= alpha_scale;
 
+		// Add for every primitive
 		color_sum += alpha*gtf.color.rgb;
 		alpha_sum += alpha;
 	}

@@ -11,6 +11,7 @@ typedef cgv::glutil::overlay::vec2 vec2;
 typedef cgv::glutil::overlay::vec4 vec4;
 typedef cgv::render::render_types::rgba rgba;
 
+/* Contains different data types used by the editors */
 namespace tf_editor_shared_data_types
 {
 	// Simple line geometry
@@ -18,7 +19,7 @@ namespace tf_editor_shared_data_types
 	// Relation lines between widgets which might be drawn with a varying color
 	DEFINE_GENERIC_RENDER_DATA_CLASS(relation_line_geometry, 2, vec2, position, rgba, color);
 
-	// Geometry of strips
+	// Geometry used for quadstrips
 	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 2, vec2, position, rgba, color);
 
 	// Geometry for draggable points
@@ -40,6 +41,7 @@ namespace tf_editor_shared_data_types
 			return cgv::math::lerp(a, b, value);
 		}
 
+		// Used if a draggable point is moved on the line to keep it on this line
 		vec2 get_intersection(vec2 point) const {
 			const auto direction = b - a;
 			const auto cd = a - point; 
@@ -64,7 +66,7 @@ namespace tf_editor_shared_data_types
 			start = s;
 			end = e;
 		}
-
+		// Check if a point is inside the rectangle
 		bool is_inside(int x, int y) {
 			return (x > start.x() && x < end.x()) && (y > start.y() && y < end.y()) ? true : false;
 		}
@@ -82,7 +84,8 @@ namespace tf_editor_shared_data_types
 		float size_y() {
 			return end.y() - start.y();
 		}
-
+		// Get a point inside the rectangle based on an input value
+		// A vec2 of (0, 0) would return the loest left coordinate, while (1, 1) would return the uppermost right
 		vec2 point_in_rect(vec2 value) {
 			return vec2(start.x() + size_x() * value.x(), start.y() + size_y() * value.y());
 		}
@@ -104,7 +107,6 @@ namespace tf_editor_shared_data_types
 		point(const ivec2& pos)
 		{
 			this->pos = pos;
-			// Huger size so the point is easily clickable
 			size = vec2(6.0f);
 			position_is_center = true;
 			constraint_reference = CR_FULL_SIZE;
@@ -123,11 +125,12 @@ namespace tf_editor_shared_data_types
 		// we need to override this method to test if the position is inside the circle (and not a rectangle as is supplied by draggable)
 		bool is_inside(const vec2& mp) const {
 
-			float dist = length(mp - center());
+			const auto dist = length(mp - center());
 			return dist <= size.x();
 		}
 	};
 
+	// Point with a parent line. The point can be dragged along this line.
 	struct point_line : point
 	{
 		line* m_parent_line;
@@ -147,12 +150,13 @@ namespace tf_editor_shared_data_types
 		}
 
 		// Gets the relative position of the point along the line
-		// Upmost left value would be 0.0f, while upmost right would be 1.0f
+		// Leftmost value would be 0.0f, while rightmost would be 1.0f
 		float get_relative_line_position() {
 			return ((cgv::math::length(pos - m_parent_line->a) / m_parent_line->get_length()));
 		}
 	};
 
+	// Point with a parent rectangle. The point stays inside this rectangle at all times.
 	struct point_scatterplot : point
 	{
 		int m_stain_first;
@@ -185,7 +189,7 @@ namespace tf_editor_shared_data_types
 		// Find apoint inside a polygon based on the Jordan method
 		// https://www.maths.ed.ac.uk/~v1ranick/jordan/cr.pdf
 		bool is_point_in_polygon(int x, int y) {
-			bool is_inside = false;
+			auto is_inside = false;
 
 			for (int i = 0, j = points.size() - 1; i < points.size(); j = i++) {
 

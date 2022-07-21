@@ -257,7 +257,7 @@ private:
 
 /** BEGIN - MFLEURY **/
 private:
-	shared_data_ptr m_shared_data_ptr;
+	shared_data_ptr m_shared_data_ptr = nullptr;
 
 	tf_editor_lines_ptr m_editor_lines_ptr = nullptr;
 	tf_editor_scatterplot_ptr m_editor_scatterplot_ptr = nullptr;

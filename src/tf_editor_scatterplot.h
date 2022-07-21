@@ -19,10 +19,6 @@ protected:
 
 	const int label_space = 20;
 
-	/// the protein stain indices for the corresponding scatter plot axis
-	int x_idx = 0;
-	int y_idx = 1;
-
 	/// renderer for the 2d plot points
 	cgv::glutil::generic_renderer m_point_renderer;
 	// renderer for the draggables

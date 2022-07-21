@@ -345,6 +345,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 		on_set(&fh.has_unsaved_changes);
 	}
 
+	// resynchronize if any primitive updates occured
 	if (m_editor_lines_ptr && m_editor_scatterplot_ptr && m_shared_data_ptr->is_synchronized) {
 		m_shared_data_ptr->is_synchronized = false;
 
@@ -493,7 +494,6 @@ void viewer::draw(cgv::render::context& ctx) {
 
 			vr.render(ctx, 0, 0);
 		} else {
-			/** BEGIN - MFLEURY **/
 			mdtf_vstyle.clip_box_transform = clip_box_transform;
 			mdtf_vstyle.volume_transform = volume_transform;
 
@@ -503,12 +503,14 @@ void viewer::draw(cgv::render::context& ctx) {
 			vr.set_gradient_texture(&dataset.gradient_tex);
 			vr.set_depth_texture(fbc.attachment_texture_ptr("depth"));
 
+			/** BEGIN - MFLEURY **/
+
 			if(vr.enable(ctx)) {
 				auto& vol_prog = vr.ref_prog();
 
 				const int size = m_shared_data_ptr->primitives.size();
 				vol_prog.set_uniform(ctx, "centroid_values_size", size);
-
+				// send all primitive data to the shader
 				for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 					const auto color = m_shared_data_ptr->primitives.at(i).color;
 					vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
