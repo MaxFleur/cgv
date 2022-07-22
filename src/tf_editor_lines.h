@@ -62,6 +62,8 @@ private:
 
 	void set_point_positions();
 
+	void set_point_handles();
+
 	void update_point_positions();
 
 	void find_clicked_draggable(int x, int y);

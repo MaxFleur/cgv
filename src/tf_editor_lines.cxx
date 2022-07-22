@@ -192,12 +192,7 @@ void tf_editor_lines::resynchronize() {
 		add_draggables(i);
 	}
 
-	m_point_handles.clear();
-	for (unsigned i = 0; i < m_points.size(); ++i) {
-		for (int j = 0; j < m_points[i].size(); j++) {
-			m_point_handles.add(&m_points[i][j]);
-		}
-	}
+	set_point_handles();
 	m_create_all_values = true;
 	// Then redraw strips etc
 	redraw();
@@ -206,12 +201,8 @@ void tf_editor_lines::resynchronize() {
 void tf_editor_lines::primitive_added() {
 	add_draggables();
 	// Add a corresponding draggable point for every centroid
-	m_point_handles.clear();
-	for (unsigned i = 0; i < m_points.size(); ++i) {
-		for (int j = 0; j < m_points[i].size(); j++) {
-			m_point_handles.add(&m_points[i][j]);
-		}
-	}
+	set_point_handles();
+
 	// A new primitive was added, so we need to redraw completely
 	m_create_all_values = true;
 
@@ -965,6 +956,15 @@ void tf_editor_lines::set_point_positions() {
 	}
 
 	redraw();
+}
+
+void tf_editor_lines::set_point_handles() {
+	m_point_handles.clear();
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			m_point_handles.add(&m_points[i][j]);
+		}
+	}
 }
 
 void tf_editor_lines::update_point_positions()

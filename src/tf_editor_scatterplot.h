@@ -56,6 +56,8 @@ private:
 
 	void set_point_positions();
 
+	void set_point_handles();
+
 	void find_clicked_draggable(int x, int y);
 
 	void scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed);

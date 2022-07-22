@@ -178,12 +178,7 @@ void tf_editor_scatterplot::resynchronize() {
 		add_draggables(i);
 	}
 
-	m_point_handles.clear();
-	for (unsigned i = 0; i < m_points.size(); ++i) {
-		for (int j = 0; j < m_points[i].size(); j++) {
-			m_point_handles.add(&m_points[i][j]);
-		}
-	}
+	set_point_handles();
 	// Then redraw strips etc
 	redraw();
 }
@@ -191,12 +186,7 @@ void tf_editor_scatterplot::resynchronize() {
 void tf_editor_scatterplot::primitive_added() {
 	add_draggables();
 	// Add a corresponding draggable point for every centroid
-	m_point_handles.clear();
-	for (unsigned i = 0; i < m_points.size(); ++i) {
-		for (int j = 0; j < m_points[i].size(); j++) {
-			m_point_handles.add(&m_points[i][j]);
-		}
-	}
+	set_point_handles();
 	m_shared_data_ptr->set_synchronized(false);
 
 	redraw();
@@ -742,6 +732,15 @@ void tf_editor_scatterplot::set_point_positions() {
 
 	has_damage = true;
 	post_redraw();
+}
+
+void tf_editor_scatterplot::set_point_handles() {
+	m_point_handles.clear();
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			m_point_handles.add(&m_points[i][j]);
+		}
+	}
 }
 
 void tf_editor_scatterplot::find_clicked_draggable(int x, int y) {
