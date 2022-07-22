@@ -50,7 +50,7 @@ private:
 
 	void add_widget_lines();
 
-	void add_draggables(bool new_point = true, int centroid_index = 0);
+	void add_draggables(int centroid_index = 0);
 
 	void draw_content(cgv::render::context& ctx) override;
 

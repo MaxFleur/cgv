@@ -189,7 +189,7 @@ void tf_editor_lines::resynchronize() {
 	// Clear and readd points
 	m_points.clear();
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-		add_draggables(false, i);
+		add_draggables(i);
 	}
 
 	m_point_handles.clear();
@@ -683,32 +683,29 @@ void tf_editor_lines::add_widget_lines() {
 	}
 }
 
-void tf_editor_lines::add_draggables(bool new_point, int primitive_index) {
+void tf_editor_lines::add_draggables(int primitive_index) {
 	std::vector<tf_editor_shared_data_types::point_line> points;
 	// Add the new draggable points to the widget lines, start with the left side
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets
 		if ((i + 1) % 4 != 0) {
 			float value;
-			if (new_point) {
-				value = 0.0f;
+			
+			int index;
+			if (i < 3) {
+				index = 0;
 			}
-			else {
-				int index;
-				if (i < 3) {
-					index = 0;
-				}
-				else if (i >= 4 && i < 7) {
-					index = 1;
-				}
-				else if (i >= 8 && i < 11) {
-					index = 2;
-				}
-				else if (i >= 12 && i < 115) {
-					index = 3;
-				}
-				value = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[index];
+			else if (i >= 4 && i < 7) {
+				index = 1;
 			}
+			else if (i >= 8 && i < 11) {
+				index = 2;
+			}
+			else if (i >= 12 && i < 115) {
+				index = 3;
+			}
+
+			value = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[index];
 			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(value)), &m_widget_lines.at(i)));
 		}
 	}

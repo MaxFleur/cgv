@@ -22,7 +22,7 @@ public:
 		// Default color: blue to see the new centroid better
 		rgba color{ 0.0f, 0.0f, 1.0f, 0.5f };
 
-		vec4 centr_pos{ 0.0f, 0.0f, 0.0f, 0.0f };
+		vec4 centr_pos{ 0.5f, 0.5f, 0.5f, 0.5f };
 
 		vec4 centr_widths{ 0.5f, 0.5f, 0.5f, 0.5f };
 	};

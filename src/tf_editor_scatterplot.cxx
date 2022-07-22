@@ -149,6 +149,7 @@ void tf_editor_scatterplot::init_frame(cgv::render::context& ctx) {
 		content_canvas.set_resolution(ctx, overlay_size);
 		viewport_canvas.set_resolution(ctx, get_viewport_size());
 
+		create_grid();
 		create_labels();
 
 		has_damage = true;
@@ -165,7 +166,7 @@ void tf_editor_scatterplot::create_gui() {
 	add_member_control(this, "Radius", radius, "value_slider", "min=0;max=10;step=0.0001;ticks=true");
 
 	add_decorator("Interpolation Mode", "heading", "level=3");
-	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Shapes, GTF ");
+	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Shapes, GTF");
 
 	tf_editor_basic::create_tm_gui();
 }
@@ -174,7 +175,7 @@ void tf_editor_scatterplot::resynchronize() {
 	// Clear and readd points
 	m_points.clear();
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-		add_draggables(true, i);
+		add_draggables(i);
 	}
 
 	m_point_handles.clear();
@@ -188,7 +189,7 @@ void tf_editor_scatterplot::resynchronize() {
 }
 
 void tf_editor_scatterplot::primitive_added() {
-	add_draggables(true, m_shared_data_ptr->primitives.size() - 1);
+	add_draggables();
 	// Add a corresponding draggable point for every centroid
 	m_point_handles.clear();
 	for (unsigned i = 0; i < m_points.size(); ++i) {
@@ -415,43 +416,32 @@ void tf_editor_scatterplot::create_primitive_shapes() {
 	}
 }
 
-void tf_editor_scatterplot::add_draggables(bool new_point, int primitive_index) {
+void tf_editor_scatterplot::add_draggables(int primitive_index) {
 	std::vector<tf_editor_shared_data_types::point_scatterplot> points;
 	const auto org = static_cast<vec2>(domain.pos());
 	const auto size = domain.size();
 
 	// Add the new draggables to the scatter plot
-	if (new_point) {
-		const auto& centroid_positions = m_shared_data_ptr->primitives.at(primitive_index).centr_pos;
-		auto pos = m_rectangles_calc.at(0).point_in_rect(vec2(centroid_positions[0], centroid_positions[3]));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 3, &m_rectangles_calc.at(0)));
+	const auto& centroid_positions = m_shared_data_ptr->primitives.at(primitive_index).centr_pos;
+	auto pos = m_rectangles_calc.at(0).point_in_rect(vec2(centroid_positions[0], centroid_positions[3]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 3, &m_rectangles_calc.at(0)));
 
-		pos = m_rectangles_calc.at(1).point_in_rect(vec2(centroid_positions[0], centroid_positions[2]));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 2, &m_rectangles_calc.at(1)));
+	pos = m_rectangles_calc.at(1).point_in_rect(vec2(centroid_positions[0], centroid_positions[2]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 2, &m_rectangles_calc.at(1)));
 
-		pos = m_rectangles_calc.at(2).point_in_rect(vec2(centroid_positions[0], centroid_positions[1]));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 1, &m_rectangles_calc.at(2)));
+	pos = m_rectangles_calc.at(2).point_in_rect(vec2(centroid_positions[0], centroid_positions[1]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 1, &m_rectangles_calc.at(2)));
 
-		pos = m_rectangles_calc.at(3).point_in_rect(vec2(centroid_positions[1], centroid_positions[3]));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 1, 3, &m_rectangles_calc.at(3)));
+	pos = m_rectangles_calc.at(3).point_in_rect(vec2(centroid_positions[1], centroid_positions[3]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 1, 3, &m_rectangles_calc.at(3)));
 
-		pos = m_rectangles_calc.at(4).point_in_rect(vec2(centroid_positions[1], centroid_positions[2]));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 1, 2, &m_rectangles_calc.at(4)));
+	pos = m_rectangles_calc.at(4).point_in_rect(vec2(centroid_positions[1], centroid_positions[2]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 1, 2, &m_rectangles_calc.at(4)));
 
-		pos = m_rectangles_calc.at(5).point_in_rect(vec2(centroid_positions[2], centroid_positions[3]));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 2, 3, &m_rectangles_calc.at(5)));
+	pos = m_rectangles_calc.at(5).point_in_rect(vec2(centroid_positions[2], centroid_positions[3]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 2, 3, &m_rectangles_calc.at(5)));
 
-		m_points.push_back(points);
-	}
-	else {
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(0).start, 0, 3, &m_rectangles_calc.at(0)));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(1).start, 0, 2, &m_rectangles_calc.at(1)));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(2).start, 0, 1, &m_rectangles_calc.at(2)));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(3).start, 1, 3, &m_rectangles_calc.at(3)));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(4).start, 1, 2, &m_rectangles_calc.at(4)));
-		points.push_back(tf_editor_shared_data_types::point_scatterplot(m_rectangles_calc.at(5).start, 2, 3, &m_rectangles_calc.at(5)));
-		m_points.push_back(points);
-	}
+	m_points.push_back(points);
 }
 
 void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
@@ -527,7 +517,6 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	draw_draggables(ctx);
 
 	// Create and draw the scatterplot grids
-	create_grid();
 	auto& rect_prog = content_canvas.enable_shader(ctx, "rectangle");
 	m_rectangle_style.apply(ctx, rect_prog);
 	for (const auto rectangle : m_rectangles_draw) {

@@ -27,6 +27,8 @@ tf_editor_basic::tf_editor_basic()
 	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main
 	// frame buffer
 	viewport_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
+
+	vis_mode = VM_SHAPES;
 }
 
 void tf_editor_basic::draw(cgv::render::context& ctx) {
