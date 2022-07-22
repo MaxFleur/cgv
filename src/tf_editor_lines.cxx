@@ -199,7 +199,7 @@ void tf_editor_lines::resynchronize() {
 }
 
 void tf_editor_lines::primitive_added() {
-	add_draggables();
+	add_draggables(m_shared_data_ptr->primitives.size() - 1);
 	// Add a corresponding draggable point for every centroid
 	set_point_handles();
 
