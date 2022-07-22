@@ -87,7 +87,7 @@ private:
 
 	// Geometry for the quadstrips and line relations
 	tf_editor_shared_data_types::polygon_geometry m_geometry_strips;
-	tf_editor_shared_data_types::relation_line_geometry m_geometry_relations;
+	tf_editor_shared_data_types::line_geometry m_geometry_relations;
 
 	// widget and strip border lines
 	tf_editor_shared_data_types::line_geometry m_geometry_widgets;

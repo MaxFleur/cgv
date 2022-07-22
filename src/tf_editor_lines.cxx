@@ -656,8 +656,8 @@ void tf_editor_lines::create_strip_borders(int index) {
 	m_geometry_strip_borders.clear();
 
 	const auto add_indices_to_strip_borders = [&](int index, int a, int b) {
-		m_geometry_strip_borders.add(m_strip_border_points.at(index).at(a));
-		m_geometry_strip_borders.add(m_strip_border_points.at(index).at(b));
+		m_geometry_strip_borders.add(m_strip_border_points.at(index).at(a), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
+		m_geometry_strip_borders.add(m_strip_border_points.at(index).at(b), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
 	};
 
 	add_indices_to_strip_borders(index, 0, 10);
@@ -678,8 +678,8 @@ void tf_editor_lines::add_widget_lines() {
 	m_geometry_widgets.clear();
 
 	for (const auto l : m_widget_lines) {
-		m_geometry_widgets.add(l.a);
-		m_geometry_widgets.add(l.b);
+		m_geometry_widgets.add(l.a, m_gray_widgets);
+		m_geometry_widgets.add(l.b, m_gray_widgets);
 	}
 }
 
@@ -775,7 +775,6 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 		// Strip borders
-		m_style_strip_borders.border_color = rgba{ m_shared_data_ptr->primitives.at(i).color, 1.0f };
 		create_strip_borders(i);
 
 		line_prog.enable(ctx);

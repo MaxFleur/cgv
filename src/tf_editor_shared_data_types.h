@@ -14,10 +14,8 @@ typedef cgv::render::render_types::rgba rgba;
 /* Contains different data types used by the editors */
 namespace tf_editor_shared_data_types
 {
-	// Simple line geometry
-	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 1, vec2, position);
-	// Relation lines between widgets which might be drawn with a varying color
-	DEFINE_GENERIC_RENDER_DATA_CLASS(relation_line_geometry, 2, vec2, position, rgba, color);
+	// Geometry used to draw various lines
+	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 2, vec2, position, rgba, color);
 
 	// Geometry used for quadstrips
 	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 2, vec2, position, rgba, color);
