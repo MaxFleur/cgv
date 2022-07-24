@@ -20,7 +20,6 @@ tf_editor_lines::tf_editor_lines()
 
 	// initialize the renderers
 	m_renderer_lines = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
-	m_renderer_draggables = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 	m_renderer_strips = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::polygon);
 
 	// callbacks for the moving of draggables
@@ -70,9 +69,8 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 
 		// Set width if a scroll is done
 		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
-			const auto modifiers = e.get_modifiers();
 			const auto negative_change = me.get_dy() > 0 ? true : false;
-			const auto shift_pressed = modifiers & cgv::gui::EM_SHIFT ? true : false;
+			const auto shift_pressed = e.get_modifiers() & cgv::gui::EM_SHIFT ? true : false;
 
 			scroll_centroid_width(mpos.x(), mpos.y(), negative_change, shift_pressed);
 		}
@@ -516,7 +514,7 @@ void tf_editor_lines::create_centroid_boundaries() {
 
 	// The case where all values have to be drawn
 	if (m_create_all_values) {
-		m_strip_border_points.clear();
+		m_strip_boundary_points.clear();
 
 		for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 			// For each centroid, we want to create the lines of the boundaries
@@ -550,7 +548,7 @@ void tf_editor_lines::create_centroid_boundaries() {
 				boundary_index += 2;
 			}
 
-			m_strip_border_points.push_back(strip_coordinates);
+			m_strip_boundary_points.push_back(strip_coordinates);
 		}
 		m_create_all_values = false;
 	}
@@ -569,8 +567,8 @@ void tf_editor_lines::create_centroid_boundaries() {
 			const auto id_left = m_interacted_primitive_ids[i] * 2;
 			const auto id_right = m_interacted_primitive_ids[i] * 2 + 1;
 			// Update the other centroids belonging to the widget as well
-			m_strip_border_points[primitive_layer][id_left] = line->interpolate(boundary_left);
-			m_strip_border_points[primitive_layer][id_right] = line->interpolate(boundary_right);
+			m_strip_boundary_points[primitive_layer][id_left] = line->interpolate(boundary_left);
+			m_strip_boundary_points[primitive_layer][id_right] = line->interpolate(boundary_right);
 		}
 	}
 }
@@ -587,16 +585,15 @@ void tf_editor_lines::create_strips() {
 		// Only draw quadstrips for the shape mode
 		if (vis_mode == VM_SHAPES) {
 			m_geometry_strips.clear();
-			m_geometry_strip_borders.clear();
 
 			auto strip_index = 0;
 
 			// Add four points to the strip, because every strip is between two widgets with two points each
 			const auto add_points_to_strips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
-				m_geometry_strips.add(m_strip_border_points.at(i).at(strip_id_1), color);
-				m_geometry_strips.add(m_strip_border_points.at(i).at(strip_id_2), color);
-				m_geometry_strips.add(m_strip_border_points.at(i).at(strip_id_3), color);
-				m_geometry_strips.add(m_strip_border_points.at(i).at(strip_id_4), color);
+				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color);
+				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color);
+				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color);
+				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color);
 			};
 			// Add indices for the strips
 			const auto add_indices_to_strips = [&](int offset_start, int offset_end) {
@@ -634,15 +631,15 @@ void tf_editor_lines::create_strips() {
 
 void tf_editor_lines::create_strip_borders(int index) {
 	// if there are no values yet, do not do anything
-	if (m_strip_border_points.at(index).empty()) {
+	if (m_strip_boundary_points.at(index).empty()) {
 		return;
 	}
 
 	m_geometry_strip_borders.clear();
 
 	const auto add_indices_to_strip_borders = [&](int index, int a, int b) {
-		m_geometry_strip_borders.add(m_strip_border_points.at(index).at(a), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
-		m_geometry_strip_borders.add(m_strip_border_points.at(index).at(b), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
+		m_geometry_strip_borders.add(m_strip_boundary_points.at(index).at(a), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
+		m_geometry_strip_borders.add(m_strip_boundary_points.at(index).at(b), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
 	};
 
 	add_indices_to_strip_borders(index, 0, 10);
@@ -705,7 +702,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	// first draw the plot (the method will check internally if it needs an update)
 	bool done = draw_plot(ctx);
 
-	// enable the offline framebufferf
+	// enable the offline framebuffer
 	fbc.enable(ctx);
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -729,7 +726,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	content_canvas.disable_current_shader(ctx);
 	fbc_plot.disable_attachment(ctx, "color");
 
-	// draw lines first
+	// draw widget lines first
 	auto& line_prog = m_renderer_lines.ref_prog();
 	line_prog.enable(ctx);
 	content_canvas.set_view(ctx, line_prog);
@@ -738,7 +735,16 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	m_renderer_lines.render(ctx, PT_LINES, m_geometry_widgets);
 
 	// then arrows on top
-	draw_arrows(ctx);
+	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
+	m_style_arrows.apply(ctx, arrow_prog);
+	// draw arrows indicating where the maximum value is
+	for (int i = 0; i < 15; i++) {
+		// ignore the "back" lines of the widgets, they don't need arrows
+		if ((i + 1) % 4 != 0) {
+			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, m_gray_widgets, m_gray_widgets);
+		}
+	}
+	content_canvas.disable_current_shader(ctx);
 
 	// Now create the centroid boundaries and strips
 	create_strips();
@@ -798,10 +804,7 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 
 	// make sure to reset the color buffer if we update the content from scratch
 	if (m_total_count == 0 || m_reset_plot) {
-		if (use_tone_mapping)
-			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		else
-			glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+		use_tone_mapping ? glClearColor(0.0f, 0.0f, 0.0f, 0.0f) : glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		m_reset_plot = false;
 	}
@@ -880,21 +883,6 @@ void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
 		point_prog.disable(ctx);
 		m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
 	}
-}
-
-void tf_editor_lines::draw_arrows(cgv::render::context& ctx) {
-	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
-	m_style_arrows.apply(ctx, arrow_prog);
-
-	// draw arrows indicating where the maximum value is
-	for (int i = 0; i < 15; i++) {
-		// ignore the "back" lines of the widgets, they don't need arrows
-		if ((i + 1) % 4 != 0) {
-			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, m_gray_widgets, m_gray_widgets);
-		}
-	}
-	// dont forget to disable the curent shader when we don't need it anymore
-	content_canvas.disable_current_shader(ctx);
 }
 
 void tf_editor_lines::set_point_positions() {
@@ -1009,7 +997,7 @@ void tf_editor_lines::find_clicked_draggable(int x, int y) {
 	m_is_point_clicked = found;
 	// If we found something, redraw 
 	if (found) {
-		m_clicked_centroid_id = found_index;
+		m_clicked_draggable_id = found_index;
 		redraw();
 	}
 }
@@ -1026,7 +1014,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 			if (negative_change) {
 				change *= -1.0f;
 			}
-			auto& width = m_shared_data_ptr->primitives[m_clicked_centroid_id].centr_widths[i];
+			auto& width = m_shared_data_ptr->primitives[m_clicked_draggable_id].centr_widths[i];
 			width += change;
 			width = cgv::math::clamp(width, 0.0f, 1.0f);
 
@@ -1038,7 +1026,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 	// If we found something, we have to set the corresponding point ids and redraw
 	if (found) {
 		m_is_point_dragged = true;
-		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_primitive_ids, m_clicked_centroid_id, found_index);
+		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_primitive_ids, m_clicked_draggable_id, found_index);
 
 		m_shared_data_ptr->set_synchronized();
 		redraw();

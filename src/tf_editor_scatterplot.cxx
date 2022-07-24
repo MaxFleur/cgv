@@ -21,7 +21,6 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
 	m_renderer_plot_points = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
-	m_renderer_draggables = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
 
 	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_scatterplot::set_point_positions, this));
@@ -767,7 +766,7 @@ void tf_editor_scatterplot::find_clicked_draggable(int x, int y) {
 	m_is_point_clicked = found;
 	// If we found something, redraw 
 	if (found) {
-		m_clicked_centroid_id = found_index;
+		m_clicked_draggable_id = found_index;
 		has_damage = true;
 		post_redraw();
 	}
@@ -780,8 +779,8 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 	for (int i = 0; i < m_rectangles_calc.size(); i++) {
 		if (m_rectangles_calc.at(i).is_inside(x, y)) {
 			// If the rectangle is found, update the point's width in it depending on the ctrl modifier
-			auto& primitives = m_shared_data_ptr->primitives[m_clicked_centroid_id];
-			auto& width = primitives.centr_widths[ctrl_pressed ? m_points[m_clicked_centroid_id][i].m_stain_first : m_points[m_clicked_centroid_id][i].m_stain_second];
+			auto& primitives = m_shared_data_ptr->primitives[m_clicked_draggable_id];
+			auto& width = primitives.centr_widths[ctrl_pressed ? m_points[m_clicked_draggable_id][i].m_stain_first : m_points[m_clicked_draggable_id][i].m_stain_second];
 			// auto width = 0.0f;
 			width += negative_change ? -0.02f : 0.02f;
 			width = cgv::math::clamp(width, 0.0f, 1.0f);

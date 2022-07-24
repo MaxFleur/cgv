@@ -58,8 +58,6 @@ private:
 
 	void draw_draggables(cgv::render::context& ctx);
 
-	void draw_arrows(cgv::render::context& ctx);
-
 	void set_point_positions();
 
 	void set_point_handles();
@@ -108,7 +106,7 @@ private:
 	std::vector<tf_editor_shared_data_types::polygon> m_widget_polygons;
 
 	// Boundaries of the centroid points
-	std::vector<std::vector<vec2>> m_strip_border_points;
+	std::vector<std::vector<vec2>> m_strip_boundary_points;
 
 	std::vector<std::vector<tf_editor_shared_data_types::point_line>> m_points;
 	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_line*> m_point_handles;

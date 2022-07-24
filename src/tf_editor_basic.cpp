@@ -28,6 +28,8 @@ tf_editor_basic::tf_editor_basic()
 	// frame buffer
 	viewport_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 
+	m_renderer_draggables = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
+
 	vis_mode = VM_SHAPES;
 }
 

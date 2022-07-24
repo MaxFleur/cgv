@@ -122,7 +122,7 @@ protected:
 	// Has a point been dragged?
 	bool m_is_point_dragged = false;
 	// id of the centroid layer whose point was clicked
-	int m_clicked_centroid_id;
+	int m_clicked_draggable_id;
 
 	// store a pointer to the data set
 	sliced_volume_data_set* m_data_set_ptr = nullptr;
