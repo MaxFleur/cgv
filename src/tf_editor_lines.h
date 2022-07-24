@@ -42,7 +42,7 @@ private:
 
 	void create_widget_lines();
 
-	bool create_centroid_boundaries();
+	void create_centroid_boundaries();
 
 	void create_strips();
 

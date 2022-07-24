@@ -503,14 +503,13 @@ void tf_editor_lines::create_widget_lines() {
 	}
 }
 
-bool tf_editor_lines::create_centroid_boundaries() {
-	float relative_position;
+void tf_editor_lines::create_centroid_boundaries() {
 	float boundary_left;
 	float boundary_right;
 
 	const auto calculate_values = [&](int i, int protein_index) {
 		// Get the relative position of the centroid and its left and right boundary
-		relative_position = m_shared_data_ptr->primitives.at(i).centr_pos[protein_index];
+		const auto relative_position = m_shared_data_ptr->primitives.at(i).centr_pos[protein_index];
 		boundary_left = relative_position - (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] / 2.0f);
 		boundary_right = relative_position + (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] / 2.0f);
 	};
@@ -554,8 +553,6 @@ bool tf_editor_lines::create_centroid_boundaries() {
 			m_strip_border_points.push_back(strip_coordinates);
 		}
 		m_create_all_values = false;
-
-		return true;
 	}
 	// If a centroid's position is dragged in the editor, it would make no sense to redraw everything
 	// So we redraw only for the positionss that were updated
@@ -575,9 +572,7 @@ bool tf_editor_lines::create_centroid_boundaries() {
 			m_strip_border_points[primitive_layer][id_left] = line->interpolate(boundary_left);
 			m_strip_border_points[primitive_layer][id_right] = line->interpolate(boundary_right);
 		}
-		return true;
 	}
-	return false;
 }
 
 void tf_editor_lines::create_strips() {
@@ -587,9 +582,8 @@ void tf_editor_lines::create_strips() {
 	}
 
 	if (!m_strips_created) {
-		if (!create_centroid_boundaries()) {
-			return;
-		}
+		create_centroid_boundaries();
+
 		// Only draw quadstrips for the shape mode
 		if (vis_mode == VM_SHAPES) {
 			m_geometry_strips.clear();
@@ -680,8 +674,6 @@ void tf_editor_lines::add_draggables(int primitive_index) {
 	for (int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets
 		if ((i + 1) % 4 != 0) {
-			float value;
-			
 			int index;
 			if (i < 3) {
 				index = 0;
@@ -696,7 +688,7 @@ void tf_editor_lines::add_draggables(int primitive_index) {
 				index = 3;
 			}
 
-			value = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[index];
+			const auto value = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[index];
 			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(value)), &m_widget_lines.at(i)));
 		}
 	}
@@ -770,6 +762,8 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 
 		line_prog.enable(ctx);
 		content_canvas.set_view(ctx, line_prog);
+		const auto color = m_shared_data_ptr->primitives.at(i).color;
+		m_style_strip_borders.border_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 		m_style_strip_borders.apply(ctx, line_prog);
 		line_prog.disable(ctx);
 		m_renderer_lines.render(ctx, PT_LINES, m_geometry_strip_borders);
