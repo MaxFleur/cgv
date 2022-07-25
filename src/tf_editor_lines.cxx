@@ -9,8 +9,7 @@
 
 #include "tf_editor_shared_functions.h"
 
-tf_editor_lines::tf_editor_lines()
-{	
+tf_editor_lines::tf_editor_lines() {
 	set_name("TF Editor Lines Overlay");
 	// set the size with an aspect ratio that makes lets the editor nicely fit inside
 	// aspect ratio is w:h = 1:0.875
@@ -48,27 +47,26 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 	// return true if the event gets handled and stopped here or false if you want to pass it to the next plugin
 	unsigned et = e.get_kind();
 
-	if (et == cgv::gui::EID_KEY) {
+	if(et == cgv::gui::EID_KEY) {
 		cgv::gui::key_event& ke = (cgv::gui::key_event&)e;
-		if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == 'M') {
+		if(ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == 'M') {
 			vis_mode == VM_SHAPES ? vis_mode = VM_GTF : vis_mode = VM_SHAPES;
 			on_set(&vis_mode);
 			update_content();
 
 			return true;
 		}
-	}
-	else if (et == cgv::gui::EID_MOUSE) {
+	} else if(et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
 		const auto mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
 		// Search for points if RMB is pressed
-		if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
+		if(me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
 			find_clicked_draggable(mpos.x(), mpos.y());
 		}
 
 		// Set width if a scroll is done
-		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
+		else if(me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
 			const auto negative_change = me.get_dy() > 0 ? true : false;
 			const auto shift_pressed = e.get_modifiers() & cgv::gui::EM_SHIFT ? true : false;
 
@@ -78,9 +76,9 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 		auto handled = false;
 		handled |= m_point_handles.handle(e, last_viewport_size, container);
 
-		if (handled)
+		if(handled)
 			post_redraw();
-		
+
 		return handled;
 	}
 
@@ -94,7 +92,7 @@ void tf_editor_lines::on_set(void* member_ptr) {
 			init_styles(*ctx_ptr);
 	}
 	// Update if the vis mode is changed
-	if (member_ptr == &vis_mode) {
+	if(member_ptr == &vis_mode) {
 		update_content();
 	}
 
@@ -117,11 +115,11 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	success &= m_renderer_strips.init(ctx);
 
 	// when successful, initialize the styles used for the individual shapes
-	if (success)
+	if(success)
 		init_styles(ctx);
 
 	// setup the font type and size to use for the label geometry
-	if (m_font.init(ctx)) {
+	if(m_font.init(ctx)) {
 		m_labels.set_msdf_font(&m_font);
 		m_labels.set_font_size(m_font_size);
 	}
@@ -134,7 +132,7 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 	// react to changes in the overlay size
 	if(ensure_overlay_layout(ctx)) {
 		ivec2 overlay_size = get_overlay_size();
-		
+
 		// calculate the new domain size
 		domain.set_pos(ivec2(13)); // 13 pixel padding (inner space from border)
 		domain.set_size(overlay_size - 2 * ivec2(13)); // scale size to fit in inner space left over by padding
@@ -159,7 +157,7 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 		create_labels();
 
 		update_point_positions();
-		
+
 		// update the quad positions after a resize
 		m_strips_created = false;
 		m_create_all_values = true;
@@ -186,7 +184,7 @@ void tf_editor_lines::create_gui() {
 void tf_editor_lines::resynchronize() {
 	// Clear and readd points
 	m_points.clear();
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+	for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 		add_draggables(i);
 	}
 
@@ -225,7 +223,7 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_widgets.use_fill_color = true;
 	m_style_widgets.apply_gamma = false;
 	m_style_widgets.fill_color = m_gray_widgets;
-	m_style_widgets.width = 3.0f;
+	m_style_widgets.width = 1.0f;
 
 	m_style_polygons.use_blending = true;
 	m_style_polygons.use_fill_color = false;
@@ -254,14 +252,15 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_draggables_interacted.use_blending = true;
 
 	m_style_arrows.head_width = 10.0f;
-	m_style_arrows.absolute_head_length = 8.0f;
+	m_style_arrows.relative_head_length = 1.0f;
+	m_style_arrows.head_length_is_relative = true;
 	m_style_arrows.stem_width = 0.0f;
-	m_style_arrows.feather_width = 0.0f;
-	m_style_arrows.head_length_is_relative = false;
+	m_style_arrows.feather_width = 1.0f;
 	m_style_arrows.fill_color = m_gray_arrows;
 	m_style_arrows.border_color = m_gray_arrows;
 	m_style_arrows.use_fill_color = true;
 	m_style_arrows.use_blending = true;
+	m_style_arrows.apply_gamma = false;
 
 	cgv::glutil::shape2d_style plot_rect_style;
 	plot_rect_style.use_texture = true;
@@ -298,7 +297,7 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 
 void tf_editor_lines::update_content() {
 
-	if (!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
+	if(!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
 
 	const auto& data = m_data_set_ptr->voxel_data;
@@ -311,20 +310,20 @@ void tf_editor_lines::update_content() {
 	m_geometry_relations.clear();
 
 	// for each given sample of 4 protein densities, do:
-	for (size_t i = 0; i < data.size(); ++i) {
+	for(size_t i = 0; i < data.size(); ++i) {
 		const auto& v = data[i];
 
 		// calculate the average to allow filtering with the given threshold
 		auto avg = (v[0] + v[1] + v[2] + v[3]) * 0.25f;
 
 		bool force = false;
-		if (other_threshold) {
+		if(other_threshold) {
 			force = v[0] > m_threshold || v[1] > m_threshold || v[2] > m_threshold || v[3] > m_threshold;
 		}
 
-		if (avg > m_threshold || force) {
+		if(avg > m_threshold || force) {
 			rgb color_rgb(0.0f);
-			if (vis_mode == VM_GTF) {
+			if(vis_mode == VM_GTF) {
 				color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
 			}
 			// Use full alpha for enabled tone mapping
@@ -359,10 +358,10 @@ void tf_editor_lines::create_labels() {
 	m_labels.clear();
 
 	// Set the font texts
-	if (m_font.is_initialized() && m_widget_polygons.size() > 3) {
+	if(m_font.is_initialized() && m_widget_polygons.size() > 3) {
 
 		vec2 centers[4];
-		for (int i = 0; i < 4; i++)
+		for(int i = 0; i < 4; i++)
 			centers[i] = m_widget_polygons[i].get_center();
 
 		m_labels.add_text("0", ivec2(centers[0]), cgv::render::TA_NONE, 60.0f);
@@ -370,7 +369,7 @@ void tf_editor_lines::create_labels() {
 		m_labels.add_text("2", ivec2(centers[2]), cgv::render::TA_NONE, 0.0);
 		m_labels.add_text("3", ivec2(centers[3]), cgv::render::TA_NONE, 0.0f);
 
-		for (int i = 0; i < 4; i++) {
+		for(int i = 0; i < 4; i++) {
 			m_labels.set_text(i, m_data_set_ptr->stain_names[i]);
 		}
 	}
@@ -383,7 +382,7 @@ void tf_editor_lines::create_widget_lines() {
 	// Sizing constants for the widgets
 	const float a = 1.0f; // Distance from origin (center of central triangle) to its corners
 	const float b = 1.0f; // Orthogonal distance from center widget line to the outer widget line
-	const float c = 2.0f*sin(cgv::math::deg2rad(60.0f))*b; // distance between two opposing outer widget lines
+	const float c = 2.0f * sin(cgv::math::deg2rad(60.0f)) * b; // distance between two opposing outer widget lines
 
 	// Constant rotation matrices
 	const mat2 R = cgv::math::rotate2(120.0f);
@@ -427,7 +426,7 @@ void tf_editor_lines::create_widget_lines() {
 		box.add_point(bottom[i]);
 		box.add_point(right[i]);
 	}
-	
+
 	// Offset applied before scaling (in unit coordinates) to move the widget center of gravity to the origin
 	vec2 center_offset = -box.get_center();
 
@@ -440,13 +439,19 @@ void tf_editor_lines::create_widget_lines() {
 	float scale = std::min(domain.size().x() / ext.x(), domain.size().y() / ext.y());
 
 	// Apply offsets and scale
-	for(size_t i = 0; i < 3; ++i)
+	for(size_t i = 0; i < 3; ++i) {
 		center[i] = scale * (center[i] + center_offset) + offset;
+		center[i] = cgv::math::round(center[i]) + 0.5f;
+	}
 
 	for(size_t i = 0; i < 4; ++i) {
 		left[i] = scale * (left[i] + center_offset) + offset;
 		bottom[i] = scale * (bottom[i] + center_offset) + offset;
 		right[i] = scale * (right[i] + center_offset) + offset;
+
+		left[i] = cgv::math::round(left[i]) + 0.5f;
+		bottom[i] = cgv::math::round(bottom[i]) + 0.5f;
+		right[i] = cgv::math::round(right[i]) + 0.5f;
 	}
 
 	// Helper function to add a new line
@@ -459,7 +464,7 @@ void tf_editor_lines::create_widget_lines() {
 	add_line(left[2], left[1]);
 	add_line(left[3], left[2]);
 	add_line(left[3], left[0]);
-	
+
 	// Right widget
 	add_line(right[1], right[0]);
 	add_line(right[2], right[1]);
@@ -471,7 +476,7 @@ void tf_editor_lines::create_widget_lines() {
 	add_line(bottom[1], bottom[2]);
 	add_line(bottom[2], bottom[3]);
 	add_line(bottom[3], bottom[0]);
-	
+
 	// Center widget, order: Left, right, bottom
 	add_line(center[1], center[0]);
 	add_line(center[0], center[2]);
@@ -484,19 +489,22 @@ void tf_editor_lines::create_widget_lines() {
 	m_widget_polygons.push_back(tf_editor_shared_data_types::polygon(center));
 
 	// draw smaller boundaries on the relations borders
-	for (int i = 0; i < 15; i++) {
+	for(int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets which basically is the 4th line, they don't need boundaries
-		if ((i + 1) % 4 != 0) {
+		if((i + 1) % 4 != 0) {
 			const auto direction = normalize(m_widget_lines.at(i).b - m_widget_lines.at(i).a);
 			const auto ortho_direction = cgv::math::ortho(direction);
 
 			const auto boundary_left = m_widget_lines.at(i).interpolate(0.0f);
 			const auto boundary_right = m_widget_lines.at(i).interpolate(1.0f);
 
-			m_widget_lines.push_back(
-				tf_editor_shared_data_types::line({boundary_left - 5.0f * ortho_direction, boundary_left + 3.0f * ortho_direction}));
-			m_widget_lines.push_back(
-				tf_editor_shared_data_types::line({boundary_right - 5.0f * ortho_direction, boundary_right + 3.0f * ortho_direction}));
+			add_line(boundary_left - 4.0f * ortho_direction, boundary_left + 4.0f * ortho_direction);
+			//add_line(boundary_right - 4.0f * ortho_direction, boundary_right + 4.0f * ortho_direction);
+
+			//m_widget_lines.push_back(
+			//	tf_editor_shared_data_types::line({boundary_left - 5.0f * ortho_direction, boundary_left + 3.0f * ortho_direction}));
+			//m_widget_lines.push_back(
+			//	tf_editor_shared_data_types::line({boundary_right - 5.0f * ortho_direction, boundary_right + 3.0f * ortho_direction}));
 		}
 	}
 }
@@ -513,16 +521,16 @@ void tf_editor_lines::create_centroid_boundaries() {
 	};
 
 	// The case where all values have to be drawn
-	if (m_create_all_values) {
+	if(m_create_all_values) {
 		m_strip_boundary_points.clear();
 
-		for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+		for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 			// For each centroid, we want to create the lines of the boundaries
 			std::vector<float> centroid_boundary_values;
 
 			// Each widget has three points which will always generate the same values, 
 			// so do less calculations by doing only every 4th point
-			for (int j = 0; j < m_points.at(i).size(); j += 3) {
+			for(int j = 0; j < m_points.at(i).size(); j += 3) {
 				// Get the correct protein
 				calculate_values(i, j / 3);
 
@@ -536,8 +544,8 @@ void tf_editor_lines::create_centroid_boundaries() {
 			std::vector<vec2> strip_coordinates;
 
 			// Iterate over widgets, ignore the back widget as usual
-			for (int i = 0; i < 15; i += 4) {
-				for (int j = 0; j < 3; j++) {
+			for(int i = 0; i < 15; i += 4) {
+				for(int j = 0; j < 3; j++) {
 					const auto vec_left = m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index));
 					const auto vec_right = m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1));
 
@@ -554,12 +562,12 @@ void tf_editor_lines::create_centroid_boundaries() {
 	}
 	// If a centroid's position is dragged in the editor, it would make no sense to redraw everything
 	// So we redraw only for the positionss that were updated
-	else if (m_is_point_dragged) {
+	else if(m_is_point_dragged) {
 		// Recalculate values
 		calculate_values(m_interacted_primitive_ids[0], m_interacted_primitive_ids[1] / 3);
 
 		// No need to iterate over the first array entry
-		for (int i = 1; i < 4; i++) {
+		for(int i = 1; i < 4; i++) {
 			// Get the overall primitive layer and the parent line
 			const auto primitive_layer = m_interacted_primitive_ids[0];
 			auto& line = m_points[primitive_layer][m_interacted_primitive_ids[i]].m_parent_line;
@@ -575,15 +583,15 @@ void tf_editor_lines::create_centroid_boundaries() {
 
 void tf_editor_lines::create_strips() {
 	// Don't do anything if there are no points yet
-	if (m_points.empty()) {
+	if(m_points.empty()) {
 		return;
 	}
 
-	if (!m_strips_created) {
+	if(!m_strips_created) {
 		create_centroid_boundaries();
 
 		// Only draw quadstrips for the shape mode
-		if (vis_mode == VM_SHAPES) {
+		if(vis_mode == VM_SHAPES) {
 			m_geometry_strips.clear();
 
 			auto strip_index = 0;
@@ -597,7 +605,7 @@ void tf_editor_lines::create_strips() {
 			};
 			// Add indices for the strips
 			const auto add_indices_to_strips = [&](int offset_start, int offset_end) {
-				for (int i = offset_start; i < offset_end; i++) {
+				for(int i = offset_start; i < offset_end; i++) {
 					m_geometry_strips.add_idx(strip_index + i);
 				}
 				// If done, end this strip
@@ -605,7 +613,7 @@ void tf_editor_lines::create_strips() {
 			};
 
 			// Now strips themselves
-			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+			for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 				const auto color = m_shared_data_ptr->primitives.at(i).color;
 
 				add_points_to_strips(0, 1, 10, 11, i, color);
@@ -631,7 +639,7 @@ void tf_editor_lines::create_strips() {
 
 void tf_editor_lines::create_strip_borders(int index) {
 	// if there are no values yet, do not do anything
-	if (m_strip_boundary_points.at(index).empty()) {
+	if(m_strip_boundary_points.at(index).empty()) {
 		return;
 	}
 
@@ -659,7 +667,7 @@ void tf_editor_lines::create_strip_borders(int index) {
 void tf_editor_lines::add_widget_lines() {
 	m_geometry_widgets.clear();
 
-	for (const auto l : m_widget_lines) {
+	for(const auto l : m_widget_lines) {
 		m_geometry_widgets.add(l.a, m_gray_widgets);
 		m_geometry_widgets.add(l.b, m_gray_widgets);
 	}
@@ -668,20 +676,17 @@ void tf_editor_lines::add_widget_lines() {
 void tf_editor_lines::add_draggables(int primitive_index) {
 	std::vector<tf_editor_shared_data_types::point_line> points;
 	// Add the new draggable points to the widget lines, start with the left side
-	for (int i = 0; i < 15; i++) {
+	for(int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets
-		if ((i + 1) % 4 != 0) {
+		if((i + 1) % 4 != 0) {
 			int index;
-			if (i < 3) {
+			if(i < 3) {
 				index = 0;
-			}
-			else if (i >= 4 && i < 7) {
+			} else if(i >= 4 && i < 7) {
 				index = 1;
-			}
-			else if (i >= 8 && i < 11) {
+			} else if(i >= 8 && i < 11) {
 				index = 2;
-			}
-			else if (i >= 12 && i < 115) {
+			} else if(i >= 12 && i < 115) {
 				index = 3;
 			}
 
@@ -712,7 +717,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 
 	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
 	// Apply tone mapping via the tone mapping shader
-	if (use_tone_mapping) {
+	if(use_tone_mapping) {
 		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
 		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
 		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
@@ -738,10 +743,13 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
 	m_style_arrows.apply(ctx, arrow_prog);
 	// draw arrows indicating where the maximum value is
-	for (int i = 0; i < 15; i++) {
+	for(int i = 0; i < 15; i++) {
 		// ignore the "back" lines of the widgets, they don't need arrows
-		if ((i + 1) % 4 != 0) {
-			content_canvas.draw_shape2(ctx, m_widget_lines.at(i).interpolate(0.85f), m_widget_lines.at(i).b, m_gray_widgets, m_gray_widgets);
+		if((i + 1) % 4 != 0) {
+			const auto& l = m_widget_lines.at(i);
+			vec2 a = l.interpolate(1.0f);
+			vec2 b = a + 10.0f*normalize(l.b - l.a);
+			content_canvas.draw_shape2(ctx, a, b);
 		}
 	}
 	content_canvas.disable_current_shader(ctx);
@@ -749,7 +757,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	// Now create the centroid boundaries and strips
 	create_strips();
 
-	if (vis_mode == VM_SHAPES) {
+	if(vis_mode == VM_SHAPES) {
 		auto& line_prog_polygon = m_renderer_strips.ref_prog();
 		line_prog_polygon.enable(ctx);
 		content_canvas.set_view(ctx, line_prog_polygon);
@@ -762,7 +770,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 		glDisable(GL_PRIMITIVE_RESTART);
 	}
 
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+	for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 		// Strip borders
 		create_strip_borders(i);
 
@@ -798,12 +806,12 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 	// enable the offline plot frame buffer, so all things are drawn into its attached textures
 	fbc_plot.enable(ctx);
 
-	if (use_tone_mapping) {
+	if(use_tone_mapping) {
 		glBlendFunc(GL_ONE, GL_ONE);
 	}
 
 	// make sure to reset the color buffer if we update the content from scratch
-	if (m_total_count == 0 || m_reset_plot) {
+	if(m_total_count == 0 || m_reset_plot) {
 		use_tone_mapping ? glClearColor(0.0f, 0.0f, 0.0f, 0.0f) : glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		m_reset_plot = false;
@@ -813,10 +821,10 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 	auto count = 1000000;
 
 	// make sure not to draw more lines than available
-	if (m_total_count + count > m_geometry_relations.get_render_count())
+	if(m_total_count + count > m_geometry_relations.get_render_count())
 		count = m_geometry_relations.get_render_count() - m_total_count;
 	// draw the relations
-	if (count > 0) {
+	if(count > 0) {
 		auto& line_prog = m_renderer_lines.ref_prog();
 		line_prog.enable(ctx);
 		content_canvas.set_view(ctx, line_prog);
@@ -833,17 +841,16 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 	fbc_plot.disable(ctx);
 
 	// reset the blend function
-	if (use_tone_mapping) {
+	if(use_tone_mapping) {
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	// Stop the process if we have drawn all available lines,
 	// otherwise request drawing of another frame.
 	auto run = m_total_count < m_geometry_relations.get_render_count();
-	if (run) {
+	if(run) {
 		post_redraw();
-	}
-	else {
+	} else {
 		//std::cout << "done" << std::endl;
 		m_strips_created = false;
 	}
@@ -851,7 +858,7 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 }
 
 void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
-	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
+	for(int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
 		// Clear for each centroid because colors etc might change
 		m_geometry_draggables.clear();
 		m_geometry_draggables_interacted.clear();
@@ -861,7 +868,7 @@ void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
 		m_style_draggables.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 		m_style_draggables_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 
-		for (int j = 0; j < m_points[i].size(); j++) {
+		for(int j = 0; j < m_points[i].size(); j++) {
 			// Add the points based on if they have been interacted with
 			std::find(m_interacted_points.begin(), m_interacted_points.end(), &m_points[i][j]) != m_interacted_points.end() ?
 				m_geometry_draggables_interacted.add(m_points[i][j].get_render_position()) :
@@ -889,8 +896,8 @@ void tf_editor_lines::set_point_positions() {
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
 	m_interacted_points.clear();
-	
-	if (m_is_point_clicked) {
+
+	if(m_is_point_clicked) {
 		m_is_point_clicked = false;
 	}
 
@@ -902,25 +909,25 @@ void tf_editor_lines::set_point_positions() {
 		m_interacted_primitive_ids[3] = index_col + pos_2;
 	};
 
-	for (unsigned i = 0; i < m_points.size(); ++i) {
-		for (int j = 0; j < m_points[i].size(); j++) {
+	for(unsigned i = 0; i < m_points.size(); ++i) {
+		for(int j = 0; j < m_points[i].size(); j++) {
 			// Now the relating draggables in the widget have to be updated
-			if (&m_points[i][j] == m_point_handles.get_dragged()) {
+			if(&m_points[i][j] == m_point_handles.get_dragged()) {
 				m_interacted_points.push_back(&m_points[i][j]);
 
 				m_interacted_primitive_ids[0] = i;
 				m_interacted_primitive_ids[1] = j;
 
 				// Left widget draggable was moved, update center and right
-				if (j % 3 == 0) {
+				if(j % 3 == 0) {
 					set_points(i, j, 1, 2);
 				}
 				// Center widget draggable was moved, update left and right
-				else if (j % 3 == 1) {
+				else if(j % 3 == 1) {
 					set_points(i, j, -1, 1);
 				}
 				// Right widget draggable was moved, update left and center
-				else if (j % 3 == 2) {
+				else if(j % 3 == 2) {
 					set_points(i, j, -1, -2);
 				}
 
@@ -942,26 +949,25 @@ void tf_editor_lines::set_point_positions() {
 
 void tf_editor_lines::set_point_handles() {
 	m_point_handles.clear();
-	for (unsigned i = 0; i < m_points.size(); ++i) {
-		for (int j = 0; j < m_points[i].size(); j++) {
+	for(unsigned i = 0; i < m_points.size(); ++i) {
+		for(int j = 0; j < m_points[i].size(); j++) {
 			m_point_handles.add(&m_points[i][j]);
 		}
 	}
 }
 
-void tf_editor_lines::update_point_positions()
-{
+void tf_editor_lines::update_point_positions() {
 	// update the point positions after a resize
-	if (m_shared_data_ptr && m_points.size() == m_shared_data_ptr->primitives.size()) {
-		for (size_t i = 0; i < m_points.size(); ++i) {
+	if(m_shared_data_ptr && m_points.size() == m_shared_data_ptr->primitives.size()) {
+		for(size_t i = 0; i < m_points.size(); ++i) {
 			auto& points = m_points[i];
 			auto& centroid = m_shared_data_ptr->primitives[i];
 
 			size_t idx = 0;
-			if (points.size() >= 4 * 3) {
-				for (int j = 0; j < 15; j++) {
+			if(points.size() >= 4 * 3) {
+				for(int j = 0; j < 15; j++) {
 					// ignore the "back" lines of the widgets
-					if ((j + 1) % 4 != 0) {
+					if((j + 1) % 4 != 0) {
 						float c = centroid.centr_pos[j / 4];
 
 						points[idx].pos = m_widget_lines.at(j).interpolate(c);
@@ -974,17 +980,17 @@ void tf_editor_lines::update_point_positions()
 }
 
 void tf_editor_lines::find_clicked_draggable(int x, int y) {
-	const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y)};
+	const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y) };
 	auto found = false;
 	int found_index;
 	// Search all points
-	for (int i = 0; i < m_points.size(); i++) {
-		for (int j = 0; j < m_points.at(i).size(); j++) {
+	for(int i = 0; i < m_points.size(); i++) {
+		for(int j = 0; j < m_points.at(i).size(); j++) {
 			// If the mouse was clicked inside a point, store all point addresses belonging to the 
 			// corresponding layer
-			if (m_points.at(i).at(j).is_inside(input_vec)) {
+			if(m_points.at(i).at(j).is_inside(input_vec)) {
 				m_interacted_points.clear();
-				for (int k = 0; k < m_points.at(i).size(); k++) {
+				for(int k = 0; k < m_points.at(i).size(); k++) {
 					m_interacted_points.push_back(&m_points.at(i).at(k));
 				}
 				found = true;
@@ -996,7 +1002,7 @@ void tf_editor_lines::find_clicked_draggable(int x, int y) {
 
 	m_is_point_clicked = found;
 	// If we found something, redraw 
-	if (found) {
+	if(found) {
 		m_clicked_draggable_id = found_index;
 		redraw();
 	}
@@ -1006,12 +1012,12 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 	auto found = false;
 	int found_index;
 	// Search through all polygons
-	for (int i = 0; i < m_widget_polygons.size(); i++) {
+	for(int i = 0; i < m_widget_polygons.size(); i++) {
 		// If we found a polygon, update the corresponding width
-		if (m_widget_polygons.at(i).is_point_in_polygon(x, y)) {
+		if(m_widget_polygons.at(i).is_point_in_polygon(x, y)) {
 			// Stronger change for pressed shift
 			auto change = shift_pressed ? 0.05f : 0.02f;
-			if (negative_change) {
+			if(negative_change) {
 				change *= -1.0f;
 			}
 			auto& width = m_shared_data_ptr->primitives[m_clicked_draggable_id].centr_widths[i];
@@ -1024,7 +1030,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 		}
 	}
 	// If we found something, we have to set the corresponding point ids and redraw
-	if (found) {
+	if(found) {
 		m_is_point_dragged = true;
 		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_primitive_ids, m_clicked_draggable_id, found_index);
 

@@ -12,6 +12,8 @@ If primitive values were modified, they are synchronized with the GUI and scatte
 */
 class tf_editor_lines : public tf_editor_basic {
 
+	void reload_shaders();
+
 public:
 	tf_editor_lines();
 	std::string get_type_name() const { return "tf_editor_lines_overlay"; }
@@ -114,7 +116,7 @@ private:
 	std::vector<tf_editor_shared_data_types::point_line*> m_interacted_points;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
-	rgba m_gray_arrows{ 0.45f, 0.45f, 0.45f, 1.0f };
+	rgba m_gray_arrows{ 0.4f, 0.4f, 0.4f, 1.0f };
 
 	// Store the indices of to be updated centroids if a point has been interacted with
 	int m_interacted_primitive_ids[4];

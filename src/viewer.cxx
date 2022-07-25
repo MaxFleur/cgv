@@ -614,7 +614,7 @@ void viewer::create_gui() {
 			end_tree_node(m_editor_scatterplot_ptr);
 		}
 
-		if (begin_tree_node("Primitives", dataset.sarcomere_count, false)) {
+		if (begin_tree_node("Primitives", m_shared_data_ptr, false)) {
 			align("\a");
 
 			auto const add_primitive_button = add_button("Add Primitive");

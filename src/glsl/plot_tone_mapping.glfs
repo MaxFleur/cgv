@@ -42,10 +42,10 @@ void main() {
 	
 	vec2 uv = tex_scaling * tex_coord;
 
-	float intensity = texture(tex, uv).a;
 	// BEGIN - MFLEURY
+	float intensity = texture(tex, uv).a;
 	vec4 color_values = texture(tex, uv);
-	vec3 adjusted_color = use_color ? vec3(color_values.r, color_values.g, color_values.b) / intensity : vec3(0.0f, 0.0f, 0.0f);
+	vec3 adjusted_color = use_color ? color_values.rgb / intensity : vec3(0.0f, 0.0f, 0.0f);
 	// END - MFLEURY
 
 	intensity = clamp(normalization_factor * intensity, 0.0, 1.0);
