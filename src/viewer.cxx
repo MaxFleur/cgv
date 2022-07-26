@@ -56,6 +56,8 @@ viewer::viewer() : application_plugin("Viewer") {
 	tf_editor_ptr->set_opacity_support(true);
 	tf_editor_ptr->set_visibility(false);
 
+	cs_ptr = register_overlay<cgv::glutil::color_selector>("Color Selector");
+
 	/** BEGIN - MFLEURY **/
 	m_shared_data_ptr = std::make_shared<shared_data>();
 
