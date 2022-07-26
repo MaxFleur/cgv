@@ -9,6 +9,7 @@
 #include <cgv_glutil/application_plugin.h>
 #include <cgv_glutil/color_map.h>
 #include <cgv_glutil/color_map_editor.h>
+#include <cgv_glutil/color_selector.h>
 #include <cgv_glutil/frame_buffer_container.h>
 #include <cgv_glutil/shader_library.h>
 #include <cgv_glutil/box_wire_render_data.h>
@@ -47,6 +48,7 @@ protected:
 	view* view_ptr = nullptr;
 	/// store a pointer to the transfer function editor
 	cgv::glutil::color_map_editor_ptr tf_editor_ptr = nullptr;
+	cgv::glutil::color_selector_ptr cs_ptr = nullptr;
 	
 	std::string input_path;
 
