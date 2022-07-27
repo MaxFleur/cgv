@@ -362,6 +362,10 @@ void viewer::init_frame(cgv::render::context& ctx) {
 
 		post_recreate_gui();
 	}
+
+	if(cs_ptr && cs_ptr->was_updated()) {
+		std::cout << "Selected color: " << cs_ptr->get_color() << std::endl;
+	}
 	/** END - MFLEURY **/
 }
 
