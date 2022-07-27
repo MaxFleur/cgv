@@ -38,9 +38,11 @@ protected:
 	void clear(cgv::render::context& ctx);
 
 	// Basic GUI for relation visualization
-	void create_basic_gui();
+	void create_gui_basic();
 	// GUI for tone mapping parameters
-	void create_tm_gui();
+	void create_gui_tm();
+	// GUI for coloring mode
+	void create_gui_coloring();
 
 	// Draw all contents of the editor, exlcuding the plot. This is customized in the
 	// deriving editors.

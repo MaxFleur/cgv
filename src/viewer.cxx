@@ -56,7 +56,7 @@ viewer::viewer() : application_plugin("Viewer") {
 	tf_editor_ptr->set_opacity_support(true);
 	tf_editor_ptr->set_visibility(false);
 
-	cs_ptr = register_overlay<cgv::glutil::color_selector>("Color Selector");
+	// cs_ptr = register_overlay<cgv::glutil::color_selector>("Color Selector");
 
 	/** BEGIN - MFLEURY **/
 	m_shared_data_ptr = std::make_shared<shared_data>();
@@ -626,7 +626,7 @@ void viewer::create_gui() {
 				const auto header_string = "Primitive " + std::to_string(i + 1) + " Parameters:";
 				add_decorator(header_string, "heading", "level=3");
 
-				add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=GTF, Box, Sphere");
+				add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=Gaussian, Hyperbox, Hypersphere");
 
 				// Color widget
 				add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");

@@ -160,14 +160,12 @@ void tf_editor_scatterplot::create_gui() {
 
 	create_overlay_gui();
 
-	tf_editor_basic::create_basic_gui();
+	tf_editor_basic::create_gui_basic();
 	add_member_control(this, "Blur", blur, "value_slider", "min=0;max=20;step=0.0001;ticks=true");
 	add_member_control(this, "Radius", radius, "value_slider", "min=0;max=10;step=0.0001;ticks=true");
 
-	add_decorator("Interpolation Mode", "heading", "level=3");
-	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Shapes, GTF");
-
-	tf_editor_basic::create_tm_gui();
+	tf_editor_basic::create_gui_coloring();
+	tf_editor_basic::create_gui_tm();
 }
 
 void tf_editor_scatterplot::resynchronize() {

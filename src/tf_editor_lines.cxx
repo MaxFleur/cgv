@@ -172,13 +172,11 @@ void tf_editor_lines::create_gui() {
 
 	create_overlay_gui();
 
-	tf_editor_basic::create_basic_gui();
+	tf_editor_basic::create_gui_basic();
 	add_member_control(this, "other_threshold", other_threshold, "check");
 
-	add_decorator("Interpolation Mode", "heading", "level=3");
-	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Quadstrips, GTF");
-
-	tf_editor_basic::create_tm_gui();
+	tf_editor_basic::create_gui_coloring();
+	tf_editor_basic::create_gui_tm();
 }
 
 // Called if something in the primitives has been updated
