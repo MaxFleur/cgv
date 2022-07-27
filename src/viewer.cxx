@@ -552,7 +552,7 @@ void viewer::draw(cgv::render::context& ctx) {
 
 void viewer::create_gui() {
 	add_decorator("Myofibril Viewer", "heading", "level=2");
-
+	
 	if (begin_tree_node("Data Set", blur_radius, false)) {
 		align("\a");
 		add_member_control(this, "Blur Radius", blur_radius, "value_slider", "min=0;max=8;step=1;ticks=true");
@@ -602,7 +602,6 @@ void viewer::create_gui() {
 		add_decorator("", "separator");
 
 		if(begin_tree_node("TF Editor - Lines", m_editor_lines_ptr, false)) {
-			add_member_control(this, "", m_shared_data_ptr->primitives, "");
 			align("\a");
 			inline_object_gui(m_editor_lines_ptr);
 			align("\b");
@@ -649,6 +648,13 @@ void viewer::create_gui() {
 
 			align("\b");
 			end_tree_node(m_editor_scatterplot_ptr);
+		}
+
+		if(begin_tree_node("Color Selector", cs_ptr, false)) {
+			align("\a");
+			inline_object_gui(cs_ptr);
+			align("\b");
+			end_tree_node(cs_ptr);
 		}
 		/** END - MFLEURY **/
 	}
