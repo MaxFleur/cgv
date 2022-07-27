@@ -9,7 +9,7 @@ public:
 
 	// Types of the primitive
 	enum Type {
-		TYPE_GTF = 0,
+		TYPE_GAUSS = 0,
 		TYPE_BOX = 1,
 		TYPE_SPHERE = 2
 	};
@@ -17,7 +17,7 @@ public:
 	// Main primitive, containing a type, a color and the centroid widths and positions
 	struct primitive
 	{
-		Type type{ TYPE_GTF };
+		Type type{ TYPE_GAUSS };
 
 		// Default color: blue to see the new centroid better
 		rgba color{ 0.0f, 0.0f, 1.0f, 0.5f };

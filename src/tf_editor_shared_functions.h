@@ -72,7 +72,7 @@ namespace tf_editor_shared_functions
 
 			switch (primitive.type) {
 			// Calculate the alpha value based on the primitive tyoe
-			case shared_data::TYPE_GTF:
+			case shared_data::TYPE_GAUSS:
 				alpha = tf_editor_shared_functions::gaussian_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
 				break;
 			case shared_data::TYPE_BOX:

@@ -650,12 +650,13 @@ void viewer::create_gui() {
 			end_tree_node(m_editor_scatterplot_ptr);
 		}
 
+		/*
 		if(begin_tree_node("Color Selector", cs_ptr, false)) {
 			align("\a");
 			inline_object_gui(cs_ptr);
 			align("\b");
 			end_tree_node(cs_ptr);
-		}
+		}*/
 		/** END - MFLEURY **/
 	}
 	add_decorator("", "separator");

@@ -158,6 +158,9 @@ protected:
 	// id of the centroid layer whose point was clicked
 	int m_clicked_draggable_id;
 
+	// Whether shapes etc shall be drawn or not
+	bool is_peak_mode = false;
+
 	// store a pointer to the data set
 	sliced_volume_data_set* m_data_set_ptr = nullptr;
 	// a pointer to the shared primitive data
