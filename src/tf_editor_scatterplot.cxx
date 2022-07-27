@@ -53,6 +53,10 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 
 			return true;
 		}
+		else if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == cgv::gui::KEY_Space) {
+			is_peak_mode = !is_peak_mode;
+			redraw();
+		}
 	}
 
 	if (et == cgv::gui::EID_MOUSE) {
@@ -161,14 +165,12 @@ void tf_editor_scatterplot::create_gui() {
 
 	create_overlay_gui();
 
-	tf_editor_basic::create_basic_gui();
+	tf_editor_basic::create_gui_basic();
 	add_member_control(this, "Blur", blur, "value_slider", "min=0;max=20;step=0.0001;ticks=true");
 	add_member_control(this, "Radius", radius, "value_slider", "min=0;max=10;step=0.0001;ticks=true");
 
-	add_decorator("Interpolation Mode", "heading", "level=3");
-	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Shapes, GTF");
-
-	tf_editor_basic::create_tm_gui();
+	tf_editor_basic::create_gui_coloring();
+	tf_editor_basic::create_gui_tm();
 }
 
 void tf_editor_scatterplot::resynchronize() {
@@ -499,9 +501,11 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	// restore the previous view matrix
 	content_canvas.pop_modelview_matrix(ctx);
 
-	// Shapes are next 
-	create_primitive_shapes();
-	draw_primitive_shapes(ctx);
+	// Shapes are next (if peak mode is enabled)
+	if (!is_peak_mode) {
+		create_primitive_shapes();
+		draw_primitive_shapes(ctx);
+	}
 
 	// Now the draggables
 	draw_draggables(ctx);

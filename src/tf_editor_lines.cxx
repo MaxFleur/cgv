@@ -56,6 +56,15 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 
 			return true;
 		}
+		else if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == cgv::gui::KEY_Space) {
+			is_peak_mode = !is_peak_mode;
+			// User might have adjusted many values while peak mode was active, so recreate everything
+			if (!is_peak_mode) {
+				m_create_all_values = true;
+			}
+
+			redraw();
+		}
 	} else if(et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
@@ -172,13 +181,11 @@ void tf_editor_lines::create_gui() {
 
 	create_overlay_gui();
 
-	tf_editor_basic::create_basic_gui();
+	tf_editor_basic::create_gui_basic();
 	add_member_control(this, "other_threshold", other_threshold, "check");
 
-	add_decorator("Interpolation Mode", "heading", "level=3");
-	add_member_control(this, "Interpolation", vis_mode, "dropdown", "enums=Quadstrips, GTF");
-
-	tf_editor_basic::create_tm_gui();
+	tf_editor_basic::create_gui_coloring();
+	tf_editor_basic::create_gui_tm();
 }
 
 // Called if something in the primitives has been updated
@@ -755,33 +762,36 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	}
 	content_canvas.disable_current_shader(ctx);
 
-	// Now create the centroid boundaries and strips
-	create_strips();
+	// Do not draw quadstrips and the border lines for peak mode
+	if (!is_peak_mode) {
+		// Now create the centroid boundaries and strips
+		create_strips();
 
-	if(vis_mode == VM_SHAPES) {
-		auto& line_prog_polygon = m_renderer_strips.ref_prog();
-		line_prog_polygon.enable(ctx);
-		content_canvas.set_view(ctx, line_prog_polygon);
-		line_prog_polygon.disable(ctx);
+		if (vis_mode == VM_SHAPES) {
+			auto& line_prog_polygon = m_renderer_strips.ref_prog();
+			line_prog_polygon.enable(ctx);
+			content_canvas.set_view(ctx, line_prog_polygon);
+			line_prog_polygon.disable(ctx);
 
-		// draw the lines from the given geometry with offset and count
-		glEnable(GL_PRIMITIVE_RESTART);
-		glPrimitiveRestartIndex(0xFFFFFFFF);
-		m_renderer_strips.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips);
-		glDisable(GL_PRIMITIVE_RESTART);
-	}
+			// draw the lines from the given geometry with offset and count
+			glEnable(GL_PRIMITIVE_RESTART);
+			glPrimitiveRestartIndex(0xFFFFFFFF);
+			m_renderer_strips.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips);
+			glDisable(GL_PRIMITIVE_RESTART);
+		}
 
-	for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-		// Strip borders
-		create_strip_borders(i);
+		for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+			// Strip borders
+			create_strip_borders(i);
 
-		line_prog.enable(ctx);
-		content_canvas.set_view(ctx, line_prog);
-		const auto color = m_shared_data_ptr->primitives.at(i).color;
-		m_style_strip_borders.border_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
-		m_style_strip_borders.apply(ctx, line_prog);
-		line_prog.disable(ctx);
-		m_renderer_lines.render(ctx, PT_LINES, m_geometry_strip_borders);
+			line_prog.enable(ctx);
+			content_canvas.set_view(ctx, line_prog);
+			const auto color = m_shared_data_ptr->primitives.at(i).color;
+			m_style_strip_borders.border_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
+			m_style_strip_borders.apply(ctx, line_prog);
+			line_prog.disable(ctx);
+			m_renderer_lines.render(ctx, PT_LINES, m_geometry_strip_borders);
+		}
 	}
 
 	// then labels
