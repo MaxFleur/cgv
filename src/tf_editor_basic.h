@@ -55,7 +55,7 @@ protected:
 
 	template <typename T>
 	void find_clicked_draggable(std::vector<std::vector<T>> const& points,
-								// std::vector<std::vector<T>> const& interacted_points,
+								//std::vector<T*> const& interacted_points,
 								int x, int y, int& clicked_draggable_id, bool& is_point_clicked) {
 		const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y) };
 		auto found = false;

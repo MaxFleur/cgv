@@ -62,7 +62,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 		const auto mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
 		// Search for points if RMB is pressed
 		if(me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
-			// tf_editor_basic::find_clicked_draggable(m_points, /*m_interacted_points,*/ mpos.x(), mpos.y(), m_clicked_draggable_id, m_is_point_clicked);
+			//tf_editor_basic::find_clicked_draggable(m_points, m_interacted_points, mpos.x(), mpos.y(), m_clicked_draggable_id, m_is_point_clicked);
 			find_clicked_draggable(mpos.x(), mpos.y());
 		}
 

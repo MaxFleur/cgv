@@ -18,6 +18,7 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 
 	// Register additional ellipses
 	content_canvas.register_shader("ellipse", cgv::glutil::canvas::shaders_2d::ellipse);
+	content_canvas.register_shader("gauss_ellipse", "gauss_ellipse2d.glpr");
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
 	m_renderer_plot_points = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
@@ -625,7 +626,7 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 		m_style_shapes.fill_color = m_shared_data_ptr->primitives.at(i).color;
 		m_style_shapes.ring_width = vis_mode == VM_SHAPES ? 0.0f : 3.0f;
 
-		auto& prog = type == shared_data::TYPE_BOX ? content_canvas.enable_shader(ctx, "rectangle") : content_canvas.enable_shader(ctx, "ellipse");
+		auto& prog = type == shared_data::TYPE_BOX ? content_canvas.enable_shader(ctx, "rectangle") : content_canvas.enable_shader(ctx, "gauss_ellipse");
 		auto& index = type == shared_data::TYPE_BOX ? index_boxes : index_ellipses;
 
 		// For each primitive, we have either six boxes or six ellipses
