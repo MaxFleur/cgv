@@ -56,7 +56,7 @@ viewer::viewer() : application_plugin("Viewer") {
 	tf_editor_ptr->set_opacity_support(true);
 	tf_editor_ptr->set_visibility(false);
 
-	// cs_ptr = register_overlay<cgv::glutil::color_selector>("Color Selector");
+	cs_ptr = register_overlay<cgv::glutil::color_selector>("Color Selector");
 
 	/** BEGIN - MFLEURY **/
 	m_shared_data_ptr = std::make_shared<shared_data>();
@@ -654,13 +654,12 @@ void viewer::create_gui() {
 			end_tree_node(m_editor_scatterplot_ptr);
 		}
 
-		/*
 		if(begin_tree_node("Color Selector", cs_ptr, false)) {
 			align("\a");
 			inline_object_gui(cs_ptr);
 			align("\b");
 			end_tree_node(cs_ptr);
-		}*/
+		}
 		/** END - MFLEURY **/
 	}
 	add_decorator("", "separator");

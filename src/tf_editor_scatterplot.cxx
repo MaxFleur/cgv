@@ -220,7 +220,7 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_style_shapes.use_blending = true;
 	m_style_shapes.use_fill_color = true;
 	m_style_shapes.apply_gamma = false;
-	m_style_shapes.border_width = 5.0f;
+	m_style_shapes.border_width = 1.0f;
 
 	// configure style for the plot labels
 	cgv::glutil::shape2d_style text_style;

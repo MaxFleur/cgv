@@ -82,13 +82,14 @@ void main() {
 	float dist = abs(adjusted_size.x - adjusted_size.y) < 0.001 ? sd_circle(pix_coord, adjusted_size.x) : sd_ellipse(pix_coord, adjusted_size);
 	
 	vec4 color = get_active_color(color_fs);
-    float t = ((-dist / adjusted_size.x) + (-dist / adjusted_size.y)) / 2.0;
 
+    float t = ((-dist / adjusted_size.x) + (-dist / adjusted_size.y)) / 2.0;
 	// TODO: evaluate gauss with t
     // float gaussian = gaussian_transfer_function(pix_coord, , adjusted_size);
 	color.a *= t;
-
-
-
+	
 	finish_sdf_fragment2d(dist, color, tex_coord);
+
+	//float t = length(pix_coord / adjusted_size);
+	//color.a *= exp((-t*t)/(0.5*0.5));
 }
