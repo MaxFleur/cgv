@@ -54,8 +54,10 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 			return true;
 		}
 		else if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == cgv::gui::KEY_Space) {
-			is_peak_mode = !is_peak_mode;
-			redraw();
+			if (is_hit((ke.get_x(), ke.get_y()))) {
+				is_peak_mode = !is_peak_mode;
+				redraw();
+			}
 		}
 	}
 

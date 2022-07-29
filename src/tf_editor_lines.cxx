@@ -57,13 +57,15 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 			return true;
 		}
 		else if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == cgv::gui::KEY_Space) {
-			is_peak_mode = !is_peak_mode;
-			// User might have adjusted many values while peak mode was active, so recreate everything
-			if (!is_peak_mode) {
-				m_create_all_values = true;
-			}
+			if (is_hit((ke.get_x(), ke.get_y()))) {
+				is_peak_mode = !is_peak_mode;
+				// User might have adjusted many values while peak mode was active, so recreate everything
+				if (!is_peak_mode) {
+					m_create_all_values = true;
+				}
 
-			redraw();
+				redraw();
+			}
 		}
 	} else if(et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
