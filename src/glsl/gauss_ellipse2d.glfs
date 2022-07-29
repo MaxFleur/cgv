@@ -18,22 +18,6 @@ in vec2 pix_coord;
 in vec2 tex_coord;
 flat in vec4 color_fs;
 
-float gaussian_transfer_function(vec2 density, vec2 center, vec2 gaussian_width) {
-
-	// construct a matrix with diagonal components set to the given value
-	mat2 K;
-	K[0] = vec2(2.0 / gaussian_width[0], 0.0);
-	K[1] = vec2(0.0, 2.0 / gaussian_width[1]);
-	
-	vec2 diff = density - center;
-	mat2 K2 = K*K;
-
-	// calculate exponent; use dot product to multiply two vectors with the intention of receiving a single floating point result
-	float exponent = dot(diff, K2*diff);
-
-	return exp(-exponent);
-}
-
 // https://iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
 float sd_circle(in vec2 p, in float r )
 {
@@ -83,13 +67,8 @@ void main() {
 	
 	vec4 color = get_active_color(color_fs);
 
-    float t = ((-dist / adjusted_size.x) + (-dist / adjusted_size.y)) / 2.0;
-	// TODO: evaluate gauss with t
-    // float gaussian = gaussian_transfer_function(pix_coord, , adjusted_size);
-	color.a *= t;
+    float t = length(pix_coord / adjusted_size);
+	color.a *= exp((-t*t)/(0.5*0.5));
 	
 	finish_sdf_fragment2d(dist, color, tex_coord);
-
-	//float t = length(pix_coord / adjusted_size);
-	//color.a *= exp((-t*t)/(0.5*0.5));
 }
