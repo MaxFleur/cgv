@@ -128,7 +128,7 @@ bool viewer::handle_event(cgv::gui::event& e) {
 					if(m_editor_lines_ptr) {
 						m_editor_lines_ptr->toggle_visibility();
 
-						draw_line_gui_tree = !draw_line_gui_tree;
+						set_tree_node_visibility(m_editor_lines_ptr, m_editor_lines_ptr->is_visible());
 						handled = true;
 					}
 				}
@@ -137,7 +137,7 @@ bool viewer::handle_event(cgv::gui::event& e) {
 				if (m_editor_scatterplot_ptr) {
 					m_editor_scatterplot_ptr->toggle_visibility();
 
-					draw_splom_gui_tree = !draw_splom_gui_tree;
+					set_tree_node_visibility(m_editor_scatterplot_ptr, m_editor_scatterplot_ptr->is_visible());
 					handled = true;
 				}
 				break;
@@ -145,7 +145,6 @@ bool viewer::handle_event(cgv::gui::event& e) {
 			}
 
 			if(handled) {
-				post_recreate_gui();
 				post_redraw();
 				return true;
 			}
@@ -610,20 +609,19 @@ void viewer::create_gui() {
 
 		add_decorator("", "separator");
 
-		if(begin_tree_node("TF Editor - Lines", m_editor_lines_ptr, draw_line_gui_tree)) {
+		if(begin_tree_node("TF Editor - Lines", m_editor_lines_ptr, false)) {
 			align("\a");
 			inline_object_gui(m_editor_lines_ptr);
 			align("\b");
 			end_tree_node(m_editor_lines_ptr);
 		}
 
-		if (begin_tree_node("TF Editor - SPLOM", m_editor_scatterplot_ptr, draw_splom_gui_tree)) {
+		if (begin_tree_node("TF Editor - SPLOM", m_editor_scatterplot_ptr, false)) {
 			align("\a");
 			inline_object_gui(m_editor_scatterplot_ptr);
 			align("\b");
 			end_tree_node(m_editor_scatterplot_ptr);
 		}
-
 
 		if (begin_tree_node("Primitives", m_shared_data_ptr, false)) {
 			align("\a");

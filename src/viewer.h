@@ -264,7 +264,5 @@ private:
 	tf_editor_lines_ptr m_editor_lines_ptr = nullptr;
 	tf_editor_scatterplot_ptr m_editor_scatterplot_ptr = nullptr;
 
-	bool draw_splom_gui_tree = false;
-	bool draw_line_gui_tree = false;
 /** END - MFLEURY **/
 };
