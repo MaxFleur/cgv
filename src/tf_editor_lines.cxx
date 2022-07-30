@@ -805,7 +805,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels);
 
 	// draggables are the last thing to be drawn so they are above everything else
-	draw_draggables(ctx);
+	tf_editor_basic::draw_draggables(ctx, m_points, m_interacted_primitive_ids[0]);
 
 	fbc.disable(ctx);
 
@@ -869,41 +869,6 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 		m_strips_created = false;
 	}
 	return !run;
-}
-
-void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
-	for(int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
-		// Clear for each centroid because colors etc might change
-		m_geometry_draggables.clear();
-		m_geometry_draggables_interacted.clear();
-
-		const auto color = m_shared_data_ptr->primitives.at(i).color;
-		// Apply color to the centroids, always do full opacity
-		m_style_draggables.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
-		m_style_draggables_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
-
-		for (int j = 0; j < m_points[i].size(); j++) {
-			const auto render_pos = m_points[i][j].get_render_position();
-			// Only draw for interacted if a point has been dragged
-			i == m_interacted_primitive_ids[0] && m_is_point_dragged ? 
-				m_geometry_draggables_interacted.add(render_pos) : m_geometry_draggables.add(render_pos);
-		}
-
-		// Draw 
-		shader_program& point_prog = m_renderer_draggables.ref_prog();
-		point_prog.enable(ctx);
-		content_canvas.set_view(ctx, point_prog);
-		m_style_draggables.apply(ctx, point_prog);
-		point_prog.set_attribute(ctx, "size", vec2(12.0f));
-		point_prog.disable(ctx);
-		m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables);
-
-		point_prog.enable(ctx);
-		m_style_draggables_interacted.apply(ctx, point_prog);
-		point_prog.set_attribute(ctx, "size", vec2(16.0f));
-		point_prog.disable(ctx);
-		m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
-	}
 }
 
 void tf_editor_lines::set_point_positions() {

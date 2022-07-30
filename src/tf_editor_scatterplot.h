@@ -50,8 +50,6 @@ private:
 
 	bool draw_scatterplot(cgv::render::context& ctx);
 
-	void draw_draggables(cgv::render::context& ctx);
-
 	void draw_primitive_shapes(cgv::render::context& ctx);
 
 	void set_point_positions();
