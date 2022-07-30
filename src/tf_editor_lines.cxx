@@ -71,14 +71,15 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
 		const auto mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
-		// Search for points if RMB is pressed
-		if(me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
-			//tf_editor_basic::find_clicked_draggable(m_points, m_interacted_points, mpos.x(), mpos.y(), m_clicked_draggable_id, m_is_point_clicked);
-			find_clicked_draggable(mpos.x(), mpos.y());
-		}
 
+		// Reset dragging by clicking the left mouse
+		if (me.get_button() == cgv::gui::MB_LEFT_BUTTON && !m_currently_dragging) {
+			m_interacted_points.clear();
+			m_is_point_dragged = false;
+			redraw();
+		}
 		// Set width if a scroll is done
-		else if(me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
+		else if(me.get_action() == cgv::gui::MA_WHEEL && m_is_point_dragged) {
 			const auto negative_change = me.get_dy() > 0 ? true : false;
 			const auto shift_pressed = e.get_modifiers() & cgv::gui::EM_SHIFT ? true : false;
 
@@ -881,11 +882,11 @@ void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
 		m_style_draggables.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 		m_style_draggables_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 
-		for(int j = 0; j < m_points[i].size(); j++) {
-			// Add the points based on if they have been interacted with
-			std::find(m_interacted_points.begin(), m_interacted_points.end(), &m_points[i][j]) != m_interacted_points.end() ?
-				m_geometry_draggables_interacted.add(m_points[i][j].get_render_position()) :
-				m_geometry_draggables.add(m_points[i][j].get_render_position());
+		for (int j = 0; j < m_points[i].size(); j++) {
+			const auto render_pos = m_points[i][j].get_render_position();
+			// Only draw for interacted if a point has been dragged
+			i == m_interacted_primitive_ids[0] && m_is_point_dragged ? 
+				m_geometry_draggables_interacted.add(render_pos) : m_geometry_draggables.add(render_pos);
 		}
 
 		// Draw 
@@ -908,6 +909,7 @@ void tf_editor_lines::draw_draggables(cgv::render::context& ctx) {
 void tf_editor_lines::set_point_positions() {
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
+	m_currently_dragging = true;
 	m_interacted_points.clear();
 
 	if(m_is_point_clicked) {
@@ -926,8 +928,9 @@ void tf_editor_lines::set_point_positions() {
 		for(int j = 0; j < m_points[i].size(); j++) {
 			// Now the relating draggables in the widget have to be updated
 			if(&m_points[i][j] == m_point_handles.get_dragged()) {
-				m_interacted_points.push_back(&m_points[i][j]);
-
+				for (int k = 0; k < m_points.at(i).size(); k++) {
+					m_interacted_points.push_back(&m_points.at(i).at(k));
+				}
 				m_interacted_primitive_ids[0] = i;
 				m_interacted_primitive_ids[1] = j;
 
@@ -992,35 +995,6 @@ void tf_editor_lines::update_point_positions() {
 	}
 }
 
-void tf_editor_lines::find_clicked_draggable(int x, int y) {
-	const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y) };
-	auto found = false;
-	int found_index;
-	// Search all points
-	for(int i = 0; i < m_points.size(); i++) {
-		for(int j = 0; j < m_points.at(i).size(); j++) {
-			// If the mouse was clicked inside a point, store all point addresses belonging to the 
-			// corresponding layer
-			if(m_points.at(i).at(j).is_inside(input_vec)) {
-				m_interacted_points.clear();
-				for(int k = 0; k < m_points.at(i).size(); k++) {
-					m_interacted_points.push_back(&m_points.at(i).at(k));
-				}
-				found = true;
-				found_index = i;
-				break;
-			}
-		}
-	}
-
-	m_is_point_clicked = found;
-	// If we found something, redraw 
-	if(found) {
-		m_clicked_draggable_id = found_index;
-		redraw();
-	}
-}
-
 void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed) {
 	auto found = false;
 	int found_index;
@@ -1033,7 +1007,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 			if(negative_change) {
 				change *= -1.0f;
 			}
-			auto& width = m_shared_data_ptr->primitives[m_clicked_draggable_id].centr_widths[i];
+			auto& width = m_shared_data_ptr->primitives[m_interacted_primitive_ids[0]].centr_widths[i];
 			width += change;
 			width = cgv::math::clamp(width, 0.0f, 1.0f);
 
@@ -1045,7 +1019,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 	// If we found something, we have to set the corresponding point ids and redraw
 	if(found) {
 		m_is_point_dragged = true;
-		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_primitive_ids, m_clicked_draggable_id, found_index);
+		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_primitive_ids, found_index);
 
 		m_shared_data_ptr->set_synchronized();
 		redraw();

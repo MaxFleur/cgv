@@ -155,6 +155,8 @@ protected:
 	bool m_is_point_clicked = false;
 	// Has a point been dragged?
 	bool m_is_point_dragged = false;
+	// Are we currently dragging something?
+	bool m_currently_dragging = false;
 	// id of the centroid layer whose point was clicked
 	int m_clicked_draggable_id;
 

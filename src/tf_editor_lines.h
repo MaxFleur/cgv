@@ -66,19 +66,15 @@ private:
 
 	void update_point_positions();
 
-	void find_clicked_draggable(int x, int y);
-
 	void scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed);
 
 	void end_drag() {
-		m_interacted_points.clear();
+		m_currently_dragging = false;
 
 		if (vis_mode == VM_GTF) {
 			update_content();
 			return;
 		}
-		has_damage = true;
-		post_redraw();
 	}
 
 private:
@@ -119,7 +115,7 @@ private:
 	rgba m_gray_arrows{ 0.4f, 0.4f, 0.4f, 1.0f };
 
 	// Store the indices of to be updated centroids if a point has been interacted with
-	int m_interacted_primitive_ids[4];
+	int m_interacted_primitive_ids[4] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX };
 	// Were strips created?
 	bool m_strips_created = true;
 	// Do we need to update all values?

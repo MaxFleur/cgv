@@ -8,10 +8,9 @@
 namespace tf_editor_shared_functions
 {
 	// set the centroid id array
-	static void set_interacted_centroid_ids(int* interacted_centroid_ids, int id, int input_index) {
+	static void set_interacted_centroid_ids(int* interacted_centroid_ids, int input_index) {
 		// Because we have four centroids, but 12 points, multiply with 3
 		const auto index = input_index * 3;
-		interacted_centroid_ids[0] = id;
 		interacted_centroid_ids[1] = index;
 		// Apply to the following two centroids
 		interacted_centroid_ids[2] = index + 1;
