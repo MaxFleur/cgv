@@ -912,10 +912,6 @@ void tf_editor_lines::set_point_positions() {
 	m_currently_dragging = true;
 	m_interacted_points.clear();
 
-	if(m_is_point_clicked) {
-		m_is_point_clicked = false;
-	}
-
 	const auto set_points = [&](int index_row, int index_col, int pos_1, int pos_2) {
 		const auto relative_position = (m_points[index_row][index_col].get_relative_line_position() - 0.1f) / 0.8f;
 		m_points[index_row][index_col + pos_1].move_along_line(relative_position);

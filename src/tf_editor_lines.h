@@ -68,15 +68,6 @@ private:
 
 	void scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed);
 
-	void end_drag() {
-		m_currently_dragging = false;
-
-		if (vis_mode == VM_GTF) {
-			update_content();
-			return;
-		}
-	}
-
 private:
 
 	// renderer for the 2d plot lines and quadstrips

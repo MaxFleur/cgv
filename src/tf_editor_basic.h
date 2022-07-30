@@ -53,35 +53,13 @@ protected:
 
 	virtual void update_content() = 0;
 
-	template <typename T>
-	void find_clicked_draggable(std::vector<std::vector<T>> const& points,
-								//std::vector<T*> const& interacted_points,
-								int x, int y, int& clicked_draggable_id, bool& is_point_clicked) {
-		const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y) };
-		auto found = false;
-		int found_index;
-		// Search all points
-		for (int i = 0; i < points.size(); i++) {
-			for (int j = 0; j < points.at(i).size(); j++) {
-				// If the mouse was clicked inside a point, store all point addresses belonging to the 
-				// corresponding layer
-				if (points.at(i).at(j).is_inside(input_vec)) {
-					/*interacted_points.clear();
-					for (int k = 0; k < m_points.at(i).size(); k++) {
-						interacted_points.push_back(&m_points.at(i).at(k));
-					}*/
-					found = true;
-					found_index = i;
-					break;
-				}
-			}
-		}
+	// Called when a mouse drag is ended
+	void end_drag() {
+		m_currently_dragging = false;
 
-		is_point_clicked = found;
-		// If we found something, redraw 
-		if (found) {
-			clicked_draggable_id = found_index;
-			redraw();
+		if (vis_mode == VM_GTF) {
+			update_content();
+			return;
 		}
 	}
 
@@ -151,14 +129,10 @@ protected:
 	float tm_gamma = 1.0f;
 
 	// point parameters
-	// Has a point been clicked?
-	bool m_is_point_clicked = false;
 	// Has a point been dragged?
 	bool m_is_point_dragged = false;
 	// Are we currently dragging something?
 	bool m_currently_dragging = false;
-	// id of the centroid layer whose point was clicked
-	int m_clicked_draggable_id;
 
 	// Whether shapes etc shall be drawn or not
 	bool is_peak_mode = false;

@@ -58,20 +58,7 @@ private:
 
 	void set_point_handles();
 
-	void find_clicked_draggable(int x, int y);
-
 	void scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed);
-
-	void end_drag() {
-		m_interacted_points.clear();
-
-		if (vis_mode == VM_GTF) {
-			update_content();
-			return;
-		}
-		has_damage = true;
-		post_redraw();
-	}
 
 private:
 
@@ -100,7 +87,7 @@ private:
 	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
 
 	// Store the indices of to be updated centroid poition if a draggable has been interacted with
-	std::pair<int, int> m_interacted_point_id;
+	int m_interacted_point_id = INT_MAX;
 
 	// plot point radius and blir
 	float radius = 2.0f;

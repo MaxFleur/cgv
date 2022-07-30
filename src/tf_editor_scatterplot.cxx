@@ -66,12 +66,14 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 
 		const auto mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
 		// Search for points if RMB is pressed
-		if (me.get_action() == cgv::gui::MA_PRESS && me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
-			find_clicked_draggable(mpos.x(), mpos.y());
+		if (me.get_button() == cgv::gui::MB_LEFT_BUTTON && !m_currently_dragging) {
+			m_interacted_points.clear();
+			m_is_point_dragged = false;
+			redraw();
 		}
 
 		// Set width if a scroll is done
-		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_clicked) {
+		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_dragged) {
 			const auto modifiers = e.get_modifiers();
 			const auto negative_change = me.get_dy() > 0 ? true : false;
 			const auto ctrl_pressed = modifiers & cgv::gui::EM_CTRL ? true : false;
@@ -600,10 +602,10 @@ void tf_editor_scatterplot::draw_draggables(cgv::render::context& ctx) {
 		m_style_draggables_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 
 		for (int j = 0; j < m_points[i].size(); j++) {
-			// Add the points based on if they have been interacted with
-			std::find(m_interacted_points.begin(), m_interacted_points.end(), &m_points[i][j]) != m_interacted_points.end() ?
-				m_geometry_draggables_interacted.add(m_points[i][j].get_render_position()) :
-				m_geometry_draggables.add(m_points[i][j].get_render_position());
+			const auto render_pos = m_points[i][j].get_render_position();
+			// Only draw for interacted if a point has been dragged
+			i == m_interacted_point_id && m_is_point_dragged ?
+				m_geometry_draggables_interacted.add(render_pos) : m_geometry_draggables.add(render_pos);
 		}
 
 		// Draw 
@@ -634,7 +636,7 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 		m_style_shapes.fill_color = m_shared_data_ptr->primitives.at(i).color;
 		m_style_shapes.ring_width = vis_mode == VM_SHAPES ? 0.0f : 3.0f;
 
-		auto& prog = type == shared_data::TYPE_BOX ? content_canvas.enable_shader(ctx, "rectangle") : content_canvas.enable_shader(ctx, "gauss_ellipse");
+		auto& prog = content_canvas.enable_shader(ctx, type == shared_data::TYPE_BOX ? "rectangle" : type == shared_data::TYPE_GAUSS ? "gauss_ellipse" : "ellipse");
 		auto& index = type == shared_data::TYPE_BOX ? index_boxes : index_ellipses;
 
 		// For each primitive, we have either six boxes or six ellipses
@@ -659,11 +661,8 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 void tf_editor_scatterplot::set_point_positions() {
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
+	m_currently_dragging = true;
 	m_interacted_points.clear();
-
-	if (m_is_point_clicked) {
-		m_is_point_clicked = false;
-	}
 
 	const auto org = static_cast<vec2>(domain.pos());
 	const auto size = domain.size();
@@ -672,11 +671,12 @@ void tf_editor_scatterplot::set_point_positions() {
 		for (int j = 0; j < m_points[i].size(); j++) {
 			// Now the relating draggable in the scatter plot has to be updated
 			if (&m_points[i][j] == m_point_handles.get_dragged()) {
-				m_interacted_points.push_back(&m_points[i][j]);
+				for (int k = 0; k < m_points.at(i).size(); k++) {
+					m_interacted_points.push_back(&m_points.at(i).at(k));
+				}
 				const auto& found_point = m_points[i][j];
 
-				m_interacted_point_id.first = i;
-				m_interacted_point_id.second = j;
+				m_interacted_point_id = i;
 				// Update all other points with values belonging to this certain point
 				if (found_point.m_stain_first == 0 && found_point.m_stain_second == 3) {
 					m_points[i][1].pos = vec2(found_point.pos.x(), m_points[i][1].pos.y());
@@ -749,36 +749,6 @@ void tf_editor_scatterplot::set_point_handles() {
 	}
 }
 
-void tf_editor_scatterplot::find_clicked_draggable(int x, int y) {
-	const auto input_vec = vec2{ static_cast<float>(x), static_cast<float>(y) };
-	auto found = false;
-	int found_index;
-	// Search all points
-	for (int i = 0; i < m_points.size(); i++) {
-		for (int j = 0; j < m_points.at(i).size(); j++) {
-			// If the mouse was clicked inside a point, store all point addresses belonging to the 
-			// corresponding layer
-			if (m_points.at(i).at(j).is_inside(input_vec)) {
-				m_interacted_points.clear();
-				for (int k = 0; k < m_points.at(i).size(); k++) {
-					m_interacted_points.push_back(&m_points.at(i).at(k));
-				}
-				found = true;
-				found_index = i;
-				break;
-			}
-		}
-	}
-
-	m_is_point_clicked = found;
-	// If we found something, redraw 
-	if (found) {
-		m_clicked_draggable_id = found_index;
-		has_damage = true;
-		post_redraw();
-	}
-}
-
 void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed) {
 	auto found = false;
 	int found_index;
@@ -786,8 +756,8 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 	for (int i = 0; i < m_rectangles_calc.size(); i++) {
 		if (m_rectangles_calc.at(i).is_inside(x, y)) {
 			// If the rectangle is found, update the point's width in it depending on the ctrl modifier
-			auto& primitives = m_shared_data_ptr->primitives[m_clicked_draggable_id];
-			auto& width = primitives.centr_widths[ctrl_pressed ? m_points[m_clicked_draggable_id][i].m_stain_first : m_points[m_clicked_draggable_id][i].m_stain_second];
+			auto& primitives = m_shared_data_ptr->primitives[m_interacted_point_id];
+			auto& width = primitives.centr_widths[ctrl_pressed ? m_points[m_interacted_point_id][i].m_stain_first : m_points[m_interacted_point_id][i].m_stain_second];
 			// auto width = 0.0f;
 			width += negative_change ? -0.02f : 0.02f;
 			width = cgv::math::clamp(width, 0.0f, 1.0f);
