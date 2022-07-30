@@ -185,8 +185,6 @@ void tf_editor_lines::create_gui() {
 	create_overlay_gui();
 
 	tf_editor_basic::create_gui_basic();
-	add_member_control(this, "other_threshold", other_threshold, "check");
-
 	tf_editor_basic::create_gui_coloring();
 	tf_editor_basic::create_gui_tm();
 }
@@ -327,12 +325,7 @@ void tf_editor_lines::update_content() {
 		// calculate the average to allow filtering with the given threshold
 		auto avg = (v[0] + v[1] + v[2] + v[3]) * 0.25f;
 
-		bool force = false;
-		if(other_threshold) {
-			force = v[0] > m_threshold || v[1] > m_threshold || v[2] > m_threshold || v[3] > m_threshold;
-		}
-
-		if(avg > m_threshold || force) {
+		if(avg > m_threshold) {
 			rgb color_rgb(0.0f);
 			if(vis_mode == VM_GTF) {
 				color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);

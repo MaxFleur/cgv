@@ -58,8 +58,6 @@ private:
 
 	bool draw_plot(cgv::render::context& ctx);
 
-	void draw_draggables(cgv::render::context& ctx);
-
 	void set_point_positions();
 
 	void set_point_handles();
@@ -111,8 +109,6 @@ private:
 	bool m_strips_created = true;
 	// Do we need to update all values?
 	bool m_create_all_values = true;
-
-	bool other_threshold = false;
 };
 
 typedef cgv::data::ref_ptr<tf_editor_lines> tf_editor_lines_ptr;
