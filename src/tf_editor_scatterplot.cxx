@@ -280,9 +280,9 @@ void tf_editor_scatterplot::update_content() {
 	const auto size = domain.size();
 
 	// Construct to add the points
-	const auto add_point = [&](const vec4& v, vec2& pos, const float& x, const float& y) {
+	const auto add_point = [&](const vec4& v, const float& x, const float& y) {
 		// Apply size and offset
-		pos.set(x, y);
+		auto pos = vec2(x, y);
 		pos *= size;
 		pos += org;
 
@@ -312,7 +312,7 @@ void tf_editor_scatterplot::update_content() {
 			for (int i = 1; i < 4; i++) {
 				vec2 pos(v[0], v[i]);
 
-				add_point(v, pos, pos.x() * 0.33f, (pos.y() / 3.0f) + offset);
+				add_point(v, pos.x() * 0.33f, (pos.y() / 3.0f) + offset);
 				offset += 0.33f;
 			}
 			// Second col
@@ -321,13 +321,13 @@ void tf_editor_scatterplot::update_content() {
 			for (int i = 1; i < 3; i++) {
 				vec2 pos(v[3], v[i]);
 
-				add_point(v, pos, (pos.x() * 0.33f) + 0.33f, (pos.y() / 3.0f) + offset);
+				add_point(v, (pos.x() * 0.33f) + 0.33f, (pos.y() / 3.0f) + offset);
 				offset += 0.33f;
 			}
 			// Obscurin - Actin
 			vec2 pos(v[2], v[1]);
 
-			add_point(v, pos, (pos.x() * 0.33f) + 0.66f, (pos.y() / 3.0f));
+			add_point(v, (pos.x() * 0.33f) + 0.66f, (pos.y() / 3.0f));
 			offset += 0.33f;
 		}
 	}
@@ -350,12 +350,12 @@ void tf_editor_scatterplot::create_labels() {
 		const auto y = domain.pos().y() - label_space / 2;
 
 		m_labels.add_text(texts[0], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[3], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
 		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
 
-		m_labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
 		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+		m_labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
 	}
 }
 
@@ -419,23 +419,23 @@ void tf_editor_scatterplot::add_draggables(int primitive_index) {
 
 	// Add the new draggables to the scatter plot
 	const auto& centroid_positions = m_shared_data_ptr->primitives.at(primitive_index).centr_pos;
-	auto pos = m_rectangles_calc.at(0).point_in_rect(vec2(centroid_positions[0], centroid_positions[3]));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 3, &m_rectangles_calc.at(0)));
+	auto pos = m_rectangles_calc.at(0).point_in_rect(vec2(centroid_positions[0], centroid_positions[1]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 1, &m_rectangles_calc.at(0)));
 
 	pos = m_rectangles_calc.at(1).point_in_rect(vec2(centroid_positions[0], centroid_positions[2]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 2, &m_rectangles_calc.at(1)));
 
-	pos = m_rectangles_calc.at(2).point_in_rect(vec2(centroid_positions[0], centroid_positions[1]));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 1, &m_rectangles_calc.at(2)));
+	pos = m_rectangles_calc.at(2).point_in_rect(vec2(centroid_positions[0], centroid_positions[3]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 3, &m_rectangles_calc.at(2)));
 
-	pos = m_rectangles_calc.at(3).point_in_rect(vec2(centroid_positions[1], centroid_positions[3]));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 1, 3, &m_rectangles_calc.at(3)));
+	pos = m_rectangles_calc.at(3).point_in_rect(vec2(centroid_positions[3], centroid_positions[2]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 3, 1, &m_rectangles_calc.at(3)));
 
-	pos = m_rectangles_calc.at(4).point_in_rect(vec2(centroid_positions[1], centroid_positions[2]));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 1, 2, &m_rectangles_calc.at(4)));
+	pos = m_rectangles_calc.at(4).point_in_rect(vec2(centroid_positions[3], centroid_positions[1]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 3, 2, &m_rectangles_calc.at(4)));
 
-	pos = m_rectangles_calc.at(5).point_in_rect(vec2(centroid_positions[2], centroid_positions[3]));
-	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 2, 3, &m_rectangles_calc.at(5)));
+	pos = m_rectangles_calc.at(5).point_in_rect(vec2(centroid_positions[2], centroid_positions[1]));
+	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 2, 1, &m_rectangles_calc.at(5)));
 
 	m_points.push_back(points);
 }
@@ -643,7 +643,7 @@ void tf_editor_scatterplot::set_point_positions() {
 
 				m_interacted_point_id = i;
 				// Update all other points with values belonging to this certain point
-				if (found_point.m_stain_first == 0 && found_point.m_stain_second == 3) {
+				if (found_point.m_stain_first == 0 && found_point.m_stain_second == 1) {
 					m_points[i][1].pos = vec2(found_point.pos.x(), m_points[i][1].pos.y());
 					m_points[i][2].pos = vec2(found_point.pos.x(), m_points[i][2].pos.y());
 
@@ -657,28 +657,28 @@ void tf_editor_scatterplot::set_point_positions() {
 					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.y());
 					m_points[i][5].pos = vec2(found_point.pos.y() + found_point.parent_rectangle->size_x(), m_points[i][5].pos.y());
 				}
-				else if (found_point.m_stain_first == 0 && found_point.m_stain_second == 1) {
+				else if (found_point.m_stain_first == 0 && found_point.m_stain_second == 3) {
 					m_points[i][0].pos = vec2(found_point.pos.x(), m_points[i][0].pos.y());
 					m_points[i][1].pos = vec2(found_point.pos.x(), m_points[i][1].pos.y());
 
 					m_points[i][3].pos = vec2(found_point.pos.y() - found_point.parent_rectangle->size_x(), m_points[i][3].pos.y());
 					m_points[i][4].pos = vec2(found_point.pos.y() - found_point.parent_rectangle->size_x(), m_points[i][4].pos.y());
 				}
-				else if (found_point.m_stain_first == 1 && found_point.m_stain_second == 3) {
+				else if (found_point.m_stain_first == 3 && found_point.m_stain_second == 1) {
 					m_points[i][0].pos = vec2(m_points[i][0].pos.x(), found_point.pos.y());
 					m_points[i][5].pos = vec2(m_points[i][5].pos.x(), found_point.pos.y());
 
 					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + found_point.parent_rectangle->size_y());
 					m_points[i][4].pos = vec2(found_point.pos.x(), m_points[i][4].pos.y());
 				}
-				else if (found_point.m_stain_first == 1 && found_point.m_stain_second == 2) {
+				else if (found_point.m_stain_first == 3 && found_point.m_stain_second == 2) {
 					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.y());
 					m_points[i][5].pos = vec2(found_point.pos.y() + found_point.parent_rectangle->size_x(), m_points[i][5].pos.y());
 
 					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + found_point.parent_rectangle->size_y());
 					m_points[i][3].pos = vec2(found_point.pos.x(), m_points[i][3].pos.y());
 				}
-				else if (found_point.m_stain_first == 2 && found_point.m_stain_second == 3) {
+				else if (found_point.m_stain_first == 2 && found_point.m_stain_second == 1) {
 					m_points[i][0].pos = vec2(m_points[i][0].pos.x(), found_point.pos.y());
 					m_points[i][3].pos = vec2(m_points[i][3].pos.x(), found_point.pos.y());
 

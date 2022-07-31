@@ -42,7 +42,6 @@ namespace tf_editor_shared_functions
 		for (int i = 0; i < 4; i++) {
 			ret *= data_values[i] >= centroid_positions[i] - (width[i] / 2) && data_values[i] <= centroid_positions[i] + (width[i] / 2) ? 1.0f : 0.0f;
 		}
-
 		return ret;
 	}
 
@@ -61,7 +60,7 @@ namespace tf_editor_shared_functions
 	}
 
 	// Calculate a color for a relations type, based on the current primitive type
-	static rgb get_color(const vec4& v, const std::vector<shared_data::primitive> primitives) {
+	static rgb get_color(const vec4& v, const std::vector<shared_data::primitive>& primitives) {
 		rgb color(0.0f);
 
 		for (int i = 0; i < primitives.size(); i++) {
