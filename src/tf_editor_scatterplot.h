@@ -56,6 +56,8 @@ private:
 
 	void set_point_handles();
 
+	void point_clicked(const vec2& mouse_pos);
+
 	void scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed);
 
 private:
@@ -81,8 +83,6 @@ private:
 
 	std::vector<std::vector<tf_editor_shared_data_types::point_scatterplot>> m_points;
 	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
-
-	std::vector<tf_editor_shared_data_types::point_scatterplot*> m_interacted_points;
 
 	// Store the indices of to be updated centroid poition if a draggable has been interacted with
 	int m_interacted_point_id = INT_MAX;

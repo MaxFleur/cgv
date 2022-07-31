@@ -64,21 +64,19 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 	if (et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 
-		const auto mpos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
-		// Search for points if RMB is pressed
-		if (me.get_button() == cgv::gui::MB_LEFT_BUTTON && !m_currently_dragging) {
-			m_interacted_points.clear();
-			m_is_point_dragged = false;
-			redraw();
+		const auto mouse_pos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
+
+		if (me.get_action() == cgv::gui::MA_PRESS && !m_currently_dragging) {
+			point_clicked(mouse_pos);
 		}
 
 		// Set width if a scroll is done
-		else if (me.get_action() == cgv::gui::MA_WHEEL && m_is_point_dragged) {
+		else if (me.get_action() == cgv::gui::MA_WHEEL && is_interacting) {
 			const auto modifiers = e.get_modifiers();
 			const auto negative_change = me.get_dy() > 0 ? true : false;
 			const auto ctrl_pressed = modifiers & cgv::gui::EM_CTRL ? true : false;
 
-			scroll_centroid_width(mpos.x(), mpos.y(), negative_change, ctrl_pressed);
+			scroll_centroid_width(mouse_pos.x(), mouse_pos.y(), negative_change, ctrl_pressed);
 		}
 
 		bool handled = false;
@@ -627,7 +625,6 @@ void tf_editor_scatterplot::set_point_positions() {
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
 	m_currently_dragging = true;
-	m_interacted_points.clear();
 
 	const auto org = static_cast<vec2>(domain.pos());
 	const auto size = domain.size();
@@ -636,9 +633,6 @@ void tf_editor_scatterplot::set_point_positions() {
 		for (int j = 0; j < m_points[i].size(); j++) {
 			// Now the relating draggable in the scatter plot has to be updated
 			if (&m_points[i][j] == m_point_handles.get_dragged()) {
-				for (int k = 0; k < m_points.at(i).size(); k++) {
-					m_interacted_points.push_back(&m_points.at(i).at(k));
-				}
 				const auto& found_point = m_points[i][j];
 
 				m_interacted_point_id = i;
@@ -695,6 +689,7 @@ void tf_editor_scatterplot::set_point_positions() {
 				update_member(&m_shared_data_ptr->primitives.at(i).centr_pos[m_points[i][j].m_stain_second]);
 
 				m_is_point_dragged = true;
+				is_interacting = true;
 
 				m_shared_data_ptr->set_synchronized(false);
 			}
@@ -712,6 +707,29 @@ void tf_editor_scatterplot::set_point_handles() {
 			m_point_handles.add(&m_points[i][j]);
 		}
 	}
+}
+
+void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos) {
+	m_is_point_dragged = false;
+	auto found = false;
+
+	for (unsigned i = 0; i < m_points.size(); ++i) {
+		for (int j = 0; j < m_points[i].size(); j++) {
+			// Now the relating draggable in the scatter plot has to be updated
+			if (m_points[i][j].is_inside(mouse_pos)) {
+				const auto& found_point = m_points[i][j];
+
+				m_interacted_point_id = i;
+				found = true;
+			}
+		}
+	}
+
+	is_interacting = found;
+	if (!found) {
+		m_interacted_point_id = INT_MAX;
+	}
+	redraw();
 }
 
 void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed) {

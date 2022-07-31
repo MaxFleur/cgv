@@ -64,6 +64,8 @@ private:
 
 	void update_point_positions();
 
+	void point_clicked(const vec2& mouse_pos);
+
 	void scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed);
 
 private:
@@ -97,8 +99,6 @@ private:
 
 	std::vector<std::vector<tf_editor_shared_data_types::point_line>> m_points;
 	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_line*> m_point_handles;
-
-	std::vector<tf_editor_shared_data_types::point_line*> m_interacted_points;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.4f, 0.4f, 0.4f, 1.0f };

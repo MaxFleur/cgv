@@ -43,12 +43,12 @@ namespace tf_editor_shared_data_types
 		vec2 get_intersection(vec2 point) const {
 			const auto direction = b - a;
 			const auto cd = a - point; 
-			auto boundary = -dot(cd, direction) / dot(direction, direction);
+			auto length = -dot(cd, direction) / dot(direction, direction);
 
 			// Keep point on boundaries
-			boundary = cgv::math::clamp(boundary, 0.1f, 0.9f);
+			length = cgv::math::clamp(length, 0.1f, 0.9f);
 			
-			return a + boundary * direction;
+			return a + length * direction;
 		}
 
 		float get_length() {

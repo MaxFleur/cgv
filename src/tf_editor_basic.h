@@ -84,8 +84,7 @@ protected:
 			for (int j = 0; j < points[i].size(); j++) {
 				const auto render_pos = points[i][j].get_render_position();
 				// Only draw for interacted if a point has been dragged
-				i == interacted_id && m_is_point_dragged ?
-					m_geometry_draggables_interacted.add(render_pos) : m_geometry_draggables.add(render_pos);
+				i == interacted_id ? m_geometry_draggables_interacted.add(render_pos) : m_geometry_draggables.add(render_pos);
 			}
 
 			// Draw 
@@ -165,6 +164,8 @@ protected:
 	float tm_gamma = 1.0f;
 
 	// point parameters
+	// Is an interaction going on?
+	bool is_interacting = false;
 	// Has a point been dragged?
 	bool m_is_point_dragged = false;
 	// Are we currently dragging something?
