@@ -141,6 +141,12 @@ bool viewer::handle_event(cgv::gui::event& e) {
 					handled = true;
 				}
 				break;
+			case 'P':
+				add_primitive();
+				if (!is_tree_node_visible(m_shared_data_ptr)) {
+					set_tree_node_visibility(m_shared_data_ptr, true);
+				}
+				break;
 			default: break;
 			}
 
@@ -655,7 +661,7 @@ void viewer::create_gui() {
 				const auto header_string = "Primitive " + std::to_string(i + 1) + " Parameters:";
 				add_decorator(header_string, "heading", "level=3");
 
-				add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=Gaussian, Hyperbox, Hypersphere");
+				add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=Gaussian, Hyperbox, Hyperellipsoid");
 
 				// Color widget
 				add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");

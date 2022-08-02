@@ -46,18 +46,34 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 
 	if (et == cgv::gui::EID_KEY) {
 		cgv::gui::key_event& ke = (cgv::gui::key_event&)e;
-		if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == 'M') {
-			vis_mode == VM_SHAPES ? vis_mode = VM_GTF : vis_mode = VM_SHAPES;
-			on_set(&vis_mode);
-			update_content();
+		if (ke.get_action() == cgv::gui::KA_PRESS) {
+			switch (ke.get_key())
+			{
+			case 'M':
+				vis_mode == VM_SHAPES ? vis_mode = VM_GTF : vis_mode = VM_SHAPES;
+				on_set(&vis_mode);
+				update_content();
 
-			return true;
-		}
-		else if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == cgv::gui::KEY_Space) {
-			if (is_hit((ke.get_x(), ke.get_y()))) {
-				is_peak_mode = !is_peak_mode;
-				redraw();
+				return true;
+			case cgv::gui::KEY_Space:
+				if (is_hit((ke.get_x(), ke.get_y()))) {
+					is_peak_mode = !is_peak_mode;
+					redraw();
+				}
+				break;
+			case '1':
+			case '2':
+			case '3':
+				if (is_interacting) {
+					m_shared_data_ptr->primitives[m_interacted_point_id].type = static_cast<shared_data::Type>(ke.get_key() - '0' - 1);
+					m_shared_data_ptr->set_synchronized();
+					redraw();
+				}
+				break;
+			default:
+				break;
 			}
+
 		}
 	}
 
@@ -734,7 +750,7 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 			auto& width = primitives.centr_widths[ctrl_pressed ? m_points[m_interacted_point_id][i].m_stain_first : m_points[m_interacted_point_id][i].m_stain_second];
 			// auto width = 0.0f;
 			width += negative_change ? -0.02f : 0.02f;
-			width = cgv::math::clamp(width, 0.0f, 1.0f);
+			width = cgv::math::clamp(width, 0.0f, 10.0f);
 
 			found = true;
 			found_index = i;

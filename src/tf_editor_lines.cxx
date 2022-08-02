@@ -49,23 +49,39 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 
 	if(et == cgv::gui::EID_KEY) {
 		cgv::gui::key_event& ke = (cgv::gui::key_event&)e;
-		if(ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == 'M') {
-			vis_mode == VM_SHAPES ? vis_mode = VM_GTF : vis_mode = VM_SHAPES;
-			on_set(&vis_mode);
-			update_content();
+		if (ke.get_action() == cgv::gui::KA_PRESS) {
+			switch (ke.get_key())
+			{
+			case 'M':
+				vis_mode == VM_SHAPES ? vis_mode = VM_GTF : vis_mode = VM_SHAPES;
+				on_set(&vis_mode);
+				update_content();
 
-			return true;
-		}
-		else if (ke.get_action() == cgv::gui::KA_PRESS && ke.get_key() == cgv::gui::KEY_Space) {
-			if (is_hit((ke.get_x(), ke.get_y()))) {
-				is_peak_mode = !is_peak_mode;
-				// User might have adjusted many values while peak mode was active, so recreate everything
-				if (!is_peak_mode) {
-					m_create_all_values = true;
+				return true;
+			case cgv::gui::KEY_Space:
+				if (is_hit((ke.get_x(), ke.get_y()))) {
+					is_peak_mode = !is_peak_mode;
+					// User might have adjusted many values while peak mode was active, so recreate everything
+					if (!is_peak_mode) {
+						m_create_all_values = true;
+					}
+
+					redraw();
 				}
-
-				redraw();
+				break;
+			case '1':
+			case '2':
+			case '3':
+				if (is_interacting) {
+					m_shared_data_ptr->primitives[m_interacted_primitive_ids[0]].type = static_cast<shared_data::Type>(ke.get_key() - '0' - 1);
+					m_shared_data_ptr->set_synchronized();
+					redraw();
+				}
+				break;
+			default:
+				break;
 			}
+
 		}
 	} else if(et == cgv::gui::EID_MOUSE) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
@@ -990,7 +1006,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 			}
 			auto& width = m_shared_data_ptr->primitives[m_interacted_primitive_ids[0]].centr_widths[i];
 			width += change;
-			width = cgv::math::clamp(width, 0.0f, 1.0f);
+			width = cgv::math::clamp(width, 0.0f, 10.0f);
 
 			found = true;
 			found_index = i;
