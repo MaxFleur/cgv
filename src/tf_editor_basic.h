@@ -3,7 +3,7 @@
 #pragma once
 
 #include <cgv_glutil/frame_buffer_container.h>
-#include <cgv_glutil/msdf_gl_font_renderer.h>
+#include <cgv_glutil/msdf_gl_canvas_font_renderer.h>
 #include <cgv_glutil/2d/canvas.h>
 #include <cgv_glutil/2d/shape2d_styles.h>
 #include <plot/plot2d.h>
@@ -141,11 +141,12 @@ protected:
 	cgv::glutil::shape2d_style m_style_draggables_interacted;
 
 	// Font storage and renderer
-	cgv::glutil::msdf_font m_font;
-	cgv::glutil::msdf_gl_font_renderer m_renderer_fonts;
+	//cgv::glutil::msdf_font m_font;
+	//cgv::glutil::msdf_gl_font_renderer m_renderer_fonts;
 	// Text geometry, storing individual labels
 	cgv::glutil::msdf_text_geometry m_labels;
 	const float m_font_size = 18.0f;
+	cgv::glutil::shape2d_style m_style_text;
 
 	// whether the plot shall be reset and its framebuffer cleared
 	bool m_reset_plot = true;

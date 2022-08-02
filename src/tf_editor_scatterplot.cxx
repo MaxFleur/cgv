@@ -36,8 +36,8 @@ void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 
 	m_renderer_draggables.destruct(ctx);
 
-	m_font.destruct(ctx);
-	m_renderer_fonts.destruct(ctx);
+	cgv::glutil::ref_msdf_font(ctx, -1);
+	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, -1);
 }
 
 bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
@@ -117,16 +117,18 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
 	success &= m_renderer_plot_points.init(ctx);
-	success &= m_renderer_fonts.init(ctx);
 	success &= m_renderer_draggables.init(ctx);
+
+	auto& font = cgv::glutil::ref_msdf_font(ctx, 1);
+	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, 1);
 
 	// when successful, initialize the styles used for the individual shapes
 	if(success)
 		init_styles(ctx);
 
 	// setup the font type and size to use for the label geometry
-	if(m_font.init(ctx)) {
-		m_labels.set_msdf_font(&m_font);
+	if(font.is_initialized()) {
+		m_labels.set_msdf_font(&font);
 		m_labels.set_font_size(m_font_size);
 	}
 
@@ -224,14 +226,6 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_style_shapes.apply_gamma = false;
 	m_style_shapes.border_width = 1.0f;
 
-	// configure style for the plot labels
-	cgv::glutil::shape2d_style text_style;
-	text_style.fill_color = rgba(rgb(0.0f), 1.0f);
-	text_style.border_color.alpha() = 0.0f;
-	text_style.border_width = 0.333f;
-	text_style.use_blending = true;
-	text_style.apply_gamma = false;
-
 	// draggables style
 	m_style_draggables.position_is_center = true;
 	m_style_draggables.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
@@ -242,10 +236,12 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_style_draggables_interacted.border_width = 1.5f;
 	m_style_draggables_interacted.use_blending = true;
 	
-	auto& font_prog = m_renderer_fonts.ref_prog();
-	font_prog.enable(ctx);
-	text_style.apply(ctx, font_prog);
-	font_prog.disable(ctx);
+	// configure style for the plot labels
+	m_style_text.fill_color = rgba(rgb(0.0f), 1.0f);
+	m_style_text.border_color.alpha() = 0.0f;
+	m_style_text.border_width = 0.333f;
+	m_style_text.use_blending = true;
+	m_style_text.apply_gamma = false;
 
 	// configure style for final blending of whole overlay
 	overlay_style.fill_color = rgba(1.0f);
@@ -343,17 +339,20 @@ void tf_editor_scatterplot::create_labels() {
 		texts = m_data_set_ptr->stain_names;
 	}
 
-	if(m_font.is_initialized()) {
-		const auto x = domain.pos().x() + 100;
-		const auto y = domain.pos().y() - label_space / 2;
+	if(auto ctx_ptr = get_context()) {
+		auto& font = cgv::glutil::ref_msdf_font(*ctx_ptr);
+		if(font.is_initialized()) {
+			const auto x = domain.pos().x() + 100;
+			const auto y = domain.pos().y() - label_space / 2;
 
-		m_labels.add_text(texts[0], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[3], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[0], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[3], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[2], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
 
-		m_labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[2], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-		m_labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[2], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+		}
 	}
 }
 
@@ -474,35 +473,27 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	fbc_plot.disable_attachment(ctx, "color");
 
 	// ...and axis labels
-	// this is pretty much the same as for the generic renderer
-	auto& font_prog = m_renderer_fonts.ref_prog();
-	font_prog.enable(ctx);
-	content_canvas.set_view(ctx, font_prog);
-	font_prog.disable(ctx);
-	// draw the first label only
-	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels, 0, 3);
+	auto& font_renderer = cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx);
+	if(font_renderer.enable(ctx, content_canvas, m_labels, m_style_text)) {
+		// draw the first labels only
+		font_renderer.draw(ctx, m_labels, 0, 3);
 
-	// save the current view matrix
-	content_canvas.push_modelview_matrix();
-	// Rotate the view, so the second label is drawn sideways.
-	// Objects are rotated around the origin, so we first need to move the text to the origin.
-	// Transformations are applied in reverse order:
-	//  3 - move text to origin
-	//  2 - rotate 90 degrees
-	//  1 - move text back to its position
-	//content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(labels.ref_texts()[1].position));	// 1
-	content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(90.0f));							// 2
-	content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(vec2(0.0f, -40.0f)));	// 3
+		// save the current view matrix
+		content_canvas.push_modelview_matrix();
+		// Rotate the view, so the second labels are drawn sideways.
+		//  1 - rotate 90 degrees
+		//  2 - move text to its position
+		content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(90.0f));
+		content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(vec2(0.0f, -40.0f)));
 
-	// now render the second label
-	font_prog.enable(ctx);
-	content_canvas.set_view(ctx, font_prog);
-	font_prog.disable(ctx);
-	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels, 3, 6);
+		// now render the second labels
+		font_renderer.draw(ctx, content_canvas, m_labels, 3, 6);
 
-	// restore the previous view matrix
-	content_canvas.pop_modelview_matrix(ctx);
-
+		font_renderer.disable(ctx, m_labels);
+		// restore the previous view matrix
+		content_canvas.pop_modelview_matrix(ctx);
+	}
+	
 	// Shapes are next (if peak mode is enabled)
 	if (!is_peak_mode) {
 		create_primitive_shapes();
