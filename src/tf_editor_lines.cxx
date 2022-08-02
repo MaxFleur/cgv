@@ -32,8 +32,8 @@ void tf_editor_lines::clear(cgv::render::context& ctx) {
 	m_geometry_widgets.destruct(ctx);
 	m_geometry_strip_borders.destruct(ctx);
 
-	m_font.destruct(ctx);
-	m_renderer_fonts.destruct(ctx);
+	cgv::glutil::ref_msdf_font(ctx, -1);
+	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, -1);
 
 	m_renderer_strips.destruct(ctx);
 
@@ -121,17 +121,19 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
 	success &= m_renderer_lines.init(ctx);
-	success &= m_renderer_fonts.init(ctx);
 	success &= m_renderer_draggables.init(ctx);
 	success &= m_renderer_strips.init(ctx);
+
+	auto& font = cgv::glutil::ref_msdf_font(ctx, 1);
+	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, 1);
 
 	// when successful, initialize the styles used for the individual shapes
 	if(success)
 		init_styles(ctx);
 
 	// setup the font type and size to use for the label geometry
-	if(m_font.init(ctx)) {
-		m_labels.set_msdf_font(&m_font);
+	if(font.is_initialized()) {
+		m_labels.set_msdf_font(&font);
 		m_labels.set_font_size(m_font_size);
 	}
 
@@ -275,17 +277,12 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	plot_rect_style.apply(ctx, rectangle_prog);
 	content_canvas.disable_current_shader(ctx);
 
-	cgv::glutil::shape2d_style text_style;
-	text_style.fill_color = rgba(rgb(0.0f), 1.0f);
-	text_style.border_color.alpha() = 0.0f;
-	text_style.border_width = 0.333f;
-	text_style.use_blending = true;
-	text_style.apply_gamma = false;
-
-	auto& font_prog = m_renderer_fonts.ref_prog();
-	font_prog.enable(ctx);
-	text_style.apply(ctx, font_prog);
-	font_prog.disable(ctx);
+	//cgv::glutil::shape2d_style text_style;
+	m_style_text.fill_color = rgba(rgb(0.0f), 1.0f);
+	m_style_text.border_color.alpha() = 0.0f;
+	m_style_text.border_width = 0.333f;
+	m_style_text.use_blending = true;
+	m_style_text.apply_gamma = false;
 
 	// configure style for final blending of whole overlay
 	overlay_style.fill_color = rgba(1.0f);
@@ -360,19 +357,21 @@ void tf_editor_lines::create_labels() {
 	m_labels.clear();
 
 	// Set the font texts
-	if(m_font.is_initialized() && m_widget_polygons.size() > 3) {
+	if(auto ctx_ptr = get_context()) {
+		auto& font = cgv::glutil::ref_msdf_font(*ctx_ptr);
+		if(font.is_initialized() && m_widget_polygons.size() > 3) {
+			vec2 centers[4];
+			for(int i = 0; i < 4; i++)
+				centers[i] = m_widget_polygons[i].get_center();
 
-		vec2 centers[4];
-		for(int i = 0; i < 4; i++)
-			centers[i] = m_widget_polygons[i].get_center();
+			m_labels.add_text("0", ivec2(centers[0]), cgv::render::TA_NONE, 60.0f);
+			m_labels.add_text("1", ivec2(centers[1]), cgv::render::TA_NONE, -60.0f);
+			m_labels.add_text("2", ivec2(centers[2]), cgv::render::TA_NONE, 0.0);
+			m_labels.add_text("3", ivec2(centers[3]), cgv::render::TA_NONE, 0.0f);
 
-		m_labels.add_text("0", ivec2(centers[0]), cgv::render::TA_NONE, 60.0f);
-		m_labels.add_text("1", ivec2(centers[1]), cgv::render::TA_NONE, -60.0f);
-		m_labels.add_text("2", ivec2(centers[2]), cgv::render::TA_NONE, 0.0);
-		m_labels.add_text("3", ivec2(centers[3]), cgv::render::TA_NONE, 0.0f);
-
-		for(int i = 0; i < 4; i++) {
-			m_labels.set_text(i, m_data_set_ptr->stain_names[i]);
+			for(int i = 0; i < 4; i++) {
+				m_labels.set_text(i, m_data_set_ptr->stain_names[i]);
+			}
 		}
 	}
 }
@@ -783,11 +782,8 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	}
 
 	// then labels
-	auto& font_prog = m_renderer_fonts.ref_prog();
-	font_prog.enable(ctx);
-	content_canvas.set_view(ctx, font_prog);
-	font_prog.disable(ctx);
-	m_renderer_fonts.render(ctx, get_overlay_size(), m_labels);
+	auto& font_renderer = cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx);
+	font_renderer.render(ctx, content_canvas, m_labels, m_style_text);
 
 	// draggables are the last thing to be drawn so they are above everything else
 	tf_editor_basic::draw_draggables(ctx, m_points, m_interacted_primitive_ids[0]);
