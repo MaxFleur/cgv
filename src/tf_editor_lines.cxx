@@ -73,7 +73,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 		const auto mouse_pos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
 
 		// Reset dragging by clicking the left mouse
-		if (me.get_action() == cgv::gui::MA_PRESS && !m_currently_dragging) {
+		if (me.get_action() == cgv::gui::MA_PRESS && me.get_button() == cgv::gui::MB_LEFT_BUTTON && !m_currently_dragging) {
 			point_clicked(mouse_pos);
 		}
 		// Set width if a scroll is done
