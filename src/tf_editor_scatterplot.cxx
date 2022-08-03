@@ -424,10 +424,10 @@ void tf_editor_scatterplot::add_draggables(int primitive_index) {
 	pos = m_rectangles_calc.at(2).point_in_rect(vec2(centroid_positions[0], centroid_positions[3]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 3, &m_rectangles_calc.at(2)));
 
-	pos = m_rectangles_calc.at(3).point_in_rect(vec2(centroid_positions[3], centroid_positions[2]));
+	pos = m_rectangles_calc.at(3).point_in_rect(vec2(centroid_positions[3], centroid_positions[1]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 3, 1, &m_rectangles_calc.at(3)));
 
-	pos = m_rectangles_calc.at(4).point_in_rect(vec2(centroid_positions[3], centroid_positions[1]));
+	pos = m_rectangles_calc.at(4).point_in_rect(vec2(centroid_positions[3], centroid_positions[2]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 3, 2, &m_rectangles_calc.at(4)));
 
 	pos = m_rectangles_calc.at(5).point_in_rect(vec2(centroid_positions[2], centroid_positions[1]));
