@@ -49,12 +49,28 @@ namespace tf_editor_shared_functions
 	// Similar to the box function, but with a sphere distance
 	static float sphere_transfer_function(const vec4& data_values, const vec4& centroid_positions, const vec4& width) {
 		float ret = 1.0f;
-		for (int i = 0; i < 4; i++) {
+
+		vec4 delta = data_values - centroid_positions;
+
+		float max_width = cgv::math::max_value(width);
+		vec4 lambda = 2.0f * vec4(max_width) / width;
+
+		vec4 scaled_diff = delta * lambda;
+		scaled_diff *= scaled_diff;
+
+		float dist = scaled_diff[0] + scaled_diff[1] + scaled_diff[2] + scaled_diff[3];
+		dist = sqrt(dist);
+		dist -= max_width;
+
+		if(dist > 0.0f)
+			ret = 0.0f;
+
+		/*for (int i = 0; i < 4; i++) {
 			const auto left_boundary = (centroid_positions[i] - (width[i] / 2)) * (1.0f / width[i]) - 1;
 			const auto right_boundary = (centroid_positions[i] + (width[i] / 2)) * (1.0f / width[i]) - 1;
 
 			ret *= data_values[i] >= left_boundary && data_values[i] <= right_boundary ? 1.0f : 0.0f;
-		}
+		}*/
 
 		return ret;
 	}

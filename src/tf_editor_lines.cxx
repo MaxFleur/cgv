@@ -593,10 +593,10 @@ void tf_editor_lines::create_strips() {
 
 			// Add four points to the strip, because every strip is between two widgets with two points each
 			const auto add_points_to_strips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
-				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color);
-				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color);
-				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color);
-				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color);
+				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color, vec2(0.0f, 0.0f));
+				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color, vec2(0.0f, 1.0f));
+				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color, vec2(1.0f, 0.0f));
+				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color, vec2(1.0f, 1.0f));
 			};
 			// Add indices for the strips
 			const auto add_indices_to_strips = [&](int offset_start, int offset_end) {

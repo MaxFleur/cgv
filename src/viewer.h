@@ -66,6 +66,7 @@ protected:
 	mdtf_volume_render_style mdtf_vstyle;
 
 	struct {
+		size_t num_bins = 256;
 		std::vector<unsigned> hist0;
 		std::vector<unsigned> hist1;
 		std::vector<unsigned> hist2;
@@ -229,6 +230,15 @@ protected:
 		if (index >= 0 && index < tfs.size()) {
 			tf_editor_ptr->set_color_map(&tfs[index]);
 			tf_editor_ptr->set_visibility(true);
+
+			switch(index) {
+			case 0: tf_editor_ptr->set_histogram_data(histograms.hist0); break;
+			case 1: tf_editor_ptr->set_histogram_data(histograms.hist1); break;
+			case 2: tf_editor_ptr->set_histogram_data(histograms.hist2); break;
+			case 3: tf_editor_ptr->set_histogram_data(histograms.hist3); break;
+			default: break;
+			}
+			
 			post_redraw();
 		}
 	}

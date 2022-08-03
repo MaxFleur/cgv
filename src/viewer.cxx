@@ -345,6 +345,28 @@ void viewer::init_frame(cgv::render::context& ctx) {
 
 	fbc.ensure(ctx);
 
+	if(tf_editor_ptr && histograms.changed) {
+		histograms.changed = false;
+
+		auto cm_ptr = tf_editor_ptr->get_color_map();
+
+		int index = -1;
+		for(size_t i = 0; i < tfs.size(); ++i) {
+			if(cm_ptr == &tfs[index])
+				index = i;
+		}
+
+		if(index > -1 && index < tfs.size()) {
+			switch(index) {
+			case 0: tf_editor_ptr->set_histogram_data(histograms.hist0); break;
+			case 1: tf_editor_ptr->set_histogram_data(histograms.hist1); break;
+			case 2: tf_editor_ptr->set_histogram_data(histograms.hist2); break;
+			case 3: tf_editor_ptr->set_histogram_data(histograms.hist3); break;
+			default: break;
+			}
+		}
+	}
+
 	/** BEGIN - MFLEURY **/
 	if (tf_editor_ptr && tf_editor_ptr->was_updated()) {
 		update_tf_texture(ctx);
@@ -1240,17 +1262,18 @@ bool viewer::prepare_dataset() {
 		&histograms.hist3
 	};
 
-	histograms.hist0.resize(256, 0);
-	histograms.hist1.resize(256, 0);
-	histograms.hist2.resize(256, 0);
-	histograms.hist3.resize(256, 0);
+	histograms.num_bins = 512;
+	histograms.hist0.resize(histograms.num_bins, 0);
+	histograms.hist1.resize(histograms.num_bins, 0);
+	histograms.hist2.resize(histograms.num_bins, 0);
+	histograms.hist3.resize(histograms.num_bins, 0);
 
 #pragma omp parallel for
 	for (int i = 0; i < data_views->size(); ++i) {
 		std::vector<unsigned>& hist = (*hists[i % 4]);
 		std::vector<unsigned> h = histogram((*data_views)[i]);
 
-		for (unsigned j = 0; j < 256; ++j) {
+		for (unsigned j = 0; j < histograms.num_bins; ++j) {
 			hist[j] += h[j];
 		}
 	}
@@ -1909,13 +1932,15 @@ void viewer::multiply(cgv::data::data_view& dv, float a) {
 
 std::vector<unsigned> viewer::histogram(cgv::data::data_view& dv) {
 
-	std::vector<unsigned> hist(256, 0);
+	std::vector<unsigned> hist(histograms.num_bins, 0);
 
 	const data_format* src_df_ptr = dv.get_format();
 	unsigned n_dims = src_df_ptr->get_nr_dimensions();
 
 	unsigned w = src_df_ptr->get_width();
 	unsigned h = src_df_ptr->get_height();
+
+	std::cout << "histogram does currently not react to data point bit depth" << std::endl;
 
 	for (unsigned y = 0; y < h; ++y) {
 		for (unsigned x = 0; x < w; ++x) {
