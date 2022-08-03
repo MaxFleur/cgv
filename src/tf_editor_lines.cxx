@@ -968,6 +968,8 @@ void tf_editor_lines::point_clicked(const vec2& mouse_pos) {
 	}
 
 	is_interacting = found;
+	m_shared_data_ptr->is_primitive_selected = found;
+	m_shared_data_ptr->selected_primitive_id = m_interacted_primitive_ids[0];
 	if (!found) {
 		m_interacted_primitive_ids[0] = INT_MAX;
 	}

@@ -32,16 +32,19 @@ public:
 
 	// Set after the editors were synchronized
 	void set_synchronized(bool is_line_editor = true) {
-		is_synchronized = true;
+		is_synchronized = false;
 		if (is_line_editor) {
-			update_scatterplot = true;
+			scatterplot_updated = false;
 		}
 	}
 
 	// Check if the primitive visualization is synchronized in all editors
-	bool is_synchronized = false;
+	bool is_synchronized = true;
 
-	bool update_scatterplot = false;
+	bool is_primitive_selected = false;
+	int selected_primitive_id = INT_MAX;
+
+	bool scatterplot_updated = true;
 };
 
 typedef std::shared_ptr<shared_data> shared_data_ptr;

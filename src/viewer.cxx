@@ -57,6 +57,7 @@ viewer::viewer() : application_plugin("Viewer") {
 	tf_editor_ptr->set_visibility(false);
 
 	cs_ptr = register_overlay<cgv::glutil::color_selector>("Color Selector");
+	cs_ptr->set_visibility(false);
 
 	/** BEGIN - MFLEURY **/
 	m_shared_data_ptr = std::make_shared<shared_data>();
@@ -289,10 +290,10 @@ void viewer::on_set(void* member_ptr) {
 				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
 				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
 
-				if (m_editor_lines_ptr) {
+				if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
 					m_editor_lines_ptr->resynchronize();
 				}
-				if (m_editor_scatterplot_ptr) {
+				if (m_editor_scatterplot_ptr && m_editor_scatterplot_ptr->is_visible()) {
 					m_editor_scatterplot_ptr->resynchronize();
 				}
 			}
@@ -381,22 +382,40 @@ void viewer::init_frame(cgv::render::context& ctx) {
 	}
 
 	// resynchronize if any primitive updates occured
-	if (m_editor_lines_ptr && m_editor_scatterplot_ptr && m_shared_data_ptr->is_synchronized) {
-		m_shared_data_ptr->is_synchronized = false;
-
-		if(m_shared_data_ptr->update_scatterplot) {
-			m_shared_data_ptr->update_scatterplot = false;
+	if (m_editor_lines_ptr && m_editor_scatterplot_ptr && !m_shared_data_ptr->is_synchronized) {
+		if(!m_shared_data_ptr->scatterplot_updated) {
+			m_shared_data_ptr->scatterplot_updated = true;
 			m_editor_scatterplot_ptr->resynchronize();
 		}
 		else {
 			m_editor_lines_ptr->resynchronize();
 		}
 
+		m_shared_data_ptr->is_synchronized = true;
 		post_recreate_gui();
 	}
-
-	if(cs_ptr && cs_ptr->was_updated()) {
-		std::cout << "Selected color: " << cs_ptr->get_color() << std::endl;
+	// If draggables were selected, open the color selector (if not visible)
+	if (m_shared_data_ptr->is_primitive_selected && cs_ptr) {
+		if (!cs_ptr->is_visible()) {
+			cs_ptr->set_visibility(true);
+			// Also set its color to the selected primitive of the draggable
+			cs_ptr->set_color(m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color);
+		}
+		else if(cs_ptr->was_updated()) {
+			// If the selector was updated, set the colors to 
+			m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color = cs_ptr->get_color();
+			if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
+				m_editor_lines_ptr->resynchronize();
+			}
+			if (m_editor_scatterplot_ptr && m_editor_scatterplot_ptr->is_visible()) {
+				m_editor_scatterplot_ptr->resynchronize();
+			}
+			// Also update the gui to show the new color
+			recreate_gui();
+		}
+	}
+	else if (!m_shared_data_ptr->is_primitive_selected && cs_ptr && cs_ptr->is_visible()) {
+		cs_ptr->set_visibility(false);
 	}
 	/** END - MFLEURY **/
 }

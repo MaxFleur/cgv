@@ -716,6 +716,8 @@ void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos) {
 	}
 
 	is_interacting = found;
+	m_shared_data_ptr->is_primitive_selected = found;
+	m_shared_data_ptr->selected_primitive_id = m_interacted_point_id;
 	if (!found) {
 		m_interacted_point_id = INT_MAX;
 	}
