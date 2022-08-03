@@ -68,6 +68,29 @@ void tf_editor_basic::clear(cgv::render::context& ctx) {
 	fbc_plot.clear(ctx);
 }
 
+bool tf_editor_basic::handle_key_input(const char& key, const int& index) {
+	switch (key)
+	{
+	case 'M':
+		vis_mode == VM_SHAPES ? vis_mode = VM_GTF : vis_mode = VM_SHAPES;
+		on_set(&vis_mode);
+		update_content();
+		return true;
+	case '1':
+	case '2':
+	case '3':
+		if (is_interacting) {
+			// Remap to controls, decrement to set to enum values
+			m_shared_data_ptr->primitives[index].type = static_cast<shared_data::Type>(key - '0' - 1);
+			m_shared_data_ptr->set_synchronized();
+			redraw();
+		}
+		return true;
+	default:
+		return false;
+	}
+}
+
 void tf_editor_basic::create_gui_basic() {
 	// add a button to trigger a content update by redrawing
 	connect_copy(add_button("Update")->click, rebind(this, &tf_editor_basic::update_content));

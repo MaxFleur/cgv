@@ -37,6 +37,8 @@ protected:
 
 	void clear(cgv::render::context& ctx);
 
+	bool handle_key_input(const char& key, const int& index);
+
 	// Basic GUI for relation visualization
 	void create_gui_basic();
 	// GUI for tone mapping parameters
