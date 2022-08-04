@@ -232,7 +232,7 @@ float gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, vec4 gaus
 	return exp(-exponent);
 }
 
-// Apply an alpha value of 1 or 0 based on if the input values are inside the centroid's width
+// Apply an alpha value of 1 or 0 based on if the input values are inside the hyperbox
 float box_transfer_function(vec4 density, vec4 centroid_positions, vec4 width) {
 	float ret = 1.0f;
 	for(int i = 0; i < 4; i++) {
@@ -242,16 +242,22 @@ float box_transfer_function(vec4 density, vec4 centroid_positions, vec4 width) {
 	return ret;
 }
 
-// Apply an alpha value of 1 or 0 based on if the input values are inside the centroid's width
-// Similar to the box function, but with a sphere distance
+// Apply an alpha value of 1 or 0 based on if the input values are inside the hyperellipsoid
 float sphere_transfer_function(vec4 density, vec4 centroid_positions, vec4 width) {
 	float ret = 1.0f;
-	for (int i = 0; i < 4; i++) {
-		const float left_boundary = (centroid_positions[i] - (width[i] / 2)) * (1.0f / width[i]) - 1;
-		const float right_boundary = (centroid_positions[i] + (width[i] / 2)) * (1.0f / width[i]) - 1;
 
-		ret *= density[i] >= left_boundary && density[i] <= right_boundary ? 1.0f : 0.0f;
-	}
+	const vec4 delta = density - centroid_positions;
+
+	const float max_width = max(max(max(width[0], width[1]), width[2]), width[3]);
+	const vec4 lambda = 2.0f * vec4(max_width) / width;
+
+	vec4 scaled_diff = delta * lambda;
+	scaled_diff *= scaled_diff;
+
+	const float dist = sqrt(scaled_diff[0] + scaled_diff[1] + scaled_diff[2] + scaled_diff[3]) - max_width;
+
+	if(dist > 0.0f)
+		ret = 0.0f;
 
 	return ret;
 }
