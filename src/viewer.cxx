@@ -399,20 +399,28 @@ void viewer::init_frame(cgv::render::context& ctx) {
 	if (m_shared_data_ptr->is_primitive_selected && cs_ptr) {
 		if (!cs_ptr->is_visible()) {
 			cs_ptr->set_visibility(true);
+			m_selected_primitve_id = m_shared_data_ptr->selected_primitive_id;
 			// Also set its color to the selected primitive of the draggable
 			cs_ptr->set_rgba_color(m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color);
 		}
-		else if(cs_ptr->was_updated()) {
-			// If the selector was updated, set the colors to 
-			m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color = cs_ptr->get_rgba_color();
-			if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
-				m_editor_lines_ptr->resynchronize();
+		else {
+			// If another primitive was selected, reupdate the selector colors
+			if (m_selected_primitve_id != m_shared_data_ptr->selected_primitive_id) {
+				m_selected_primitve_id = m_shared_data_ptr->selected_primitive_id;
+				cs_ptr->set_rgba_color(m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color);
 			}
-			if (m_editor_scatterplot_ptr && m_editor_scatterplot_ptr->is_visible()) {
-				m_editor_scatterplot_ptr->resynchronize();
+			if (cs_ptr->was_updated()) {
+				// If the selector was updated, set the colors to the selected primitive
+				m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color = cs_ptr->get_rgba_color();
+				if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
+					m_editor_lines_ptr->resynchronize();
+				}
+				if (m_editor_scatterplot_ptr && m_editor_scatterplot_ptr->is_visible()) {
+					m_editor_scatterplot_ptr->resynchronize();
+				}
+				// Also update the gui to show the new color
+				recreate_gui();
 			}
-			// Also update the gui to show the new color
-			recreate_gui();
 		}
 	}
 	else if(!m_shared_data_ptr->is_primitive_selected && cs_ptr && cs_ptr->is_visible()) {

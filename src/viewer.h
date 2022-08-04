@@ -274,5 +274,7 @@ private:
 	tf_editor_lines_ptr m_editor_lines_ptr = nullptr;
 	tf_editor_scatterplot_ptr m_editor_scatterplot_ptr = nullptr;
 
+	int m_selected_primitve_id = INT_MAX;
+
 /** END - MFLEURY **/
 };
