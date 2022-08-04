@@ -394,16 +394,17 @@ void viewer::init_frame(cgv::render::context& ctx) {
 		m_shared_data_ptr->is_synchronized = true;
 		post_recreate_gui();
 	}
+
 	// If draggables were selected, open the color selector (if not visible)
 	if (m_shared_data_ptr->is_primitive_selected && cs_ptr) {
 		if (!cs_ptr->is_visible()) {
 			cs_ptr->set_visibility(true);
 			// Also set its color to the selected primitive of the draggable
-			cs_ptr->set_color(m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color);
+			cs_ptr->set_rgba_color(m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color);
 		}
 		else if(cs_ptr->was_updated()) {
 			// If the selector was updated, set the colors to 
-			m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color = cs_ptr->get_color();
+			m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color = cs_ptr->get_rgba_color();
 			if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
 				m_editor_lines_ptr->resynchronize();
 			}
@@ -414,7 +415,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 			recreate_gui();
 		}
 	}
-	else if (!m_shared_data_ptr->is_primitive_selected && cs_ptr && cs_ptr->is_visible()) {
+	else if(!m_shared_data_ptr->is_primitive_selected && cs_ptr && cs_ptr->is_visible()) {
 		cs_ptr->set_visibility(false);
 	}
 	/** END - MFLEURY **/
