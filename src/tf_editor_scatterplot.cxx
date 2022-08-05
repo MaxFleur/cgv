@@ -201,13 +201,11 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 
 	// configure style for rendering the plot framebuffer texture
 	m_style_grid.use_texture = true;
-	m_style_grid.apply_gamma = false;
 	m_style_grid.feather_width = 0.0f;
 
 	// configure style for the plot points
 	m_style_plot_points.use_blending = true;
 	m_style_plot_points.use_fill_color = false;
-	m_style_plot_points.apply_gamma = false;
 	m_style_plot_points.position_is_center = true;
 	m_style_plot_points.fill_color = rgba(rgb(0.0f), m_alpha);
 	m_style_plot_points.feather_width = blur;
@@ -215,14 +213,12 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	// Style for the grid
 	m_rectangle_style.border_color = rgba(0.4f, 0.4f, 0.4f, 1.0f);
 	m_rectangle_style.use_blending = false;
-	m_rectangle_style.apply_gamma = false;
 	m_rectangle_style.use_fill_color = false;
 	m_rectangle_style.ring_width = 0.5f;
 
 	// Shapes
 	m_style_shapes.use_blending = true;
 	m_style_shapes.use_fill_color = true;
-	m_style_shapes.apply_gamma = false;
 	m_style_shapes.border_width = 1.0f;
 
 	// draggables style
@@ -240,13 +236,11 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_style_text.border_color.alpha() = 0.0f;
 	m_style_text.border_width = 0.333f;
 	m_style_text.use_blending = true;
-	m_style_text.apply_gamma = false;
 
 	// configure style for final blending of whole overlay
 	overlay_style.fill_color = rgba(1.0f);
 	overlay_style.use_texture = true;
 	overlay_style.use_blending = false;
-	overlay_style.apply_gamma = true;
 	overlay_style.border_color = rgba(rgb(0.5f), 1.0f);
 	overlay_style.border_width = 3.0f;
 	overlay_style.feather_width = 0.0f;

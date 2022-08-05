@@ -162,7 +162,9 @@ protected:
 	template<typename S, typename T>
 	void fast_gaussian_blur_impl(cgv::data::data_view& dv, unsigned size);
 
-	std::vector<unsigned> histogram(cgv::data::data_view& dv);
+	std::vector<unsigned> calculate_histogram(cgv::data::data_view& dv);
+	template<typename T>
+	void calculate_histogram_impl(cgv::data::data_view& dv, std::vector<unsigned>& histogram, unsigned max_value);
 
 	void create_sallimus_dots_geometry();
 	void create_sarcomeres_geometry();

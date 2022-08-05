@@ -218,29 +218,24 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 
 	// configure style for rendering the plot framebuffer texture
 	m_style_plot.use_texture = true;
-	m_style_plot.apply_gamma = false;
 	m_style_plot.feather_width = 0.0f;
 
 	m_style_relations.use_blending = true;
 	m_style_relations.use_fill_color = false;
-	m_style_relations.apply_gamma = false;
 	m_style_relations.width = 1.0f;
 
 	m_style_widgets.use_blending = true;
 	m_style_widgets.use_fill_color = true;
-	m_style_widgets.apply_gamma = false;
 	m_style_widgets.fill_color = m_gray_widgets;
 	m_style_widgets.width = 1.0f;
 
 	m_style_polygons.use_blending = true;
 	m_style_polygons.use_fill_color = false;
-	m_style_polygons.apply_gamma = false;
 	m_style_polygons.fill_color = rgba(1.0f, 0.0f, 0.0f, m_alpha);
 
 	m_style_strip_borders.use_blending = true;
 	m_style_strip_borders.use_fill_color = false;
 	m_style_strip_borders.border_width = 1.5f;
-	m_style_strip_borders.apply_gamma = false;
 
 	// TODO: the polygon does not use a line style
 	auto& line_prog = m_renderer_strips.ref_prog();
@@ -267,7 +262,6 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_arrows.border_color = m_gray_arrows;
 	m_style_arrows.use_fill_color = true;
 	m_style_arrows.use_blending = true;
-	m_style_arrows.apply_gamma = false;
 
 	cgv::glutil::shape2d_style plot_rect_style;
 	plot_rect_style.use_texture = true;
@@ -280,13 +274,11 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_text.border_color.alpha() = 0.0f;
 	m_style_text.border_width = 0.333f;
 	m_style_text.use_blending = true;
-	m_style_text.apply_gamma = false;
 
 	// configure style for final blending of whole overlay
 	overlay_style.fill_color = rgba(1.0f);
 	overlay_style.use_texture = true;
 	overlay_style.use_blending = false;
-	overlay_style.apply_gamma = true;
 	overlay_style.border_color = rgba(rgb(0.5f), 1.0f);
 	overlay_style.border_width = 3.0f;
 	overlay_style.feather_width = 0.0f;

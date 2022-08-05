@@ -23,6 +23,7 @@ tf_editor_basic::tf_editor_basic()
 	// register a rectangle shader for the content canvas, to draw a frame around the plot
 	content_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
 	content_canvas.register_shader("plot_tone_mapping", "plot_tone_mapping.glpr");
+	content_canvas.set_apply_gamma(false);
 
 	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main
 	// frame buffer

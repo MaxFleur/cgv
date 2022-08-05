@@ -359,7 +359,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 
 		int index = -1;
 		for(size_t i = 0; i < tfs.size(); ++i) {
-			if(cm_ptr == &tfs[index])
+			if(cm_ptr == &tfs[i])
 				index = i;
 		}
 
@@ -1285,7 +1285,7 @@ bool viewer::prepare_dataset() {
 	calculate_volume_gradients(*ctx_ptr);
 	std::cout << "done (" << s1.get_elapsed_time() << "s)" << std::endl;
 
-#ifndef _DEBUG
+//#ifndef _DEBUG
 	std::cout << "Computing histograms... ";
 	s1.restart();
 
@@ -1302,10 +1302,10 @@ bool viewer::prepare_dataset() {
 	histograms.hist2.resize(histograms.num_bins, 0);
 	histograms.hist3.resize(histograms.num_bins, 0);
 
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (int i = 0; i < data_views->size(); ++i) {
 		std::vector<unsigned>& hist = (*hists[i % 4]);
-		std::vector<unsigned> h = histogram((*data_views)[i]);
+		std::vector<unsigned> h = calculate_histogram((*data_views)[i]);
 
 		for (unsigned j = 0; j < histograms.num_bins; ++j) {
 			hist[j] += h[j];
@@ -1315,7 +1315,7 @@ bool viewer::prepare_dataset() {
 	histograms.changed = true;
 	std::cout << "done (" << s1.get_elapsed_time() << "s)" << std::endl;
 
-#endif
+//#endif
 
 	if (prepare_btn)
 		prepare_btn->set("color", "");
@@ -1964,26 +1964,46 @@ void viewer::multiply(cgv::data::data_view& dv, float a) {
 	}
 }
 
-std::vector<unsigned> viewer::histogram(cgv::data::data_view& dv) {
+std::vector<unsigned> viewer::calculate_histogram(cgv::data::data_view& dv) {
 
-	std::vector<unsigned> hist(histograms.num_bins, 0);
+	std::vector<unsigned> histogram(histograms.num_bins, 0);
 
-	const data_format* src_df_ptr = dv.get_format();
-	unsigned n_dims = src_df_ptr->get_nr_dimensions();
+	if(histograms.num_bins == 0)
+		return histogram;
 
-	unsigned w = src_df_ptr->get_width();
-	unsigned h = src_df_ptr->get_height();
-
-	std::cout << "histogram does currently not react to data point bit depth" << std::endl;
-
-	for (unsigned y = 0; y < h; ++y) {
-		for (unsigned x = 0; x < w; ++x) {
-			unsigned char val = dv.get<unsigned char>(0, x, y);
-			hist[val] += 1;
-		}
+	const auto& type_id = dv.get_format()->get_component_type();
+	
+	switch(type_id) {
+	case cgv::type::info::TI_UINT8: calculate_histogram_impl<cgv::type::uint8_type>(dv, histogram, 255); break;
+	case cgv::type::info::TI_UINT16: calculate_histogram_impl<cgv::type::uint16_type>(dv, histogram, 65535); break;
+	default: std::cout << "Warning: Could not find implementation of histogram that matches the given component type." << std::endl; break;
 	}
 
-	return hist;
+	return histogram;
+}
+
+template<typename T>
+void viewer::calculate_histogram_impl(cgv::data::data_view& dv, std::vector<unsigned>& histogram, unsigned max_value) {
+	
+	const T* data_ptr = dv.get_ptr<T>();
+
+	const data_format* df_ptr = dv.get_format();
+	unsigned n_dims = df_ptr->get_nr_dimensions();
+	unsigned w = df_ptr->get_width();
+	unsigned h = df_ptr->get_height();
+
+	h = h == 0 ? 1 : h;
+
+	unsigned n = w * h;
+
+	float normalize_factor = 1.0f / static_cast<float>(max_value);
+	unsigned max_bin = static_cast<unsigned>(histogram.size()) - 1;
+
+	for(unsigned i = 0; i < n; ++i) {
+		float val = static_cast<float>(data_ptr[i]) * normalize_factor;
+		unsigned index = cgv::math::clamp(static_cast<unsigned>(val * max_bin), 0u, max_bin);
+		++histogram[index];
+	}
 }
 
 // fills the spheres for the sallimus dots

@@ -88,7 +88,6 @@ bool plot_overlay::init(cgv::render::context& ctx) {
 		blit_style.fill_color = rgba(1.0f);
 		blit_style.use_texture = true;
 		blit_style.use_blending = true;
-		blit_style.apply_gamma = false;
 		blit_style.border_color = rgba(rgb(0.5f), 1.0f);
 		blit_style.border_width = 3.0f;
 		blit_style.feather_width = 0.0f;

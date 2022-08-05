@@ -77,7 +77,7 @@ struct sliced_volume_data_set : public cgv::render::render_types {
 
 	template<typename T>
 	void extract_voxel_values_impl(size_t voxel_count, float max_value) {
-
+		
 		const T* raw_data_ptr = raw_data.get_ptr<T>();
 
 		for(size_t i = 0; i < 4 * voxel_count; i += 4) {
