@@ -189,8 +189,6 @@ void tf_editor_scatterplot::resynchronize() {
 
 void tf_editor_scatterplot::primitive_added() {
 	add_draggables(m_shared_data_ptr->primitives.size() - 1);
-	m_shared_data_ptr->set_synchronized(false);
-
 	redraw();
 }
 
