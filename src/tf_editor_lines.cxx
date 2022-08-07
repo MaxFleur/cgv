@@ -16,6 +16,7 @@ tf_editor_lines::tf_editor_lines() {
 	set_overlay_size(ivec2(600, 525));
 	// Register an additional arrow shader
 	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
+	content_canvas.register_shader("gauss_poly2d", "gauss_poly2d.glpr");
 
 	// initialize the renderers
 	m_renderer_lines = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
@@ -579,42 +580,77 @@ void tf_editor_lines::create_strips() {
 		if(vis_mode == VM_SHAPES) {
 			m_geometry_strips.clear();
 
-			auto strip_index = 0;
+			// Get the texture distance values for the gaussian strips
+			const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index, bool negative) {
+				// Get position and width of the current primitive protein index
+				const auto pos = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[protein_index];
+				auto width = m_shared_data_ptr->primitives.at(primitive_index).centr_widths[protein_index] / 2.0f;
+				if (negative)
+					width *= -1.0f;
+
+				// Position of the theoretical boundary of position with applied width
+				const auto pos_boundary = m_widget_lines.at(widget_line_index).interpolate(pos + width, false);
+				// Get the current line value border
+				const auto pos_value_border = negative ? m_widget_lines.at(widget_line_index).a : m_widget_lines.at(widget_line_index).b;
+				// Distance between the stain position and the value border
+				const auto d1 = cgv::math::length(m_widget_lines.at(widget_line_index).interpolate(pos) - pos_value_border);
+				// Distance between the value border and the boundary
+				const auto d2 = cgv::math::length(pos_boundary - pos_value_border);
+
+				// If the strip width is within the line value border limit, return the maximum boundary
+				if (cgv::math::length(m_widget_lines.at(widget_line_index).interpolate(pos) - pos_boundary) <= d1) {
+					return negative ? 1.0f : 0.0f;
+				}
+				// Else map between the value ranges (bottom: 0 - 0.5, up: 0.5 - 1)
+				float relation = negative ? 1 - ((d2 / d1) * 0.5) : (d2 / d1) * 0.5;
+				
+				return negative ? cgv::math::clamp(relation, 0.5f, 1.0f) : cgv::math::clamp(relation, 0.0f, 0.5f);
+			};
 
 			// Add four points to the strip, because every strip is between two widgets with two points each
-			const auto add_points_to_strips = [&](int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
-				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color, vec2(0.0f, 0.0f));
-				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color, vec2(0.0f, 1.0f));
-				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color, vec2(1.0f, 0.0f));
-				m_geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color, vec2(1.0f, 1.0f));
+			const auto add_points_to_strips = [&](tf_editor_shared_data_types::polygon_geometry& geometry_strips,
+												  int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
+												  int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
+				// Get the positions for the corner points
+				const auto texture_position_1 = texture_distance(i, protein_index_left, widget_line_index_left, true);
+				const auto texture_position_2 = texture_distance(i, protein_index_left, widget_line_index_left, false);
+				const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, true);
+				const auto texture_position_4 = texture_distance(i, protein_index_right, widget_line_index_right, false);
+
+				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color, vec2(texture_position_1, 1.0f));
+				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color, vec2(texture_position_2, 0.0f));
+				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color, vec2(texture_position_3, 0.0f));
+				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color, vec2(texture_position_4, 1.0f));
 			};
 			// Add indices for the strips
-			const auto add_indices_to_strips = [&](int offset_start, int offset_end) {
+			const auto add_indices_to_strips = [&](tf_editor_shared_data_types::polygon_geometry& geometry_strips,
+												   int offset_start, int offset_end) {
 				for(int i = offset_start; i < offset_end; i++) {
-					m_geometry_strips.add_idx(strip_index + i);
+					geometry_strips.add_idx(i);
 				}
 				// If done, end this strip
-				m_geometry_strips.add_idx(0xFFFFFFFF);
+				geometry_strips.add_idx(0xFFFFFFFF);
 			};
 
 			// Now strips themselves
 			for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+				tf_editor_shared_data_types::polygon_geometry geometry_strips;
 				const auto color = m_shared_data_ptr->primitives.at(i).color;
 
-				add_points_to_strips(0, 1, 10, 11, i, color);
-				add_indices_to_strips(0, 4);
-				add_points_to_strips(3, 2, 19, 18, i, color);
-				add_indices_to_strips(4, 8);
-				add_points_to_strips(5, 4, 13, 12, i, color);
-				add_indices_to_strips(8, 12);
-				add_points_to_strips(7, 6, 17, 16, i, color);
-				add_indices_to_strips(12, 16);
-				add_points_to_strips(9, 8, 21, 20, i, color);
-				add_indices_to_strips(16, 20);
-				add_points_to_strips(14, 15, 22, 23, i, color);
-				add_indices_to_strips(20, 24);
+				add_points_to_strips(geometry_strips, 0, 1, 0, 6, 0, 1, 10, 11, i, color);
+				add_indices_to_strips(geometry_strips, 0, 4);
+				add_points_to_strips(geometry_strips, 0, 3, 1, 12, 2, 3, 18, 19, i, color);
+				add_indices_to_strips(geometry_strips, 4, 8);
+				add_points_to_strips(geometry_strips, 0, 2, 2, 8, 4, 5, 12, 13, i, color);
+				add_indices_to_strips(geometry_strips, 8, 12);
+				add_points_to_strips(geometry_strips, 1, 2, 4, 10, 6, 7, 16, 17, i, color);
+				add_indices_to_strips(geometry_strips, 12, 16);
+				add_points_to_strips(geometry_strips, 1, 3, 5, 13, 8, 9, 20, 21, i, color);
+				add_indices_to_strips(geometry_strips, 16, 20);
+				add_points_to_strips(geometry_strips, 2, 3, 9, 14, 14, 15, 22, 23, i, color);
+				add_indices_to_strips(geometry_strips, 20, 24);
 
-				strip_index += 24;
+				m_geometry_strips.push_back(geometry_strips);
 			}
 
 			m_strips_created = true;
@@ -671,7 +707,7 @@ void tf_editor_lines::add_draggables(int primitive_index) {
 				index = 1;
 			} else if(i >= 8 && i < 11) {
 				index = 2;
-			} else if(i >= 12 && i < 115) {
+			} else if(i >= 12 && i < 15) {
 				index = 3;
 			}
 
@@ -745,16 +781,26 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 		create_strips();
 
 		if (vis_mode == VM_SHAPES) {
-			auto& line_prog_polygon = m_renderer_strips.ref_prog();
-			line_prog_polygon.enable(ctx);
-			content_canvas.set_view(ctx, line_prog_polygon);
-			line_prog_polygon.disable(ctx);
+			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+				const auto& type = m_shared_data_ptr->primitives.at(i).type;
 
-			// draw the lines from the given geometry with offset and count
-			glEnable(GL_PRIMITIVE_RESTART);
-			glPrimitiveRestartIndex(0xFFFFFFFF);
-			m_renderer_strips.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips);
-			glDisable(GL_PRIMITIVE_RESTART);
+				auto& line_prog_polygon = type == shared_data::TYPE_GAUSS ? content_canvas.enable_shader(ctx, "gauss_poly2d") : m_renderer_strips.ref_prog();
+				if (type != shared_data::TYPE_GAUSS) {
+					line_prog_polygon.enable(ctx);
+					content_canvas.set_view(ctx, line_prog_polygon);
+					line_prog_polygon.disable(ctx);
+				}
+
+				// draw the lines from the given geometry with offset and count
+				glEnable(GL_PRIMITIVE_RESTART);
+				glPrimitiveRestartIndex(0xFFFFFFFF);
+				m_renderer_strips.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips.at(i));
+				glDisable(GL_PRIMITIVE_RESTART);
+
+				if (type == shared_data::TYPE_GAUSS) {
+					content_canvas.disable_current_shader(ctx);
+				}
+			}
 		}
 
 		for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
