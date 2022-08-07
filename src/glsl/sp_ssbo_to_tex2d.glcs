@@ -1,0 +1,35 @@
+#version 450
+
+layout(local_size_x = 128) in;
+
+#define DEF_SP_BUF(I) layout(std430, binding = I) buffer sp##I##_buffer { ivec4 rgba[]; } sp##I;
+
+DEF_SP_BUF(0)
+DEF_SP_BUF(1)
+DEF_SP_BUF(2)
+DEF_SP_BUF(3)
+DEF_SP_BUF(4)
+DEF_SP_BUF(5)
+
+layout(rgba32f, binding = 0) uniform image2D sp_img0;
+layout(rgba32f, binding = 1) uniform image2D sp_img1;
+layout(rgba32f, binding = 2) uniform image2D sp_img2;
+layout(rgba32f, binding = 3) uniform image2D sp_img3;
+layout(rgba32f, binding = 4) uniform image2D sp_img4;
+layout(rgba32f, binding = 5) uniform image2D sp_img5;
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+
+	ivec2 img_coord = ivec2(
+		idx % 256,
+		idx / 256
+	);
+	
+	imageStore(sp_img0, img_coord, vec4(sp0.rgba[idx]));
+	imageStore(sp_img1, img_coord, vec4(sp1.rgba[idx]));
+	imageStore(sp_img2, img_coord, vec4(sp2.rgba[idx]));
+	imageStore(sp_img3, img_coord, vec4(sp3.rgba[idx]));
+	imageStore(sp_img4, img_coord, vec4(sp4.rgba[idx]));
+	imageStore(sp_img5, img_coord, vec4(sp5.rgba[idx]));
+}

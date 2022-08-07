@@ -38,6 +38,9 @@ void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 
 	cgv::glutil::ref_msdf_font(ctx, -1);
 	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, -1);
+
+	for(unsigned i = 0; i < 6; ++i)
+		sp_textures[i].destruct(ctx);
 }
 
 bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
@@ -98,7 +101,7 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 	}
 
 	// Update if the visualization mode has changed
-	if (member_ptr == &vis_mode) {
+	if (member_ptr == &vis_mode || m_threshold) {
 		update_content();
 	}
 
@@ -130,6 +133,53 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 		m_labels.set_msdf_font(&font);
 		m_labels.set_font_size(m_font_size);
 	}
+
+
+
+
+
+
+
+
+	/*std::vector<uint8_t> data = {
+		255u, 0u, 0u,
+		0u, 255u, 0u,
+		0u, 0u, 255u,
+		255u, 255u, 0u
+	};
+
+	cgv::data::data_view dv = cgv::data::data_view(new cgv::data::data_format(2, 2, TI_UINT8, cgv::data::CF_RGB), data.data());*/
+
+	unsigned resolution = 256;
+	std::vector<float> data(resolution * resolution * 4, 0u);
+
+	cgv::data::data_view dv = cgv::data::data_view(new cgv::data::data_format(resolution, resolution, TI_FLT32, cgv::data::CF_RGBA), data.data());
+
+	for(unsigned i = 0; i < 6; ++i) {
+		sp_textures[i] = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_NEAREST, cgv::render::TF_NEAREST);
+		sp_textures[i].create(ctx, dv, 0);
+	}
+
+	shaders.add("hist2d", "sp_hist2d");
+	shaders.add("transfer", "sp_ssbo_to_tex2d");
+	shaders.add("clear", "sp_ssbo_clear");
+	success &= shaders.load_shaders(ctx, "tf_editor_scatterplot::init");
+
+
+
+	glGenBuffers(6, sp_buffers);
+	for(unsigned i = 0; i < 6; ++i) {
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, sp_buffers[i]);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, 4*sizeof(float)*resolution*resolution, (void*)0, GL_DYNAMIC_COPY);
+	}
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+
+
+
+
+
+
 
 	return success;
 }
@@ -174,6 +224,8 @@ void tf_editor_scatterplot::create_gui() {
 
 	tf_editor_basic::create_gui_coloring();
 	tf_editor_basic::create_gui_tm();
+
+	add_member_control(this, "Show SP", show_sp, "check");
 }
 
 void tf_editor_scatterplot::resynchronize() {
@@ -200,6 +252,7 @@ void tf_editor_scatterplot::primitive_added() {
 void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 
 	// configure style for rendering the plot framebuffer texture
+	m_style_grid.use_blending = true;
 	m_style_grid.use_texture = true;
 	m_style_grid.feather_width = 0.0f;
 
@@ -256,7 +309,177 @@ void tf_editor_scatterplot::update_content() {
 	if (!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
 
-	const auto& data = m_data_set_ptr->voxel_data;
+
+
+
+
+
+
+
+	GLuint time_query = 0;
+	glGenQueries(1, &time_query);
+
+	glBeginQuery(GL_TIME_ELAPSED, time_query);
+
+
+
+	if(auto ctx_ptr = get_context()) {
+		auto& ctx = *ctx_ptr;
+
+
+		const unsigned group_size = 128;
+
+
+
+		auto& clear_prog = shaders.get("clear");
+		clear_prog.enable(ctx);
+
+		for(unsigned i = 0; i < 6; ++i)
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, sp_buffers[i]);
+
+		unsigned num_groups3 = (256 * 256 + group_size - 1) / group_size;
+
+		glDispatchCompute(num_groups3, 1, 1);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		for(unsigned i = 0; i < 6; ++i)
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
+
+		clear_prog.disable(ctx);
+
+
+
+
+
+
+
+
+		const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
+
+		auto& plot_prog = shaders.get("hist2d");
+		plot_prog.enable(ctx);
+
+		/*glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+		for(unsigned i = 0; i < 6; ++i) {
+			const int handle = (const int&)(sp_textures[i].handle) - 1;
+			glBindImageTexture(i + 1, handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+		}
+
+		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
+		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
+		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
+
+		unsigned n = width * height*depth;
+		const unsigned group_size = 64;
+		unsigned num_groups = (n + group_size - 1) / group_size;
+
+		glDispatchCompute(num_groups, 1, 1);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+		for(unsigned i = 0; i < 6; ++i)
+			glBindImageTexture(i + 1, 0, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+		*/
+
+
+
+
+		plot_prog.set_uniform(ctx, "plot_size", 256);
+		plot_prog.set_uniform(ctx, "threshold", m_threshold);
+
+		glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+		for(unsigned i = 0; i < 6; ++i)
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, sp_buffers[i]);
+
+		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
+		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
+		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
+
+		unsigned n = width * height*depth;
+		
+		unsigned num_groups = (n + group_size - 1) / group_size;
+
+		glDispatchCompute(num_groups, 1, 1);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		for(unsigned i = 0; i < 6; ++i)
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
+
+		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+
+
+
+
+
+
+
+		plot_prog.disable(ctx);
+
+
+
+
+
+
+
+
+
+
+		auto& transfer_prog = shaders.get("transfer");
+		transfer_prog.enable(ctx);
+
+		for(unsigned i = 0; i < 6; ++i)
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, sp_buffers[i]);
+
+		for(unsigned i = 0; i < 6; ++i) {
+			const int handle = (const int&)(sp_textures[i].handle) - 1;
+			glBindImageTexture(i, handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+		}
+
+		unsigned num_groups2 = (256 * 256 + group_size - 1) / group_size;
+
+		glDispatchCompute(num_groups2, 1, 1);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		for(unsigned i = 0; i < 6; ++i)
+			glBindImageTexture(i + 1, 0, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+
+		for(unsigned i = 0; i < 6; ++i)
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
+
+		transfer_prog.disable(ctx);
+	}
+
+
+	glEndQuery(GL_TIME_ELAPSED);
+
+	GLint done = false;
+	while(!done) {
+		glGetQueryObjectiv(time_query, GL_QUERY_RESULT_AVAILABLE, &done);
+	}
+	GLuint64 elapsed_time = 0;
+	glGetQueryObjectui64v(time_query, GL_QUERY_RESULT, &elapsed_time);
+
+	double time = static_cast<double>(elapsed_time) / 1000000.0;
+	std::cout << "TIME: " << time << " ms" << std::endl;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/*const auto& data = m_data_set_ptr->voxel_data;
 
 	// reset previous total count and point geometry
 	m_total_count = 0;
@@ -318,6 +541,7 @@ void tf_editor_scatterplot::update_content() {
 			offset += 0.33f;
 		}
 	}
+	*/
 
 	redraw();
 }
@@ -438,32 +662,72 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	// first draw the plot (the method will check internally if it needs an update)
-	bool done = draw_scatterplot(ctx);
+	//bool done = draw_scatterplot(ctx);
 
 	// enable the offline frame buffer, so all things are drawn into its attached textures
 	fbc.enable(ctx);
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	// draw the plot content from its own framebuffer texture
-	fbc_plot.enable_attachment(ctx, "color", 0);
+	auto& tone_mapping_prog = content_canvas.enable_shader(ctx, "plot_tone_mapping");
+	tone_mapping_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
+	tone_mapping_prog.set_uniform(ctx, "alpha", tm_alpha);
+	tone_mapping_prog.set_uniform(ctx, "gamma", tm_gamma);
+	tone_mapping_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
+	
+	m_style_grid.apply(ctx, tone_mapping_prog);
 
-	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
-
-	// Aply tone mapping using the tone mapping shader
-	if (use_tone_mapping) {
-		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
-		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
-		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
-		rectangle_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
+	for(unsigned i = 0; i < 6; ++i) {
+		const auto& rectangle = m_rectangles_draw[i];
+		sp_textures[i].enable(ctx, 0);
+		content_canvas.draw_shape(ctx, rectangle.start, rectangle.end);
+		sp_textures[i].disable(ctx);
 	}
-
-	m_style_grid.use_blending = use_tone_mapping;
-	m_style_grid.apply(ctx, rectangle_prog);
-
-	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
 	content_canvas.disable_current_shader(ctx);
-	fbc_plot.disable_attachment(ctx, "color");
+
+	
+
+
+
+
+
+
+
+
+
+
+
+	/*{
+		auto& rect_prog = content_canvas.enable_shader(ctx, "rectangle");
+
+		cgv::glutil::shape2d_style s;
+		s.use_texture = true;
+		s.use_blending = true;
+		s.feather_width = 0.0f;
+
+		s.apply(ctx, rect_prog);
+		for(unsigned i = 0; i < 6; ++i) {
+			const auto& rectangle = m_rectangles_draw[i];
+			sp_textures[i].enable(ctx, 0);
+			content_canvas.draw_shape(ctx, rectangle.start, rectangle.end, m_rectangle_style.border_color);
+			sp_textures[i].disable(ctx);
+		}
+		content_canvas.disable_current_shader(ctx);
+	}*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	// ...and axis labels
 	auto& font_renderer = cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx);
@@ -509,12 +773,12 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	// don't forget to disable blending
 	glDisable(GL_BLEND);
 
-	has_damage = !done;
+	has_damage = false;
 }
 
 bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 
-	// enable the offline plot frame buffer, so all things are drawn into its attached textures
+	/*// enable the offline plot frame buffer, so all things are drawn into its attached textures
 	fbc_plot.enable(ctx);
 
 	if(use_tone_mapping) {
@@ -569,7 +833,8 @@ bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 	else {
 		//std::cout << "done" << std::endl;
 	}
-	return !run;
+	return !run;*/
+	return true;
 }
 
 void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
@@ -586,19 +851,19 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 		auto& prog = content_canvas.enable_shader(ctx, type == shared_data::TYPE_BOX ? "rectangle" : type == shared_data::TYPE_GAUSS ? "gauss_ellipse" : "ellipse");
 		auto& index = type == shared_data::TYPE_BOX ? index_boxes : index_ellipses;
 
+		glEnable(GL_SCISSOR_TEST);
+
 		// For each primitive, we have either six boxes or six ellipses
 		for (int j = 0; j < 6; j++) {
 			// Prevent shapes overlapping rectangles
-			glEnable(GL_SCISSOR_TEST);
-			glScissor(m_rectangles_calc.at(j).start.x(), m_rectangles_calc.at(j).start.y(), m_rectangles_calc.at(j).size_x(), m_rectangles_calc.at(j).size_y());
+			glScissor(m_rectangles_draw.at(j).start.x(), m_rectangles_draw.at(j).start.y(), m_rectangles_draw.at(j).end.x() + 1, m_rectangles_draw.at(j).end.y() + 1);
 
 			m_style_shapes.apply(ctx, prog);
 			type == shared_data::TYPE_BOX ?
 				content_canvas.draw_shape(ctx, m_boxes.at(index).at(j).start, m_boxes.at(index).at(j).end, rgba(0, 1, 1, 1)) :
 				content_canvas.draw_shape(ctx, m_ellipses.at(index).at(j).pos, m_ellipses.at(index).at(j).size, rgba(0, 1, 1, 1));
-
-			glDisable(GL_SCISSOR_TEST);
 		}
+		glDisable(GL_SCISSOR_TEST);
 
 		index++;
 		content_canvas.disable_current_shader(ctx);

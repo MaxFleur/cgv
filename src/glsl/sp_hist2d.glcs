@@ -1,0 +1,69 @@
+#version 450
+
+#extension GL_NV_gpu_shader5 : enable
+#extension GL_NV_shader_atomic_int64 : enable
+
+layout(local_size_x = 128) in;
+
+layout(rgba8ui, binding = 0) uniform coherent uimage3D src_tex;
+
+struct data_type {
+	uint64_t rg;
+	uint64_t ba;
+};
+
+#define DEF_SP_BUF(I) layout(std430, binding = I) buffer sp##I##_buffer { data_type rgba[]; } sp##I;
+
+DEF_SP_BUF(0)
+DEF_SP_BUF(1)
+DEF_SP_BUF(2)
+DEF_SP_BUF(3)
+DEF_SP_BUF(4)
+DEF_SP_BUF(5)
+
+uniform int plot_size;
+uniform float threshold;
+
+/*
+#define PLOT_POINT(BUF, I, J) \
+	int BUF##_idx = plot_coords[I] + plot_size * plot_coords[J]; \
+	atomicAdd(BUF.rgba[BUF##_idx][0], 1); \
+	atomicAdd(BUF.rgba[BUF##_idx][1], 0); \
+	atomicAdd(BUF.rgba[BUF##_idx][2], 0); \
+	atomicAdd(BUF.rgba[BUF##_idx][3], 1);
+*/
+
+#define PLOT_POINT(BUF, I, J) \
+	int BUF##_idx = plot_coords[I] + plot_size * plot_coords[J]; \
+	atomicAdd(BUF.rgba[BUF##_idx].rg, packUint2x32(uvec2(1.0, 0.0))); \
+	atomicAdd(BUF.rgba[BUF##_idx].ba, packUint2x32(uvec2(0.0, 1.0)));
+	
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+
+	ivec3 src_size = imageSize(src_tex);
+	ivec3 src_coord;
+
+	src_coord.x = idx % src_size.x;
+    src_coord.y = (idx / src_size.x) % src_size.y;
+    src_coord.z = idx / (src_size.x * src_size.y);
+
+    vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
+
+	float avg = p[0] + p[1] + p[2] + p[3];
+	avg *= 0.25f;
+
+	if (avg > threshold) {
+		vec4 color = uvec4(0.0, 0.0, 0.0, 1.0);
+
+		ivec4 plot_coords = clamp(ivec4(p * plot_size), 0, plot_size - 1);
+
+		PLOT_POINT(sp0, 0, 1);
+		PLOT_POINT(sp1, 0, 2);
+		PLOT_POINT(sp2, 0, 3);
+		PLOT_POINT(sp3, 3, 1);
+		PLOT_POINT(sp4, 3, 2);
+		PLOT_POINT(sp5, 2, 1);
+	}
+}

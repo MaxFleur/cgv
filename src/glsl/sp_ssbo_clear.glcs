@@ -1,0 +1,32 @@
+#version 450
+
+layout(local_size_x = 128) in;
+
+#define DEF_SP_BUF(I) layout(std430, binding = I) buffer sp##I##_buffer { ivec4 rgba[]; } sp##I;
+
+DEF_SP_BUF(0)
+DEF_SP_BUF(1)
+DEF_SP_BUF(2)
+DEF_SP_BUF(3)
+DEF_SP_BUF(4)
+DEF_SP_BUF(5)
+
+uniform int plot_size;
+
+#define PLOT_POINT(BUF, I, J) \
+	int BUF##_idx = plot_coords[I] + plot_size * plot_coords[J]; \
+	atomicAdd(BUF.rgba[BUF##_idx][0], 1); \
+	atomicAdd(BUF.rgba[BUF##_idx][1], 0); \
+	atomicAdd(BUF.rgba[BUF##_idx][2], 0); \
+	atomicAdd(BUF.rgba[BUF##_idx][3], 1);
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+
+	sp0.rgba[idx] = ivec4(0);
+	sp1.rgba[idx] = ivec4(0);
+	sp2.rgba[idx] = ivec4(0);
+	sp3.rgba[idx] = ivec4(0);
+	sp4.rgba[idx] = ivec4(0);
+	sp5.rgba[idx] = ivec4(0);
+}
