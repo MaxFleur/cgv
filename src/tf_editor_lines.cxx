@@ -196,7 +196,6 @@ void tf_editor_lines::resynchronize() {
 		add_draggables(i);
 	}
 
-	set_point_handles();
 	m_create_all_values = true;
 	// Then redraw strips etc
 	redraw();
@@ -205,7 +204,6 @@ void tf_editor_lines::resynchronize() {
 void tf_editor_lines::primitive_added() {
 	add_draggables(m_shared_data_ptr->primitives.size() - 1);
 	// Add a corresponding draggable point for every centroid
-	set_point_handles();
 
 	// A new primitive was added, so we need to redraw completely
 	m_create_all_values = true;
@@ -296,7 +294,7 @@ void tf_editor_lines::update_content() {
 		return;
 
 	const auto& data = m_data_set_ptr->voxel_data;
-	// Everythin needs to be updated, also nothing is dragged the moment the button is pressed
+	// Everything needs to be updated, also nothing is dragged the moment the button is pressed
 	m_create_all_values = true;
 	m_is_point_dragged = false;
 
@@ -425,10 +423,8 @@ void tf_editor_lines::create_widget_lines() {
 	// Offset applied after scaling (in pixel coordinates) to move the widgets to the center of the domain
 	vec2 offset = domain.box.get_center();
 
-	// Calculate a uniform scaling factor to fit the widget bounding box inside the domain
-	vec2 ext = box.get_extent();
 	// Factor to scale from unit to pixel coordinates
-	float scale = std::min(domain.size().x() / ext.x(), domain.size().y() / ext.y());
+	float scale = std::min(domain.size().x() / box.get_extent().x(), domain.size().y() / box.get_extent().y());
 
 	// Apply offsets and scale
 	for(size_t i = 0; i < 3; ++i) {
@@ -716,6 +712,8 @@ void tf_editor_lines::add_draggables(int primitive_index) {
 		}
 	}
 	m_points.push_back(points);
+
+	tf_editor_basic::set_point_handles(m_points, m_point_handles);
 }
 
 void tf_editor_lines::draw_content(cgv::render::context& ctx) {
@@ -936,15 +934,6 @@ void tf_editor_lines::set_point_positions() {
 	}
 
 	redraw();
-}
-
-void tf_editor_lines::set_point_handles() {
-	m_point_handles.clear();
-	for(unsigned i = 0; i < m_points.size(); ++i) {
-		for(int j = 0; j < m_points[i].size(); j++) {
-			m_point_handles.add(&m_points[i][j]);
-		}
-	}
 }
 
 void tf_editor_lines::update_point_positions() {

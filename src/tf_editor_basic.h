@@ -71,6 +71,16 @@ protected:
 		post_redraw();
 	}
 
+	template<typename T, typename U>
+	void set_point_handles(std::vector<std::vector<T>>& points, cgv::glutil::draggables_collection<U*>& point_handles) {
+		point_handles.clear();
+		for (unsigned i = 0; i < points.size(); ++i) {
+			for (int j = 0; j < points[i].size(); j++) {
+				point_handles.add(&points[i][j]);
+			}
+		}
+	}
+
 	template <typename T>
 	void draw_draggables(cgv::render::context& ctx, const T& points, int interacted_id) {
 		for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {

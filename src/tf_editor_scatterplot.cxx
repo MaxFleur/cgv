@@ -183,15 +183,12 @@ void tf_editor_scatterplot::resynchronize() {
 		add_draggables(i);
 	}
 
-	set_point_handles();
 	// Then redraw strips etc
 	redraw();
 }
 
 void tf_editor_scatterplot::primitive_added() {
 	add_draggables(m_shared_data_ptr->primitives.size() - 1);
-	// Add a corresponding draggable point for every centroid
-	set_point_handles();
 	m_shared_data_ptr->set_synchronized(false);
 
 	redraw();
@@ -428,6 +425,8 @@ void tf_editor_scatterplot::add_draggables(int primitive_index) {
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 2, 1, &m_rectangles_calc.at(5)));
 
 	m_points.push_back(points);
+
+	tf_editor_basic::set_point_handles(m_points, m_point_handles);
 }
 
 void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
@@ -682,15 +681,6 @@ void tf_editor_scatterplot::set_point_positions() {
 
 	has_damage = true;
 	post_redraw();
-}
-
-void tf_editor_scatterplot::set_point_handles() {
-	m_point_handles.clear();
-	for (unsigned i = 0; i < m_points.size(); ++i) {
-		for (int j = 0; j < m_points[i].size(); j++) {
-			m_point_handles.add(&m_points[i][j]);
-		}
-	}
 }
 
 void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos) {

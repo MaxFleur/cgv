@@ -47,8 +47,6 @@ namespace tf_editor_shared_functions
 
 	// Apply an alpha value of 1 or 0 based on if the input values are inside the hyperellipsoid
 	static float sphere_transfer_function(const vec4& data_values, const vec4& centroid_positions, const vec4& width) {
-		float ret = 1.0f;
-
 		const auto delta = data_values - centroid_positions;
 
 		const auto max_width = cgv::math::max_value(width);
@@ -60,9 +58,9 @@ namespace tf_editor_shared_functions
 		const auto dist = sqrt(scaled_diff[0] + scaled_diff[1] + scaled_diff[2] + scaled_diff[3]) - max_width;
 
 		if(dist > 0.0f)
-			ret = 0.0f;
+			return 0.0f;
 
-		return ret;
+		return 1.0f;
 	}
 
 	// Calculate a color for a relations type, based on the current primitive type

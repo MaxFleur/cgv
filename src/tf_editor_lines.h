@@ -60,8 +60,6 @@ private:
 
 	void set_point_positions();
 
-	void set_point_handles();
-
 	void update_point_positions();
 
 	void point_clicked(const vec2& mouse_pos);
