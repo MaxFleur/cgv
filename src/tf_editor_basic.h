@@ -71,8 +71,8 @@ protected:
 		post_redraw();
 	}
 
-	template<typename T, typename U>
-	void set_point_handles(std::vector<std::vector<T>>& points, cgv::glutil::draggables_collection<U*>& point_handles) {
+	template<typename T>
+	void set_point_handles(std::vector<std::vector<T>>& points, cgv::glutil::draggables_collection<T*>& point_handles) {
 		point_handles.clear();
 		for (unsigned i = 0; i < points.size(); ++i) {
 			for (int j = 0; j < points[i].size(); j++) {
