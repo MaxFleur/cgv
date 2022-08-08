@@ -18,7 +18,7 @@ namespace tf_editor_shared_data_types
 	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 2, vec2, position, rgba, color);
 
 	// Geometry used for quadstrips
-	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 3, vec2, position, rgba, color, vec2, texture_coord);
+	DEFINE_GENERIC_RENDER_DATA_CLASS(polygon_geometry, 3, vec2, position, rgba, color, vec2, texcoord);
 
 	// Geometry for draggable points
 	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry_draggable, 1, vec2, position);

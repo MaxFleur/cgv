@@ -16,11 +16,12 @@ tf_editor_lines::tf_editor_lines() {
 	set_overlay_size(ivec2(600, 525));
 	// Register an additional arrow shader
 	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
-	content_canvas.register_shader("gauss_poly2d", "gauss_poly2d.glpr");
+	//content_canvas.register_shader("gauss_poly2d", "gauss_poly2d.glpr");
 
 	// initialize the renderers
 	m_renderer_lines = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 	m_renderer_strips = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::polygon);
+	m_renderer_strips_gauss = cgv::glutil::generic_renderer("gauss_poly2d.glpr");
 
 	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_lines::set_point_positions, this));
@@ -37,6 +38,7 @@ void tf_editor_lines::clear(cgv::render::context& ctx) {
 	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, -1);
 
 	m_renderer_strips.destruct(ctx);
+	m_renderer_strips_gauss.destruct(ctx);
 
 	m_renderer_draggables.destruct(ctx);
 	m_geometry_draggables.destruct(ctx);
@@ -122,6 +124,7 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	success &= m_renderer_lines.init(ctx);
 	success &= m_renderer_draggables.init(ctx);
 	success &= m_renderer_strips.init(ctx);
+	success &= m_renderer_strips_gauss.init(ctx);
 
 	auto& font = cgv::glutil::ref_msdf_font(ctx, 1);
 	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, 1);
@@ -232,11 +235,13 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_strip_borders.use_fill_color = false;
 	m_style_strip_borders.border_width = 1.5f;
 
-	// TODO: the polygon does not use a line style
-	auto& line_prog = m_renderer_strips.ref_prog();
-	line_prog.enable(ctx);
-	m_style_polygons.apply(ctx, line_prog);
-	line_prog.disable(ctx);
+	auto& poly_prog = m_renderer_strips.enable_prog(ctx);
+	m_style_polygons.apply(ctx, poly_prog);
+	poly_prog.disable(ctx);
+
+	auto& poly_gauss_prog = m_renderer_strips_gauss.enable_prog(ctx);
+	m_style_polygons.apply(ctx, poly_gauss_prog);
+	poly_gauss_prog.disable(ctx);
 
 	m_style_draggables.position_is_center = true;
 	m_style_draggables.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
@@ -609,10 +614,10 @@ void tf_editor_lines::create_strips() {
 				const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, true);
 				const auto texture_position_4 = texture_distance(i, protein_index_right, widget_line_index_right, false);
 
-				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color, vec2(texture_position_1, 1.0f));
-				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color, vec2(texture_position_2, 0.0f));
-				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color, vec2(texture_position_3, 0.0f));
-				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color, vec2(texture_position_4, 1.0f));
+				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color, vec2(0.0f, texture_position_1));
+				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color, vec2(0.0f, texture_position_2));
+				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color, vec2(1.0f, texture_position_3));
+				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color, vec2(1.0f, texture_position_4));
 			};
 			// Add indices for the strips
 			const auto add_indices_to_strips = [&](tf_editor_shared_data_types::polygon_geometry& geometry_strips,
@@ -778,22 +783,35 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 				const auto& type = m_shared_data_ptr->primitives.at(i).type;
 
-				auto& line_prog_polygon = type == shared_data::TYPE_GAUSS ? content_canvas.enable_shader(ctx, "gauss_poly2d") : m_renderer_strips.ref_prog();
+				/*auto& line_prog_polygon = type == shared_data::TYPE_GAUSS ? content_canvas.enable_shader(ctx, "gauss_poly2d") : m_renderer_strips.ref_prog();
 				if (type != shared_data::TYPE_GAUSS) {
 					line_prog_polygon.enable(ctx);
 					content_canvas.set_view(ctx, line_prog_polygon);
 					line_prog_polygon.disable(ctx);
-				}
+				}*/
 
 				// draw the lines from the given geometry with offset and count
 				glEnable(GL_PRIMITIVE_RESTART);
 				glPrimitiveRestartIndex(0xFFFFFFFF);
-				m_renderer_strips.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips.at(i));
+
+				auto& strip_renderer = type == shared_data::TYPE_GAUSS ? m_renderer_strips_gauss : m_renderer_strips;
+
+				content_canvas.set_view(ctx, strip_renderer.enable_prog(ctx));
+				strip_renderer.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips.at(i));
+
+				/*if(type == shared_data::TYPE_GAUSS) {
+					content_canvas.set_view(ctx, m_renderer_strips_gauss.enable_prog(ctx));
+					m_renderer_strips_gauss.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips.at(i));
+				} else {
+					content_canvas.set_view(ctx, m_renderer_strips.enable_prog(ctx));
+					m_renderer_strips.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips.at(i));
+				}*/
+
 				glDisable(GL_PRIMITIVE_RESTART);
 
-				if (type == shared_data::TYPE_GAUSS) {
-					content_canvas.disable_current_shader(ctx);
-				}
+				//if (type == shared_data::TYPE_GAUSS) {
+				//	content_canvas.disable_current_shader(ctx);
+				//}
 			}
 		}
 
