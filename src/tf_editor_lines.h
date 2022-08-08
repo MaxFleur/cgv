@@ -66,6 +66,8 @@ private:
 
 	void scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed);
 
+	void handle_interacted_primitive_ids(int i, int j, bool set_corresponding_points = false);
+
 private:
 
 	// renderer for the 2d plot lines and quadstrips

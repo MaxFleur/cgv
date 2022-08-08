@@ -885,33 +885,11 @@ void tf_editor_lines::set_point_positions() {
 	m_point_handles.get_dragged()->update_val();
 	m_currently_dragging = true;
 
-	const auto set_points = [&](int index_row, int index_col, int pos_1, int pos_2) {
-		const auto relative_position = (m_points[index_row][index_col].get_relative_line_position() - 0.1f) / 0.8f;
-		m_points[index_row][index_col + pos_1].move_along_line(relative_position);
-		m_points[index_row][index_col + pos_2].move_along_line(relative_position);
-		m_interacted_primitive_ids[2] = index_col + pos_1;
-		m_interacted_primitive_ids[3] = index_col + pos_2;
-	};
-
 	for(unsigned i = 0; i < m_points.size(); ++i) {
 		for(int j = 0; j < m_points[i].size(); j++) {
 			// Now the relating draggables in the widget have to be updated
 			if(&m_points[i][j] == m_point_handles.get_dragged()) {
-				m_interacted_primitive_ids[0] = i;
-				m_interacted_primitive_ids[1] = j;
-
-				// Left widget draggable was moved, update center and right
-				if(j % 3 == 0) {
-					set_points(i, j, 1, 2);
-				}
-				// Center widget draggable was moved, update left and right
-				else if(j % 3 == 1) {
-					set_points(i, j, -1, 1);
-				}
-				// Right widget draggable was moved, update left and center
-				else if(j % 3 == 2) {
-					set_points(i, j, -1, -2);
-				}
+				handle_interacted_primitive_ids(i, j, true);
 
 				m_is_point_dragged = true;
 				is_interacting = true;
@@ -957,32 +935,11 @@ void tf_editor_lines::point_clicked(const vec2& mouse_pos) {
 	m_is_point_dragged = false;
 	auto found = false;
 
-	const auto set_points = [&](int index_row, int index_col, int pos_1, int pos_2) {
-		const auto relative_position = (m_points[index_row][index_col].get_relative_line_position() - 0.1f) / 0.8f;
-		m_interacted_primitive_ids[2] = index_col + pos_1;
-		m_interacted_primitive_ids[3] = index_col + pos_2;
-	};
-
 	for (unsigned i = 0; i < m_points.size(); ++i) {
 		for (int j = 0; j < m_points[i].size(); j++) {
 			// Now the relating draggables in the widget have to be updated
 			if (m_points[i][j].is_inside(mouse_pos)) {
-				m_interacted_primitive_ids[0] = i;
-				m_interacted_primitive_ids[1] = j;
-
-				// Left widget draggable was moved, update center and right
-				if (j % 3 == 0) {
-					set_points(i, j, 1, 2);
-				}
-				// Center widget draggable was moved, update left and right
-				else if (j % 3 == 1) {
-					set_points(i, j, -1, 1);
-				}
-				// Right widget draggable was moved, update left and center
-				else if (j % 3 == 2) {
-					set_points(i, j, -1, -2);
-				}
-
+				handle_interacted_primitive_ids(i, j);
 				found = true;
 			}
 		}
@@ -1025,6 +982,34 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 
 		m_shared_data_ptr->set_synchronized();
 		redraw();
+	}
+}
+
+void tf_editor_lines::handle_interacted_primitive_ids(int i, int j, bool set_corresponding_points) {
+	const auto set_points = [&](int index_row, int index_col, int pos_1, int pos_2, bool set_corresponding_points) {
+		const auto relative_position = (m_points[index_row][index_col].get_relative_line_position() - 0.1f) / 0.8f;
+		if (set_corresponding_points) {
+			m_points[index_row][index_col + pos_1].move_along_line(relative_position);
+			m_points[index_row][index_col + pos_2].move_along_line(relative_position);
+		}
+		m_interacted_primitive_ids[2] = index_col + pos_1;
+		m_interacted_primitive_ids[3] = index_col + pos_2;
+	};
+	
+	m_interacted_primitive_ids[0] = i;
+	m_interacted_primitive_ids[1] = j;
+
+	// Left widget draggable was moved, update center and right
+	if (j % 3 == 0) {
+		set_points(i, j, 1, 2, set_corresponding_points);
+	}
+	// Center widget draggable was moved, update left and right
+	else if (j % 3 == 1) {
+		set_points(i, j, -1, 1, set_corresponding_points);
+	}
+	// Right widget draggable was moved, update left and center
+	else if (j % 3 == 2) {
+		set_points(i, j, -1, -2, set_corresponding_points);
 	}
 }
 
