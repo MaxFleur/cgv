@@ -106,8 +106,6 @@ private:
 
 	// Store the indices of to be updated centroids if a point has been interacted with
 	int m_interacted_primitive_ids[4] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX };
-	// Were strips created?
-	bool m_strips_created = true;
 	// Do we need to update all values?
 	bool m_create_all_values = true;
 };

@@ -173,7 +173,6 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 		update_point_positions();
 
 		// update the quad positions after a resize
-		m_strips_created = false;
 		m_create_all_values = true;
 
 		has_damage = true;
@@ -568,88 +567,83 @@ void tf_editor_lines::create_strips() {
 	if(m_points.empty()) {
 		return;
 	}
+	create_centroid_boundaries();
 
-	if(!m_strips_created) {
-		create_centroid_boundaries();
+	// Only draw quadstrips for the shape mode
+	if(vis_mode == VM_SHAPES) {
+		m_geometry_strips.clear();
 
-		// Only draw quadstrips for the shape mode
-		if(vis_mode == VM_SHAPES) {
-			m_geometry_strips.clear();
+		// Get the texture distance values for the gaussian strips
+		const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index, bool negative) {
+			// Get position and width of the current primitive protein index
+			const auto pos = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[protein_index];
+			auto width = m_shared_data_ptr->primitives.at(primitive_index).centr_widths[protein_index] / 2.0f;
+			if (negative)
+				width *= -1.0f;
 
-			// Get the texture distance values for the gaussian strips
-			const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index, bool negative) {
-				// Get position and width of the current primitive protein index
-				const auto pos = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[protein_index];
-				auto width = m_shared_data_ptr->primitives.at(primitive_index).centr_widths[protein_index] / 2.0f;
-				if (negative)
-					width *= -1.0f;
+			// Position of the theoretical boundary of position with applied width
+			const auto pos_boundary = m_widget_lines.at(widget_line_index).interpolate(pos + width, false);
+			// Get the current line value border
+			const auto pos_value_border = negative ? m_widget_lines.at(widget_line_index).a : m_widget_lines.at(widget_line_index).b;
+			// Distance between the stain position and the value border
+			const auto d1 = cgv::math::length(m_widget_lines.at(widget_line_index).interpolate(pos) - pos_value_border);
+			// Distance between the value border and the boundary
+			const auto d2 = cgv::math::length(pos_boundary - pos_value_border);
 
-				// Position of the theoretical boundary of position with applied width
-				const auto pos_boundary = m_widget_lines.at(widget_line_index).interpolate(pos + width, false);
-				// Get the current line value border
-				const auto pos_value_border = negative ? m_widget_lines.at(widget_line_index).a : m_widget_lines.at(widget_line_index).b;
-				// Distance between the stain position and the value border
-				const auto d1 = cgv::math::length(m_widget_lines.at(widget_line_index).interpolate(pos) - pos_value_border);
-				// Distance between the value border and the boundary
-				const auto d2 = cgv::math::length(pos_boundary - pos_value_border);
-
-				// If the strip width is within the line value border limit, return the maximum boundary
-				if (cgv::math::length(m_widget_lines.at(widget_line_index).interpolate(pos) - pos_boundary) <= d1) {
-					return negative ? 1.0f : 0.0f;
-				}
-				// Else map between the value ranges (bottom: 0 - 0.5, up: 0.5 - 1)
-				float relation = negative ? 1 - ((d2 / d1) * 0.5) : (d2 / d1) * 0.5;
-				
-				return negative ? cgv::math::clamp(relation, 0.5f, 1.0f) : cgv::math::clamp(relation, 0.0f, 0.5f);
-			};
-
-			// Add four points to the strip, because every strip is between two widgets with two points each
-			const auto add_points_to_strips = [&](tf_editor_shared_data_types::polygon_geometry& geometry_strips,
-												  int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
-												  int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
-				// Get the positions for the corner points
-				const auto texture_position_1 = texture_distance(i, protein_index_left, widget_line_index_left, true);
-				const auto texture_position_2 = texture_distance(i, protein_index_left, widget_line_index_left, false);
-				const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, true);
-				const auto texture_position_4 = texture_distance(i, protein_index_right, widget_line_index_right, false);
-
-				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color, vec2(0.0f, texture_position_1));
-				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color, vec2(0.0f, texture_position_2));
-				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color, vec2(1.0f, texture_position_3));
-				geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color, vec2(1.0f, texture_position_4));
-			};
-			// Add indices for the strips
-			const auto add_indices_to_strips = [&](tf_editor_shared_data_types::polygon_geometry& geometry_strips,
-												   int offset_start, int offset_end) {
-				for(int i = offset_start; i < offset_end; i++) {
-					geometry_strips.add_idx(i);
-				}
-				// If done, end this strip
-				geometry_strips.add_idx(0xFFFFFFFF);
-			};
-
-			// Now strips themselves
-			for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-				tf_editor_shared_data_types::polygon_geometry geometry_strips;
-				const auto color = m_shared_data_ptr->primitives.at(i).color;
-
-				add_points_to_strips(geometry_strips, 0, 1, 0, 6, 0, 1, 10, 11, i, color);
-				add_indices_to_strips(geometry_strips, 0, 4);
-				add_points_to_strips(geometry_strips, 0, 3, 1, 12, 2, 3, 18, 19, i, color);
-				add_indices_to_strips(geometry_strips, 4, 8);
-				add_points_to_strips(geometry_strips, 0, 2, 2, 8, 4, 5, 12, 13, i, color);
-				add_indices_to_strips(geometry_strips, 8, 12);
-				add_points_to_strips(geometry_strips, 1, 2, 4, 10, 6, 7, 16, 17, i, color);
-				add_indices_to_strips(geometry_strips, 12, 16);
-				add_points_to_strips(geometry_strips, 1, 3, 5, 13, 8, 9, 20, 21, i, color);
-				add_indices_to_strips(geometry_strips, 16, 20);
-				add_points_to_strips(geometry_strips, 2, 3, 9, 14, 14, 15, 22, 23, i, color);
-				add_indices_to_strips(geometry_strips, 20, 24);
-
-				m_geometry_strips.push_back(geometry_strips);
+			// If the strip width is within the line value border limit, return the maximum boundary
+			if (cgv::math::length(m_widget_lines.at(widget_line_index).interpolate(pos) - pos_boundary) <= d1) {
+				return negative ? 1.0f : 0.0f;
 			}
+			// Else map between the value ranges (bottom: 0 - 0.5, up: 0.5 - 1)
+			float relation = negative ? 1 - ((d2 / d1) * 0.5) : (d2 / d1) * 0.5;
+				
+			return negative ? cgv::math::clamp(relation, 0.5f, 1.0f) : cgv::math::clamp(relation, 0.0f, 0.5f);
+		};
 
-			m_strips_created = true;
+		// Add four points to the strip, because every strip is between two widgets with two points each
+		const auto add_points_to_strips = [&](tf_editor_shared_data_types::polygon_geometry& geometry_strips,
+												int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
+												int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
+			// Get the positions for the corner points
+			const auto texture_position_1 = texture_distance(i, protein_index_left, widget_line_index_left, true);
+			const auto texture_position_2 = texture_distance(i, protein_index_left, widget_line_index_left, false);
+			const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, true);
+			const auto texture_position_4 = texture_distance(i, protein_index_right, widget_line_index_right, false);
+
+			geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color, vec2(0.0f, texture_position_1));
+			geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color, vec2(0.0f, texture_position_2));
+			geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color, vec2(1.0f, texture_position_3));
+			geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color, vec2(1.0f, texture_position_4));
+		};
+		// Add indices for the strips
+		const auto add_indices_to_strips = [&](tf_editor_shared_data_types::polygon_geometry& geometry_strips,
+												int offset_start, int offset_end) {
+			for(int i = offset_start; i < offset_end; i++) {
+				geometry_strips.add_idx(i);
+			}
+			// If done, end this strip
+			geometry_strips.add_idx(0xFFFFFFFF);
+		};
+
+		// Now strips themselves
+		for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+			tf_editor_shared_data_types::polygon_geometry geometry_strips;
+			const auto color = m_shared_data_ptr->primitives.at(i).color;
+
+			add_points_to_strips(geometry_strips, 0, 1, 0, 6, 0, 1, 10, 11, i, color);
+			add_indices_to_strips(geometry_strips, 0, 4);
+			add_points_to_strips(geometry_strips, 0, 3, 1, 12, 2, 3, 18, 19, i, color);
+			add_indices_to_strips(geometry_strips, 4, 8);
+			add_points_to_strips(geometry_strips, 0, 2, 2, 8, 4, 5, 12, 13, i, color);
+			add_indices_to_strips(geometry_strips, 8, 12);
+			add_points_to_strips(geometry_strips, 1, 2, 4, 10, 6, 7, 16, 17, i, color);
+			add_indices_to_strips(geometry_strips, 12, 16);
+			add_points_to_strips(geometry_strips, 1, 3, 5, 13, 8, 9, 20, 21, i, color);
+			add_indices_to_strips(geometry_strips, 16, 20);
+			add_points_to_strips(geometry_strips, 2, 3, 9, 14, 14, 15, 22, 23, i, color);
+			add_indices_to_strips(geometry_strips, 20, 24);
+
+			m_geometry_strips.push_back(geometry_strips);
 		}
 	}
 }
@@ -873,9 +867,6 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 	auto run = m_total_count < m_geometry_relations.get_render_count();
 	if(run) {
 		post_redraw();
-	} else {
-		//std::cout << "done" << std::endl;
-		m_strips_created = false;
 	}
 	return !run;
 }
