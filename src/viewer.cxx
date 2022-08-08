@@ -148,6 +148,23 @@ bool viewer::handle_event(cgv::gui::event& e) {
 					set_tree_node_visibility(m_shared_data_ptr, true);
 				}
 				break;
+			case 'R':
+				if (m_shared_data_ptr->is_primitive_selected) {
+					m_shared_data_ptr->primitives.erase(m_shared_data_ptr->primitives.begin() + m_shared_data_ptr->selected_primitive_id);
+					m_shared_data_ptr->is_primitive_selected = false;
+					m_shared_data_ptr->selected_primitive_id = INT_MAX;
+
+					handled = true;
+					post_recreate_gui();
+
+					if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
+						m_editor_lines_ptr->resynchronize();
+					}
+					if (m_editor_scatterplot_ptr && m_editor_scatterplot_ptr->is_visible()) {
+						m_editor_scatterplot_ptr->resynchronize();
+					}
+				}
+				break;
 			default: break;
 			}
 
