@@ -2,6 +2,7 @@
 
 #extension GL_NV_gpu_shader5 : enable
 #extension GL_NV_shader_atomic_int64 : enable
+#extension GL_NV_shader_atomic_float : enable
 
 layout(local_size_x = 128) in;
 
@@ -24,20 +25,128 @@ DEF_SP_BUF(5)
 uniform int plot_size;
 uniform float threshold;
 
+
+
+
+
+
+struct tf_primitive {
+	int type;
+	vec4 cntrd;
+	vec4 color;
+	vec4 width;
+};
+
+uniform tf_primitive mdtf[8];
+uniform int num_mdtf_primitives;
+
+// return an alpha value equivalent to the value of a gaussian function at the given centroid position with the specified with
+float evaluate_gauss_primitive(vec4 density, vec4 gaussian_centroid, vec4 gaussian_width) {
+
+	// construct a matrix with diagonal components set to the given value
+	mat4 K;
+	K[0] = vec4(2.0 / gaussian_width[0], 0.0, 0.0, 0.0);
+	K[1] = vec4(0.0, 2.0 / gaussian_width[1], 0.0, 0.0);
+	K[2] = vec4(0.0, 0.0, 2.0 / gaussian_width[2], 0.0);
+	K[3] = vec4(0.0, 0.0, 0.0, 2.0 / gaussian_width[3]);
+	
+	vec4 diff = density - gaussian_centroid;
+	mat4 K2 = K*K;
+
+	// calculate exponent; use dot product to multiply two vectors with the intention of receiving a single floating point result
+	float exponent = dot(diff, K2*diff);
+
+	return exp(-exponent);
+}
+
+// return an alpha value of 1 or 0 based on if the input values are inside a hyperbox
+float evaluate_box_primitive(vec4 density, vec4 centroid_positions, vec4 width) {
+	vec4 a_delta = abs(density - centroid_positions);
+	bvec4 inside = lessThanEqual(a_delta, 0.5*width);
+	return all(inside) ? 1.0 : 0.0;
+}
+
+// return an alpha value of 1 or 0 based on if the input values are inside a hyperellipsoid
+float evaluate_sphere_primitive(vec4 density, vec4 centroid_positions, vec4 width) {
+	const vec4 delta = density - centroid_positions;
+
+	const float max_width = max(max(max(width[0], width[1]), width[2]), width[3]);
+	const vec4 lambda = 2.0 * vec4(max_width) / width;
+
+	vec4 scaled_diff = delta * lambda;
+	scaled_diff *= scaled_diff;
+
+	const float dist = sqrt(scaled_diff[0] + scaled_diff[1] + scaled_diff[2] + scaled_diff[3]) - max_width;
+
+	return dist > 0.0 ? 0.0 : 1.0;
+}
+
+// evaluate the multi dimensional transfer function for a given n-dimensional input vector
+vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
+	
+	vec3 color_sum = vec3(0.0);
+	float alpha_sum = 0.0;
+	
+	for (int i = 0; i < num_mdtf_primitives; i++) {
+		tf_primitive tfp = mdtf[i];
+		float alpha = 0.0;
+
+		// Calculate the alpha value based on the primitive type
+		switch(tfp.type) {
+		case 0:
+			alpha = evaluate_gauss_primitive(density, tfp.cntrd, tfp.width);
+			break;
+		case 1:
+			alpha = evaluate_box_primitive(density, tfp.cntrd, tfp.width);
+			break;
+		case 2:
+			alpha = evaluate_sphere_primitive(density, tfp.cntrd, tfp.width);
+			break;
+		}
+
+		// Apply global opacity and primitive color alpha
+		alpha *= tfp.color.a * alpha_scale;
+
+		// Add for every primitive
+		color_sum += alpha * tfp.color.rgb;
+		alpha_sum += alpha;
+	}
+
+	color_sum = clamp(color_sum, 0.0, 1.0);
+	return vec4(color_sum, 1.0);
+}
+
+
+
+
+
+
+
 /*
-#define PLOT_POINT(BUF, I, J) \
+// 4x uint
+#define PLOT_POINT(BUF, I, J, COL) \
 	int BUF##_idx = plot_coords[I] + plot_size * plot_coords[J]; \
-	atomicAdd(BUF.rgba[BUF##_idx][0], 1); \
-	atomicAdd(BUF.rgba[BUF##_idx][1], 0); \
-	atomicAdd(BUF.rgba[BUF##_idx][2], 0); \
-	atomicAdd(BUF.rgba[BUF##_idx][3], 1);
+	atomicAdd(BUF.rgba[BUF##_idx][0], COL.r); \
+	atomicAdd(BUF.rgba[BUF##_idx][1], COL.g); \
+	atomicAdd(BUF.rgba[BUF##_idx][2], COL.b); \
+	atomicAdd(BUF.rgba[BUF##_idx][3], COL.a);
 */
 
-#define PLOT_POINT(BUF, I, J) \
+/*
+// 4x float
+#define PLOT_POINT(BUF, I, J, COL) \
 	int BUF##_idx = plot_coords[I] + plot_size * plot_coords[J]; \
-	atomicAdd(BUF.rgba[BUF##_idx].rg, packUint2x32(uvec2(1.0, 0.0))); \
-	atomicAdd(BUF.rgba[BUF##_idx].ba, packUint2x32(uvec2(0.0, 1.0)));
-	
+	atomicAdd(BUF.rgba[BUF##_idx][0], COL.r); \
+	atomicAdd(BUF.rgba[BUF##_idx][1], COL.g); \
+	atomicAdd(BUF.rgba[BUF##_idx][2], COL.b); \
+	atomicAdd(BUF.rgba[BUF##_idx][3], COL.a);
+*/
+ 
+// 2x uint64_t
+#define PLOT_POINT(BUF, I, J, PCOL_RG, PCOL_BA) \
+	int BUF##_idx = plot_coords[I] + plot_size * plot_coords[J]; \
+	atomicAdd(BUF.rgba[BUF##_idx].rg, PCOL_RG); \
+	atomicAdd(BUF.rgba[BUF##_idx].ba, PCOL_BA);
 
 void main() {
 	int idx = int(gl_GlobalInvocationID.x);
@@ -55,15 +164,20 @@ void main() {
 	avg *= 0.25f;
 
 	if (avg > threshold) {
-		vec4 color = uvec4(0.0, 0.0, 0.0, 1.0);
-
 		ivec4 plot_coords = clamp(ivec4(p * plot_size), 0, plot_size - 1);
 
-		PLOT_POINT(sp0, 0, 1);
-		PLOT_POINT(sp1, 0, 2);
-		PLOT_POINT(sp2, 0, 3);
-		PLOT_POINT(sp3, 3, 1);
-		PLOT_POINT(sp4, 3, 2);
-		PLOT_POINT(sp5, 2, 1);
+		vec4 color = evaluate_transfer_function(p, 1.0);
+		uvec2 c8_rg = uvec2(color.rg * 128);
+		uvec2 c8_ba = uvec2(color.ba * 128);
+
+		uint64_t packed_color_rg = packUint2x32(c8_rg);
+		uint64_t packed_color_ba = packUint2x32(c8_ba);
+
+		PLOT_POINT(sp0, 0, 1, packed_color_rg, packed_color_ba);
+		PLOT_POINT(sp1, 0, 2, packed_color_rg, packed_color_ba);
+		PLOT_POINT(sp2, 0, 3, packed_color_rg, packed_color_ba);
+		PLOT_POINT(sp3, 3, 1, packed_color_rg, packed_color_ba);
+		PLOT_POINT(sp4, 3, 2, packed_color_rg, packed_color_ba);
+		PLOT_POINT(sp5, 2, 1, packed_color_rg, packed_color_ba);
 	}
 }

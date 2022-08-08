@@ -705,7 +705,6 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	if(use_tone_mapping) {
 		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
 		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
-		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
 		rectangle_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
 	}
 

@@ -20,7 +20,6 @@ void finish_fragment2d(in vec4 color, in vec2 texcoords);
 
 uniform float normalization_factor;
 uniform float alpha;
-uniform float gamma;
 
 uniform bool use_color;
 
@@ -56,7 +55,7 @@ void main() {
 	tmi /= -alpha;
 	tmi = 1.0 - tmi;
 
-	vec4 color = vec4(adjusted_color, pow(tmi, gamma));
+	vec4 color = vec4(adjusted_color, tmi);
 	color = clamp(color, 0.0, 1.0);
 	
 	finish_sdf_fragment2d(dist, color);

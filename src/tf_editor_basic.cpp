@@ -84,6 +84,9 @@ bool tf_editor_basic::handle_key_input(const char& key, const int& index) {
 			// Remap to controls, decrement to set to enum values
 			m_shared_data_ptr->primitives[index].type = static_cast<shared_data::Type>(key - '0' - 1);
 			m_shared_data_ptr->set_synchronized();
+			if(vis_mode == VM_GTF) {
+				update_content();
+			}
 			redraw();
 		}
 		return true;
@@ -107,8 +110,7 @@ void tf_editor_basic::create_gui_tm() {
 
 		add_member_control(this, "Use Tone Mapping", use_tone_mapping, "check");
 		add_member_control(this, "TM Norm Count", tm_normalization_count, "value_slider", "min=1;max=1000000;step=0.0001;log=true;ticks=true");
-		add_member_control(this, "TM Alpha", tm_alpha, "value_slider", "min=0;max=50;step=0.0001;log=true;ticks=true");
-		add_member_control(this, "TM Gamma", tm_gamma, "value_slider", "min=0;max=10;step=0.0001;log=true;ticks=true");
+		add_member_control(this, "TM Alpha", tm_alpha, "value_slider", "min=0.1;max=50;step=0.0001;log=true;ticks=true");
 
 		align("\b");
 		end_tree_node(this);

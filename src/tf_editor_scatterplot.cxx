@@ -26,6 +26,9 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_scatterplot::set_point_positions, this));
 	m_point_handles.set_drag_end_callback(std::bind(&tf_editor_scatterplot::end_drag, this));
+
+	m_threshold = 0.0f;
+	tm_alpha = 10.0f;
 }
 
 void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
@@ -237,6 +240,9 @@ void tf_editor_scatterplot::resynchronize() {
 
 	set_point_handles();
 	// Then redraw strips etc
+	if(vis_mode == VM_GTF) {
+		update_content();
+	}
 	redraw();
 }
 
@@ -316,134 +322,92 @@ void tf_editor_scatterplot::update_content() {
 
 
 
-	GLuint time_query = 0;
-	glGenQueries(1, &time_query);
-
-	glBeginQuery(GL_TIME_ELAPSED, time_query);
+	//GLuint time_query = 0;
+	//glGenQueries(1, &time_query);
+	//
+	//glBeginQuery(GL_TIME_ELAPSED, time_query);
 
 
 
 	if(auto ctx_ptr = get_context()) {
 		auto& ctx = *ctx_ptr;
 
-
+		// setup group and plot size
 		const unsigned group_size = 128;
+		const unsigned plot_size = 256; // resolution along one dimension (assume quadratic plot)
 
+		// calculate the necessary number of work groups
+		unsigned num_groups_image_order = (plot_size * plot_size + group_size - 1) / group_size;
 
+		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
+		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
+		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
 
+		unsigned n = width * height * depth; // number of data points
+		unsigned num_groups_data_order = (n + group_size - 1) / group_size;
+
+		// bind shader storage buffers
+		for(unsigned i = 0; i < 6; ++i)
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, sp_buffers[i]);
+
+		// clear the previous contents
 		auto& clear_prog = shaders.get("clear");
 		clear_prog.enable(ctx);
 
-		for(unsigned i = 0; i < 6; ++i)
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, sp_buffers[i]);
-
-		unsigned num_groups3 = (256 * 256 + group_size - 1) / group_size;
-
-		glDispatchCompute(num_groups3, 1, 1);
+		glDispatchCompute(num_groups_image_order, 1, 1);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-		for(unsigned i = 0; i < 6; ++i)
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
 
 		clear_prog.disable(ctx);
 
-
-
-
-
-
-
-
-		const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
-
+		// plot the data points to all six plots simultaneously
 		auto& plot_prog = shaders.get("hist2d");
 		plot_prog.enable(ctx);
 
-		/*glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-
-		for(unsigned i = 0; i < 6; ++i) {
-			const int handle = (const int&)(sp_textures[i].handle) - 1;
-			glBindImageTexture(i + 1, handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
-		}
-
-		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
-		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
-		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
-
-		unsigned n = width * height*depth;
-		const unsigned group_size = 64;
-		unsigned num_groups = (n + group_size - 1) / group_size;
-
-		glDispatchCompute(num_groups, 1, 1);
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-		for(unsigned i = 0; i < 6; ++i)
-			glBindImageTexture(i + 1, 0, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
-		*/
-
-
-
-
-		plot_prog.set_uniform(ctx, "plot_size", 256);
+		// set general uniforms
+		plot_prog.set_uniform(ctx, "plot_size", static_cast<int>(plot_size));
 		plot_prog.set_uniform(ctx, "threshold", m_threshold);
 
+		// set transfer function uniforms
+		const int mdtf_size = static_cast<int>(m_shared_data_ptr->primitives.size());
+		plot_prog.set_uniform(ctx, "num_mdtf_primitives", mdtf_size);
+
+		for(int i = 0; i < mdtf_size; i++) {
+			const auto& p = m_shared_data_ptr->primitives[i];
+
+			std::string id = "mdtf[" + std::to_string(i) + "].";
+
+			plot_prog.set_uniform(ctx, id + "type", static_cast<int>(p.type));
+			plot_prog.set_uniform(ctx, id + "cntrd", p.centr_pos);
+			plot_prog.set_uniform(ctx, id + "width", p.centr_widths);
+			plot_prog.set_uniform(ctx, id + "color", p.color);
+		}
+
+		// bind the source 3D texture containing the data values
+		const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
 		glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
 
-		for(unsigned i = 0; i < 6; ++i)
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, sp_buffers[i]);
-
-		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
-		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
-		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
-
-		unsigned n = width * height*depth;
-		
-		unsigned num_groups = (n + group_size - 1) / group_size;
-
-		glDispatchCompute(num_groups, 1, 1);
+		glDispatchCompute(num_groups_data_order, 1, 1);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-		for(unsigned i = 0; i < 6; ++i)
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
-
+		// unbind the source data texture
 		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
-
-
-
-
-
-
 
 		plot_prog.disable(ctx);
 
-
-
-
-
-
-
-
-
-
+		// transfer the shader storage buffer contents to the six plot textures
 		auto& transfer_prog = shaders.get("transfer");
 		transfer_prog.enable(ctx);
 
-		for(unsigned i = 0; i < 6; ++i)
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, sp_buffers[i]);
-
+		// bidn the plot textures
 		for(unsigned i = 0; i < 6; ++i) {
 			const int handle = (const int&)(sp_textures[i].handle) - 1;
 			glBindImageTexture(i, handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
 		}
 
-		unsigned num_groups2 = (256 * 256 + group_size - 1) / group_size;
-
-		glDispatchCompute(num_groups2, 1, 1);
+		glDispatchCompute(num_groups_image_order, 1, 1);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
+		// unbind textures and buffers
 		for(unsigned i = 0; i < 6; ++i)
 			glBindImageTexture(i + 1, 0, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
 
@@ -454,7 +418,7 @@ void tf_editor_scatterplot::update_content() {
 	}
 
 
-	glEndQuery(GL_TIME_ELAPSED);
+	/*glEndQuery(GL_TIME_ELAPSED);
 
 	GLint done = false;
 	while(!done) {
@@ -464,7 +428,7 @@ void tf_editor_scatterplot::update_content() {
 	glGetQueryObjectui64v(time_query, GL_QUERY_RESULT, &elapsed_time);
 
 	double time = static_cast<double>(elapsed_time) / 1000000.0;
-	std::cout << "TIME: " << time << " ms" << std::endl;
+	std::cout << "TIME: " << time << " ms" << std::endl;*/
 
 
 
@@ -672,7 +636,6 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	auto& tone_mapping_prog = content_canvas.enable_shader(ctx, "plot_tone_mapping");
 	tone_mapping_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
 	tone_mapping_prog.set_uniform(ctx, "alpha", tm_alpha);
-	tone_mapping_prog.set_uniform(ctx, "gamma", tm_gamma);
 	tone_mapping_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
 	
 	m_style_grid.apply(ctx, tone_mapping_prog);
@@ -945,6 +908,9 @@ void tf_editor_scatterplot::set_point_positions() {
 		}
 	}
 
+	if(vis_mode == VM_GTF)
+		update_content();
+
 	has_damage = true;
 	post_redraw();
 }
@@ -1006,6 +972,9 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 		m_is_point_dragged = true;
 
 		m_shared_data_ptr->set_synchronized(false);
+		if(vis_mode == VM_GTF) {
+			update_content();
+		}
 		redraw();
 	}
 }

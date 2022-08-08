@@ -164,7 +164,6 @@ protected:
 	bool use_tone_mapping = false;
 	unsigned tm_normalization_count = 1000;
 	float tm_alpha = 1.0f;
-	float tm_gamma = 1.0f;
 
 	// point parameters
 	// Is an interaction going on?

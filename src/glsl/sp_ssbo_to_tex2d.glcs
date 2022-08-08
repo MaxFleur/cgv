@@ -26,10 +26,10 @@ void main() {
 		idx / 256
 	);
 	
-	imageStore(sp_img0, img_coord, vec4(sp0.rgba[idx]));
-	imageStore(sp_img1, img_coord, vec4(sp1.rgba[idx]));
-	imageStore(sp_img2, img_coord, vec4(sp2.rgba[idx]));
-	imageStore(sp_img3, img_coord, vec4(sp3.rgba[idx]));
-	imageStore(sp_img4, img_coord, vec4(sp4.rgba[idx]));
-	imageStore(sp_img5, img_coord, vec4(sp5.rgba[idx]));
+	imageStore(sp_img0, img_coord, vec4(sp0.rgba[idx]) / 128.0);
+	imageStore(sp_img1, img_coord, vec4(sp1.rgba[idx]) / 128.0);
+	imageStore(sp_img2, img_coord, vec4(sp2.rgba[idx]) / 128.0);
+	imageStore(sp_img3, img_coord, vec4(sp3.rgba[idx]) / 128.0);
+	imageStore(sp_img4, img_coord, vec4(sp4.rgba[idx]) / 128.0);
+	imageStore(sp_img5, img_coord, vec4(sp5.rgba[idx]) / 128.0);
 }

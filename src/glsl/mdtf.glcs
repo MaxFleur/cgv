@@ -1,0 +1,97 @@
+#version 430
+
+/** BEGIN - MFLEURY **/
+struct tf_primitive {
+	int type;
+	vec4 cntrd;
+	vec4 color;
+	vec4 width;
+};
+
+uniform tf_primitive mdtf[8];
+uniform int num_mdtf_primitives;
+
+// return an alpha value equivalent to the value of a gaussian function at the given centroid position with the specified with
+float evaluate_gauss_primitive(vec4 density, vec4 gaussian_centroid, vec4 gaussian_width) {
+
+	// construct a matrix with diagonal components set to the given value
+	mat4 K;
+	K[0] = vec4(2.0 / gaussian_width[0], 0.0, 0.0, 0.0);
+	K[1] = vec4(0.0, 2.0 / gaussian_width[1], 0.0, 0.0);
+	K[2] = vec4(0.0, 0.0, 2.0 / gaussian_width[2], 0.0);
+	K[3] = vec4(0.0, 0.0, 0.0, 2.0 / gaussian_width[3]);
+	
+	vec4 diff = density - gaussian_centroid;
+	mat4 K2 = K*K;
+
+	// calculate exponent; use dot product to multiply two vectors with the intention of receiving a single floating point result
+	float exponent = dot(diff, K2*diff);
+
+	return exp(-exponent);
+}
+
+// return an alpha value of 1 or 0 based on if the input values are inside a hyperbox
+float evaluate_box_primitive(vec4 density, vec4 centroid_positions, vec4 width) {
+	float ret = 1.0f;
+	for(int i = 0; i < 4; i++) {
+		ret *= density[i] >= centroid_positions[i] - (width[i] / 2) && density[i] <= centroid_positions[i] + (width[i] / 2) ? 1.0f : 0.0f;
+	}
+
+	return ret;
+}
+
+// return an alpha value of 1 or 0 based on if the input values are inside a hyperellipsoid
+float evaluate_sphere_primitive(vec4 density, vec4 centroid_positions, vec4 width) {
+	float ret = 1.0f;
+
+	const vec4 delta = density - centroid_positions;
+
+	const float max_width = max(max(max(width[0], width[1]), width[2]), width[3]);
+	const vec4 lambda = 2.0f * vec4(max_width) / width;
+
+	vec4 scaled_diff = delta * lambda;
+	scaled_diff *= scaled_diff;
+
+	const float dist = sqrt(scaled_diff[0] + scaled_diff[1] + scaled_diff[2] + scaled_diff[3]) - max_width;
+
+	if(dist > 0.0f)
+		ret = 0.0f;
+
+	return ret;
+}
+
+// evaluate the multi dimensional transfer function for a given n-dimensional input vector
+vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
+	
+	vec3 color_sum = vec3(0.0);
+	float alpha_sum = 0.0;
+	
+	for (int i = 0; i < num_mdtf_primitives; i++) {
+		tf_primitive tfp = mdtf[i];
+
+		float alpha;
+		// Calculate the alpha value based on the primitive type
+		switch(tfp.type) {
+			case 0:
+				alpha = evaluate_gauss_primitive(density, tfp.cntrd, tfp.width);
+				break;
+			case 1:
+				alpha = evaluate_box_primitive(density, tfp.cntrd, tfp.width);
+				break;
+			case 2:
+				alpha = evaluate_sphere_primitive(density, tfp.cntrd, tfp.width);
+				break;
+			
+		}
+		// Apply global opacity and primitive color alpha
+		alpha *= tfp.color.a;
+		alpha *= alpha_scale;
+
+		// Add for every primitive
+		color_sum += alpha * tfp.color.rgb;
+		alpha_sum += alpha;
+	}
+
+	return clamp(vec4(color_sum, alpha_sum), 0.0, 1.0);
+}
+/** END - MFLEURY **/
