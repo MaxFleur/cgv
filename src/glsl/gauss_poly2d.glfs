@@ -16,21 +16,13 @@ void finish_fragment2d(in vec4 color, in vec2 texcoords);
 
 in vec4 col;
 in vec2 uv;
-//in vec2 transformed_texture_pos;
 
 void main() {
 
 	vec4 color = get_active_color(col);
 
-    //float t = length(uv.y / transformed_texture_pos.y);
-
-	//float t = ..from uv.y in [0,1] to [-1,1]
-	//color.a *= exp((-t*t)/(0.5*0.5));
-
-	color.r = uv.x;
-	color.g = uv.y;
-	color.b = 0.0f;
-	color.a = 1.0f;
+	float t = (uv.y * 2.0) - 1.0;
+	color.a *= exp((-t*t)/(0.5*0.5));
 
 	finish_fragment2d(color, uv);
 }

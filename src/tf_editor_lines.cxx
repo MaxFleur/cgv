@@ -16,7 +16,6 @@ tf_editor_lines::tf_editor_lines() {
 	set_overlay_size(ivec2(600, 525));
 	// Register an additional arrow shader
 	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
-	//content_canvas.register_shader("gauss_poly2d", "gauss_poly2d.glpr");
 
 	// initialize the renderers
 	m_renderer_lines = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
@@ -783,13 +782,6 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 				const auto& type = m_shared_data_ptr->primitives.at(i).type;
 
-				/*auto& line_prog_polygon = type == shared_data::TYPE_GAUSS ? content_canvas.enable_shader(ctx, "gauss_poly2d") : m_renderer_strips.ref_prog();
-				if (type != shared_data::TYPE_GAUSS) {
-					line_prog_polygon.enable(ctx);
-					content_canvas.set_view(ctx, line_prog_polygon);
-					line_prog_polygon.disable(ctx);
-				}*/
-
 				// draw the lines from the given geometry with offset and count
 				glEnable(GL_PRIMITIVE_RESTART);
 				glPrimitiveRestartIndex(0xFFFFFFFF);
@@ -799,19 +791,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 				content_canvas.set_view(ctx, strip_renderer.enable_prog(ctx));
 				strip_renderer.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips.at(i));
 
-				/*if(type == shared_data::TYPE_GAUSS) {
-					content_canvas.set_view(ctx, m_renderer_strips_gauss.enable_prog(ctx));
-					m_renderer_strips_gauss.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips.at(i));
-				} else {
-					content_canvas.set_view(ctx, m_renderer_strips.enable_prog(ctx));
-					m_renderer_strips.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips.at(i));
-				}*/
-
 				glDisable(GL_PRIMITIVE_RESTART);
-
-				//if (type == shared_data::TYPE_GAUSS) {
-				//	content_canvas.disable_current_shader(ctx);
-				//}
 			}
 		}
 
