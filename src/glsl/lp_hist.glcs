@@ -198,7 +198,7 @@ void main() {
 		avg *= 0.25f;
 
 		if (avg > threshold) {
-			vec4 color = vec4(1.0, 0.0, 0.0, 1.0);//evaluate_transfer_function(p, 1.0);
+			vec4 color = evaluate_transfer_function(p, 1.0);
 			uvec2 c8_rg = uvec2(color.rg * 128);
 			uvec2 c8_ba = uvec2(color.ba * 128);
 
@@ -207,6 +207,10 @@ void main() {
 
 			plot_line(p, relations[0], packed_color_rg, packed_color_ba);
 			plot_line(p, relations[1], packed_color_rg, packed_color_ba);
+			plot_line(p, relations[2], packed_color_rg, packed_color_ba);
+			plot_line(p, relations[3], packed_color_rg, packed_color_ba);
+			plot_line(p, relations[4], packed_color_rg, packed_color_ba);
+			plot_line(p, relations[5], packed_color_rg, packed_color_ba);
 
 			/*relation rel = relations[0];
 			vec4 l = rel.line_a;

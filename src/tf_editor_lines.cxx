@@ -471,6 +471,10 @@ void tf_editor_lines::update_content() {
 
 			set_relation_uniforms(0, 0, 6, 0, 1);
 			set_relation_uniforms(1, 1, 12, 0, 3);
+			set_relation_uniforms(2, 2, 8, 0, 2);
+			set_relation_uniforms(3, 4, 10, 1, 2);
+			set_relation_uniforms(4, 5, 13, 1, 3);
+			set_relation_uniforms(5, 9, 14, 2, 3);
 		}
 
 		// set transfer function uniforms
@@ -1183,6 +1187,9 @@ void tf_editor_lines::set_point_positions() {
 			}
 		}
 	}
+
+	if(vis_mode == VM_GTF)
+		update_content();
 
 	redraw();
 }
