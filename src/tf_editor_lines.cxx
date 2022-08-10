@@ -40,6 +40,10 @@ void tf_editor_lines::clear(cgv::render::context& ctx) {
 	m_renderer_draggables.destruct(ctx);
 	m_geometry_draggables.destruct(ctx);
 	m_geometry_draggables_interacted.destruct(ctx);
+
+
+	glDeleteBuffers(1, &plot_buffer);
+	plot_texture.destruct(ctx);
 }
 
 bool tf_editor_lines::handle_event(cgv::gui::event& e) {
@@ -135,6 +139,29 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 		m_labels.set_font_size(m_font_size);
 	}
 
+
+
+
+
+
+
+
+
+
+	shaders.add("hist", "lp_hist");
+	shaders.add("transfer", "lp_ssbo_to_tex2d");
+	shaders.add("clear", "lp_ssbo_clear");
+	success &= shaders.load_shaders(ctx, "tf_editor_lines::init");
+
+	glGenBuffers(1, &plot_buffer);
+
+
+
+
+
+
+
+
 	return success;
 }
 
@@ -175,6 +202,40 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 
 		has_damage = true;
 		m_reset_plot = true;
+
+
+
+
+
+
+
+
+
+		std::vector<float> data(overlay_size.x() * overlay_size.y() * 4, 1.0f);
+
+		int count = 0;
+		for(size_t i = 0; i < 200000; i += 4) {
+			float val = (count & 1) == 0 ? 100.0f : 0.0f;
+
+			data[i + 0] = val;
+			data[i + 1] = 0.0f;
+			data[i + 2] = 0.0f;
+			data[i + 3] = val;
+		}
+
+		cgv::data::data_view dv = cgv::data::data_view(new cgv::data::data_format(overlay_size.x(), overlay_size.y(), TI_FLT32, cgv::data::CF_RGBA), data.data());
+
+		if(plot_texture.is_created())
+			plot_texture.destruct(ctx);
+		plot_texture = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_NEAREST, cgv::render::TF_NEAREST);
+		plot_texture.create(ctx, dv, 0);
+
+		
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, plot_buffer);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, 4 * sizeof(float)*overlay_size.x()*overlay_size.y(), (void*)0, GL_DYNAMIC_COPY);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+
 	}
 }
 
@@ -217,6 +278,7 @@ void tf_editor_lines::primitive_added() {
 void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 
 	// configure style for rendering the plot framebuffer texture
+	m_style_plot.use_blending = true;
 	m_style_plot.use_texture = true;
 	m_style_plot.feather_width = 0.0f;
 
@@ -294,6 +356,202 @@ void tf_editor_lines::update_content() {
 	if(!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	if(auto ctx_ptr = get_context()) {
+		auto& ctx = *ctx_ptr;
+
+		// setup group and plot size
+		const unsigned group_size = 128;
+		const ivec2 resolution(
+			plot_texture.get_width(),
+			plot_texture.get_height()
+		);
+
+		// calculate the necessary number of work groups
+		unsigned num_groups_image_order = (resolution.x() * resolution.y() + group_size - 1) / group_size;
+
+		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
+		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
+		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
+
+		unsigned n = width * height * depth; // number of data points
+		unsigned num_groups_data_order = (n + group_size - 1) / group_size;
+
+		// bind shader storage buffer
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, plot_buffer);
+
+		// clear the previous contents
+		auto& clear_prog = shaders.get("clear");
+		clear_prog.enable(ctx);
+		clear_prog.set_uniform(ctx, "resolution", resolution);
+
+		glDispatchCompute(num_groups_image_order, 1, 1);
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+		clear_prog.disable(ctx);
+
+		// plot the data lines to the plot
+		auto& plot_prog = shaders.get("hist");
+		plot_prog.enable(ctx);
+
+		// set general uniforms
+		plot_prog.set_uniform(ctx, "num_data_values", static_cast<int>(n));
+		plot_prog.set_uniform(ctx, "resolution", resolution);
+		plot_prog.set_uniform(ctx, "threshold", m_threshold);
+
+		{
+			/*// Left to right
+			m_geometry_relations.add(m_widget_lines.at(0).interpolate(v[0]), col);
+			m_geometry_relations.add(m_widget_lines.at(6).interpolate(v[1]), col);
+			// Left to center
+			m_geometry_relations.add(m_widget_lines.at(1).interpolate(v[0]), col);
+			m_geometry_relations.add(m_widget_lines.at(12).interpolate(v[3]), col);
+			// Left to bottom
+			m_geometry_relations.add(m_widget_lines.at(2).interpolate(v[0]), col);
+			m_geometry_relations.add(m_widget_lines.at(8).interpolate(v[2]), col);
+			// Right to bottom
+			m_geometry_relations.add(m_widget_lines.at(4).interpolate(v[1]), col);
+			m_geometry_relations.add(m_widget_lines.at(10).interpolate(v[2]), col);
+			// Right to center
+			m_geometry_relations.add(m_widget_lines.at(5).interpolate(v[1]), col);
+			m_geometry_relations.add(m_widget_lines.at(13).interpolate(v[3]), col);
+			// Bottom to center
+			m_geometry_relations.add(m_widget_lines.at(9).interpolate(v[2]), col);
+			m_geometry_relations.add(m_widget_lines.at(14).interpolate(v[3]), col);
+			*/
+
+			auto set_relation_uniforms = [&](unsigned idx, unsigned li0, unsigned li1, unsigned i0, unsigned i1) {
+				const auto& l0 = m_widget_lines[li0];
+				const auto& l1 = m_widget_lines[li1];
+
+				vec4 line_a(l0.a.x(), l0.a.y(), l0.b.x(), l0.b.y());
+				vec4 line_b(l1.a.x(), l1.a.y(), l1.b.x(), l1.b.y());
+
+				std::string name = "relations[" + std::to_string(idx) + "].";
+
+				plot_prog.set_uniform(ctx, name + "indices", ivec2(i0, i1));
+				plot_prog.set_uniform(ctx, name + "line_a", line_a);
+				plot_prog.set_uniform(ctx, name + "line_b", line_b);
+			};
+
+			
+			/*vec4 line_a, line_b;
+			line_a.x() = m_widget_lines[0].a.x();
+			line_a.y() = m_widget_lines[0].a.y();
+			line_a.z() = m_widget_lines[0].b.x();
+			line_a.w() = m_widget_lines[0].b.y();
+
+			line_b.x() = m_widget_lines[6].a.x();
+			line_b.y() = m_widget_lines[6].a.y();
+			line_b.z() = m_widget_lines[6].b.x();
+			line_b.w() = m_widget_lines[6].b.y();
+
+			plot_prog.set_uniform(ctx, "relations[0].line_a", line_a);
+			plot_prog.set_uniform(ctx, "relations[0].line_b", line_b);
+
+			plot_prog.set_uniform(ctx, "relations[0].indices", ivec2(0, 1));*/
+
+			set_relation_uniforms(0, 0, 6, 0, 1);
+			set_relation_uniforms(1, 1, 12, 0, 3);
+		}
+
+		// set transfer function uniforms
+		const int mdtf_size = static_cast<int>(m_shared_data_ptr->primitives.size());
+		plot_prog.set_uniform(ctx, "num_mdtf_primitives", mdtf_size);
+
+		for(int i = 0; i < mdtf_size; i++) {
+			const auto& p = m_shared_data_ptr->primitives[i];
+
+			std::string id = "mdtf[" + std::to_string(i) + "].";
+
+			plot_prog.set_uniform(ctx, id + "type", static_cast<int>(p.type));
+			plot_prog.set_uniform(ctx, id + "cntrd", p.centr_pos);
+			plot_prog.set_uniform(ctx, id + "width", p.centr_widths);
+			plot_prog.set_uniform(ctx, id + "color", p.color);
+		}
+
+		// bind the source 3D texture containing the data values
+		const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
+		glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+		glDispatchCompute(num_groups_data_order, 1, 1);
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+		// unbind the source data texture
+		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+		plot_prog.disable(ctx);
+
+		// transfer the shader storage buffer contents to the plot texture
+		auto& transfer_prog = shaders.get("transfer");
+		transfer_prog.enable(ctx);
+		transfer_prog.set_uniform(ctx, "resolution", resolution);
+
+		// bind the plot texture
+		const int handle = (const int&)(plot_texture.handle) - 1;
+		glBindImageTexture(0, handle, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+		
+		glDispatchCompute(num_groups_image_order, 1, 1);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		// unbind texture and buffer
+		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+
+		transfer_prog.disable(ctx);
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/*
 	const auto& data = m_data_set_ptr->voxel_data;
 	// Everythin needs to be updated, also nothing is dragged the moment the button is pressed
 	m_create_all_values = true;
@@ -338,6 +596,7 @@ void tf_editor_lines::update_content() {
 			m_geometry_relations.add(m_widget_lines.at(14).interpolate(v[3]), col);
 		}
 	}
+	*/
 	// content was updated, so redraw
 	redraw();
 }
@@ -690,14 +949,47 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	// first draw the plot (the method will check internally if it needs an update)
-	bool done = draw_plot(ctx);
+	//bool done = draw_plot(ctx);
 
 	// enable the offline framebuffer
 	fbc.enable(ctx);
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	// draw the plot content from its own framebuffer texture
+
+
+
+
+
+
+
+
+
+	auto& tone_mapping_prog = content_canvas.enable_shader(ctx, "plot_tone_mapping");
+	tone_mapping_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
+	tone_mapping_prog.set_uniform(ctx, "alpha", tm_alpha);
+	tone_mapping_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
+
+	m_style_plot.apply(ctx, tone_mapping_prog);
+
+	plot_texture.enable(ctx, 0);
+	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
+	plot_texture.disable(ctx);
+	
+	content_canvas.disable_current_shader(ctx);
+
+
+
+
+
+
+
+
+
+
+
+
+	/*// draw the plot content from its own framebuffer texture
 	fbc_plot.enable_attachment(ctx, "color", 0);
 
 	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
@@ -713,8 +1005,11 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 
 	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
 	content_canvas.disable_current_shader(ctx);
-	fbc_plot.disable_attachment(ctx, "color");
+	fbc_plot.disable_attachment(ctx, "color");*/
 
+
+
+	
 	// draw widget lines first
 	auto& line_prog = m_renderer_lines.ref_prog();
 	line_prog.enable(ctx);
@@ -737,7 +1032,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 		}
 	}
 	content_canvas.disable_current_shader(ctx);
-
+	
 	// Do not draw quadstrips and the border lines for peak mode
 	if (!is_peak_mode) {
 		// Now create the centroid boundaries and strips
@@ -782,12 +1077,12 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	// don't forget to disable blending
 	glDisable(GL_BLEND);
 
-	has_damage = !done;
+	has_damage = false;// !done;
 }
 
 bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 
-	// enable the offline plot frame buffer, so all things are drawn into its attached textures
+	/*// enable the offline plot frame buffer, so all things are drawn into its attached textures
 	fbc_plot.enable(ctx);
 
 	if(use_tone_mapping) {
@@ -838,7 +1133,8 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 		//std::cout << "done" << std::endl;
 		m_strips_created = false;
 	}
-	return !run;
+	return !run;*/
+	return true;
 }
 
 void tf_editor_lines::set_point_positions() {

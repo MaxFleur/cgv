@@ -1,0 +1,24 @@
+#version 450
+
+layout(local_size_x = 128) in;
+
+layout(std430, binding = 0) buffer plot_buffer {
+	ivec4 rgba[];
+} plot;
+
+layout(rgba32f, binding = 0) uniform writeonly image2D img;
+
+uniform ivec2 resolution;
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+
+	if(idx < resolution.x * resolution.y) {
+		ivec2 img_coord = ivec2(
+			idx % resolution.x,
+			idx / resolution.x
+		);
+	
+		imageStore(img, img_coord, vec4(plot.rgba[idx]) / 128.0);
+	}
+}

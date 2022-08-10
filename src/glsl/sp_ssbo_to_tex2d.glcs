@@ -11,25 +11,29 @@ DEF_SP_BUF(3)
 DEF_SP_BUF(4)
 DEF_SP_BUF(5)
 
-layout(rgba32f, binding = 0) uniform image2D sp_img0;
-layout(rgba32f, binding = 1) uniform image2D sp_img1;
-layout(rgba32f, binding = 2) uniform image2D sp_img2;
-layout(rgba32f, binding = 3) uniform image2D sp_img3;
-layout(rgba32f, binding = 4) uniform image2D sp_img4;
-layout(rgba32f, binding = 5) uniform image2D sp_img5;
+layout(rgba32f, binding = 0) uniform writeonly image2D sp_img0;
+layout(rgba32f, binding = 1) uniform writeonly image2D sp_img1;
+layout(rgba32f, binding = 2) uniform writeonly image2D sp_img2;
+layout(rgba32f, binding = 3) uniform writeonly image2D sp_img3;
+layout(rgba32f, binding = 4) uniform writeonly image2D sp_img4;
+layout(rgba32f, binding = 5) uniform writeonly image2D sp_img5;
+
+uniform int plot_size;
 
 void main() {
 	int idx = int(gl_GlobalInvocationID.x);
 
-	ivec2 img_coord = ivec2(
-		idx % 256,
-		idx / 256
-	);
+	if(idx < plot_size * plot_size) {
+		ivec2 img_coord = ivec2(
+			idx % plot_size,
+			idx / plot_size
+		);
 	
-	imageStore(sp_img0, img_coord, vec4(sp0.rgba[idx]) / 128.0);
-	imageStore(sp_img1, img_coord, vec4(sp1.rgba[idx]) / 128.0);
-	imageStore(sp_img2, img_coord, vec4(sp2.rgba[idx]) / 128.0);
-	imageStore(sp_img3, img_coord, vec4(sp3.rgba[idx]) / 128.0);
-	imageStore(sp_img4, img_coord, vec4(sp4.rgba[idx]) / 128.0);
-	imageStore(sp_img5, img_coord, vec4(sp5.rgba[idx]) / 128.0);
+		imageStore(sp_img0, img_coord, vec4(sp0.rgba[idx]) / 128.0);
+		imageStore(sp_img1, img_coord, vec4(sp1.rgba[idx]) / 128.0);
+		imageStore(sp_img2, img_coord, vec4(sp2.rgba[idx]) / 128.0);
+		imageStore(sp_img3, img_coord, vec4(sp3.rgba[idx]) / 128.0);
+		imageStore(sp_img4, img_coord, vec4(sp4.rgba[idx]) / 128.0);
+		imageStore(sp_img5, img_coord, vec4(sp5.rgba[idx]) / 128.0);
+	}
 }

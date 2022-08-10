@@ -44,6 +44,8 @@ void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 
 	for(unsigned i = 0; i < 6; ++i)
 		sp_textures[i].destruct(ctx);
+
+	glDeleteBuffers(6, sp_buffers);
 }
 
 bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
@@ -144,17 +146,17 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 
 
 
-	/*std::vector<uint8_t> data = {
-		255u, 0u, 0u,
-		0u, 255u, 0u,
-		0u, 0u, 255u,
-		255u, 255u, 0u
-	};
+	
 
-	cgv::data::data_view dv = cgv::data::data_view(new cgv::data::data_format(2, 2, TI_UINT8, cgv::data::CF_RGB), data.data());*/
+
+
+	shaders.add("hist2d", "sp_hist2d");
+	shaders.add("transfer", "sp_ssbo_to_tex2d");
+	shaders.add("clear", "sp_ssbo_clear");
+	success &= shaders.load_shaders(ctx, "tf_editor_scatterplot::init");
 
 	unsigned resolution = 256;
-	std::vector<float> data(resolution * resolution * 4, 0u);
+	std::vector<float> data(resolution * resolution * 4, 0.0f);
 
 	cgv::data::data_view dv = cgv::data::data_view(new cgv::data::data_format(resolution, resolution, TI_FLT32, cgv::data::CF_RGBA), data.data());
 
@@ -162,13 +164,6 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 		sp_textures[i] = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_NEAREST, cgv::render::TF_NEAREST);
 		sp_textures[i].create(ctx, dv, 0);
 	}
-
-	shaders.add("hist2d", "sp_hist2d");
-	shaders.add("transfer", "sp_ssbo_to_tex2d");
-	shaders.add("clear", "sp_ssbo_clear");
-	success &= shaders.load_shaders(ctx, "tf_editor_scatterplot::init");
-
-
 
 	glGenBuffers(6, sp_buffers);
 	for(unsigned i = 0; i < 6; ++i) {
@@ -227,8 +222,6 @@ void tf_editor_scatterplot::create_gui() {
 
 	tf_editor_basic::create_gui_coloring();
 	tf_editor_basic::create_gui_tm();
-
-	add_member_control(this, "Show SP", show_sp, "check");
 }
 
 void tf_editor_scatterplot::resynchronize() {
@@ -353,9 +346,10 @@ void tf_editor_scatterplot::update_content() {
 		// clear the previous contents
 		auto& clear_prog = shaders.get("clear");
 		clear_prog.enable(ctx);
+		clear_prog.set_uniform(ctx, "plot_size", static_cast<int>(plot_size));
 
 		glDispatchCompute(num_groups_image_order, 1, 1);
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
 		clear_prog.disable(ctx);
 
@@ -364,6 +358,7 @@ void tf_editor_scatterplot::update_content() {
 		plot_prog.enable(ctx);
 
 		// set general uniforms
+		plot_prog.set_uniform(ctx, "num_data_values", static_cast<int>(n));
 		plot_prog.set_uniform(ctx, "plot_size", static_cast<int>(plot_size));
 		plot_prog.set_uniform(ctx, "threshold", m_threshold);
 
@@ -387,7 +382,7 @@ void tf_editor_scatterplot::update_content() {
 		glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
 
 		glDispatchCompute(num_groups_data_order, 1, 1);
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
 		// unbind the source data texture
 		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
@@ -397,11 +392,12 @@ void tf_editor_scatterplot::update_content() {
 		// transfer the shader storage buffer contents to the six plot textures
 		auto& transfer_prog = shaders.get("transfer");
 		transfer_prog.enable(ctx);
+		transfer_prog.set_uniform(ctx, "plot_size", static_cast<int>(plot_size));
 
-		// bidn the plot textures
+		// bind the plot textures
 		for(unsigned i = 0; i < 6; ++i) {
 			const int handle = (const int&)(sp_textures[i].handle) - 1;
-			glBindImageTexture(i, handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+			glBindImageTexture(i, handle, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 		}
 
 		glDispatchCompute(num_groups_image_order, 1, 1);
@@ -409,7 +405,7 @@ void tf_editor_scatterplot::update_content() {
 
 		// unbind textures and buffers
 		for(unsigned i = 0; i < 6; ++i)
-			glBindImageTexture(i + 1, 0, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+			glBindImageTexture(i, 0, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
 		for(unsigned i = 0; i < 6; ++i)
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
@@ -632,6 +628,15 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	fbc.enable(ctx);
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
+
+
+
+
+
+
+
+
+
 
 	auto& tone_mapping_prog = content_canvas.enable_shader(ctx, "plot_tone_mapping");
 	tone_mapping_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));

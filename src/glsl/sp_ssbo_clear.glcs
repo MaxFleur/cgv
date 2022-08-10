@@ -2,7 +2,7 @@
 
 layout(local_size_x = 128) in;
 
-#define DEF_SP_BUF(I) layout(std430, binding = I) buffer sp##I##_buffer { vec4 rgba[]; } sp##I;
+#define DEF_SP_BUF(I) layout(std430, binding = I) buffer sp##I##_buffer { ivec4 rgba[]; } sp##I;
 
 DEF_SP_BUF(0)
 DEF_SP_BUF(1)
@@ -11,13 +11,17 @@ DEF_SP_BUF(3)
 DEF_SP_BUF(4)
 DEF_SP_BUF(5)
 
+uniform int plot_size;
+
 void main() {
 	int idx = int(gl_GlobalInvocationID.x);
 
-	sp0.rgba[idx] = vec4(0.0);
-	sp1.rgba[idx] = vec4(0.0);
-	sp2.rgba[idx] = vec4(0.0);
-	sp3.rgba[idx] = vec4(0.0);
-	sp4.rgba[idx] = vec4(0.0);
-	sp5.rgba[idx] = vec4(0.0);
+	if(idx < plot_size * plot_size) {
+		sp0.rgba[idx] = ivec4(0);
+		sp1.rgba[idx] = ivec4(0);
+		sp2.rgba[idx] = ivec4(0);
+		sp3.rgba[idx] = ivec4(0);
+		sp4.rgba[idx] = ivec4(0);
+		sp5.rgba[idx] = ivec4(0);
+	}
 }

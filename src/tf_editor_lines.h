@@ -109,6 +109,27 @@ private:
 	bool m_strips_created = true;
 	// Do we need to update all values?
 	bool m_create_all_values = true;
+
+
+
+
+
+
+
+
+
+
+
+	GLuint plot_buffer;
+	texture plot_texture;
+	cgv::glutil::shader_library shaders;
+
+
+
+
+
+
+
 };
 
 typedef cgv::data::ref_ptr<tf_editor_lines> tf_editor_lines_ptr;

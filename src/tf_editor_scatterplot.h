@@ -95,18 +95,16 @@ private:
 
 	rgba m_color_gray{ 0.4f, 0.4f, 0.4f, 1.0f };
 
+
+
+
+
+
+
+
+
 	GLuint sp_buffers[6];
-
-
-
-
-
-
-
-
-	bool show_sp = true;
 	texture sp_textures[6];
-
 	cgv::glutil::shader_library shaders;
 
 
