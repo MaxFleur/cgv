@@ -16,11 +16,12 @@ tf_editor_lines::tf_editor_lines() {
 	set_overlay_size(ivec2(600, 525));
 	// Register an additional arrow shader
 	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
+	content_canvas.register_shader("quad", cgv::glutil::canvas::shaders_2d::quad);
 
 	// initialize the renderers
 	m_renderer_lines = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
-	m_renderer_strips = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::polygon);
-	m_renderer_strips_gauss = cgv::glutil::generic_renderer("gauss_poly2d.glpr");
+	m_renderer_quads = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::quad);
+	m_renderer_quads_gauss = cgv::glutil::generic_renderer("gauss_quad2d.glpr");
 
 	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_lines::set_point_positions, this));
@@ -36,8 +37,8 @@ void tf_editor_lines::clear(cgv::render::context& ctx) {
 	cgv::glutil::ref_msdf_font(ctx, -1);
 	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, -1);
 
-	m_renderer_strips.destruct(ctx);
-	m_renderer_strips_gauss.destruct(ctx);
+	m_renderer_quads.destruct(ctx);
+	m_renderer_quads_gauss.destruct(ctx);
 
 	m_renderer_draggables.destruct(ctx);
 	m_geometry_draggables.destruct(ctx);
@@ -122,8 +123,8 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	success &= viewport_canvas.init(ctx);
 	success &= m_renderer_lines.init(ctx);
 	success &= m_renderer_draggables.init(ctx);
-	success &= m_renderer_strips.init(ctx);
-	success &= m_renderer_strips_gauss.init(ctx);
+	success &= m_renderer_quads.init(ctx);
+	success &= m_renderer_quads_gauss.init(ctx);
 
 	auto& font = cgv::glutil::ref_msdf_font(ctx, 1);
 	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, 1);
@@ -225,21 +226,21 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_widgets.fill_color = m_gray_widgets;
 	m_style_widgets.width = 1.0f;
 
-	m_style_polygons.use_blending = true;
-	m_style_polygons.use_fill_color = false;
-	m_style_polygons.fill_color = rgba(1.0f, 0.0f, 0.0f, m_alpha);
+	m_style_quads.use_blending = true;
+	m_style_quads.use_fill_color = false;
+	m_style_quads.fill_color = rgba(1.0f, 0.0f, 0.0f, m_alpha);
 
 	m_style_strip_borders.use_blending = true;
 	m_style_strip_borders.use_fill_color = false;
 	m_style_strip_borders.border_width = 1.5f;
 
-	auto& poly_prog = m_renderer_strips.enable_prog(ctx);
-	m_style_polygons.apply(ctx, poly_prog);
-	poly_prog.disable(ctx);
-
-	auto& poly_gauss_prog = m_renderer_strips_gauss.enable_prog(ctx);
-	m_style_polygons.apply(ctx, poly_gauss_prog);
-	poly_gauss_prog.disable(ctx);
+	auto& quad_prog = m_renderer_quads.enable_prog(ctx);
+	m_style_quads.apply(ctx, quad_prog);
+	quad_prog.disable(ctx);
+		
+	auto& quad_prog_gauss = m_renderer_quads_gauss.enable_prog(ctx);
+	m_style_quads.apply(ctx, quad_prog_gauss);
+	quad_prog_gauss.disable(ctx);
 
 	m_style_draggables.position_is_center = true;
 	m_style_draggables.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
@@ -562,7 +563,7 @@ void tf_editor_lines::create_centroid_boundaries() {
 	}
 }
 
-void tf_editor_lines::create_strips() {
+void tf_editor_lines::create_quads() {
 	// Don't do anything if there are no points yet
 	if(m_points.empty()) {
 		return;
@@ -571,7 +572,7 @@ void tf_editor_lines::create_strips() {
 
 	// Only draw quadstrips for the shape mode
 	if(vis_mode == VM_SHAPES) {
-		m_geometry_strips.clear();
+		m_quad_strips.clear();
 
 		// Get the texture distance values for the gaussian strips
 		const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index, bool negative) {
@@ -600,50 +601,40 @@ void tf_editor_lines::create_strips() {
 			return negative ? cgv::math::clamp(relation, 0.5f, 1.0f) : cgv::math::clamp(relation, 0.0f, 0.5f);
 		};
 
-		// Add four points to the strip, because every strip is between two widgets with two points each
-		const auto add_points_to_strips = [&](tf_editor_shared_data_types::polygon_geometry& geometry_strips,
-												int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
-												int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
+		const auto add_quad = [&](tf_editor_shared_data_types::quad_geometry& geom,
+			int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
+			int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
 			// Get the positions for the corner points
 			const auto texture_position_1 = texture_distance(i, protein_index_left, widget_line_index_left, true);
 			const auto texture_position_2 = texture_distance(i, protein_index_left, widget_line_index_left, false);
 			const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, true);
 			const auto texture_position_4 = texture_distance(i, protein_index_right, widget_line_index_right, false);
 
-			geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_1), color, vec2(0.0f, texture_position_1));
-			geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_2), color, vec2(0.0f, texture_position_2));
-			geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_3), color, vec2(1.0f, texture_position_3));
-			geometry_strips.add(m_strip_boundary_points.at(i).at(strip_id_4), color, vec2(1.0f, texture_position_4));
-		};
-		// Add indices for the strips
-		const auto add_indices_to_strips = [&](tf_editor_shared_data_types::polygon_geometry& geometry_strips,
-												int offset_start, int offset_end) {
-			for(int i = offset_start; i < offset_end; i++) {
-				geometry_strips.add_idx(i);
-			}
-			// If done, end this strip
-			geometry_strips.add_idx(0xFFFFFFFF);
+			const auto& bp = m_strip_boundary_points[i];
+
+			geom.add(
+				bp[strip_id_1],
+				bp[strip_id_2],
+				bp[strip_id_3],
+				bp[strip_id_4],
+				color,
+				vec4(texture_position_1, texture_position_2, texture_position_4, texture_position_3)
+			);
 		};
 
 		// Now strips themselves
 		for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-			tf_editor_shared_data_types::polygon_geometry geometry_strips;
+			tf_editor_shared_data_types::quad_geometry quad_strips;
 			const auto color = m_shared_data_ptr->primitives.at(i).color;
 
-			add_points_to_strips(geometry_strips, 0, 1, 0, 6, 0, 1, 10, 11, i, color);
-			add_indices_to_strips(geometry_strips, 0, 4);
-			add_points_to_strips(geometry_strips, 0, 3, 1, 12, 2, 3, 18, 19, i, color);
-			add_indices_to_strips(geometry_strips, 4, 8);
-			add_points_to_strips(geometry_strips, 0, 2, 2, 8, 4, 5, 12, 13, i, color);
-			add_indices_to_strips(geometry_strips, 8, 12);
-			add_points_to_strips(geometry_strips, 1, 2, 4, 10, 6, 7, 16, 17, i, color);
-			add_indices_to_strips(geometry_strips, 12, 16);
-			add_points_to_strips(geometry_strips, 1, 3, 5, 13, 8, 9, 20, 21, i, color);
-			add_indices_to_strips(geometry_strips, 16, 20);
-			add_points_to_strips(geometry_strips, 2, 3, 9, 14, 14, 15, 22, 23, i, color);
-			add_indices_to_strips(geometry_strips, 20, 24);
+			add_quad(quad_strips, 0, 1, 0, 6, 0, 1, 10, 11, i, color);
+			add_quad(quad_strips, 0, 3, 1, 12, 2, 18, 3, 19, i, color);
+			add_quad(quad_strips, 0, 2, 2, 8, 4, 12, 5, 13, i, color);
+			add_quad(quad_strips, 1, 2, 4, 10, 6, 16, 7, 17, i, color);
+			add_quad(quad_strips, 1, 3, 5, 13, 8, 20, 9, 21, i, color);
+			add_quad(quad_strips, 2, 3, 9, 14, 14, 15, 22, 23, i, color);
 
-			m_geometry_strips.push_back(geometry_strips);
+			m_quad_strips.push_back(quad_strips);
 		}
 	}
 }
@@ -770,22 +761,15 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	// Do not draw quadstrips and the border lines for peak mode
 	if (!is_peak_mode) {
 		// Now create the centroid boundaries and strips
-		create_strips();
+		create_quads();
 
 		if (vis_mode == VM_SHAPES) {
 			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 				const auto& type = m_shared_data_ptr->primitives.at(i).type;
+				auto& quad_renderer = type == shared_data::TYPE_GAUSS ? m_renderer_quads_gauss : m_renderer_quads;
 
-				// draw the lines from the given geometry with offset and count
-				glEnable(GL_PRIMITIVE_RESTART);
-				glPrimitiveRestartIndex(0xFFFFFFFF);
-
-				auto& strip_renderer = type == shared_data::TYPE_GAUSS ? m_renderer_strips_gauss : m_renderer_strips;
-
-				content_canvas.set_view(ctx, strip_renderer.enable_prog(ctx));
-				strip_renderer.render(ctx, PT_TRIANGLE_STRIP, m_geometry_strips.at(i));
-
-				glDisable(GL_PRIMITIVE_RESTART);
+				content_canvas.set_view(ctx, quad_renderer.enable_prog(ctx));
+				quad_renderer.render(ctx, PT_POINTS, m_quad_strips.at(i), 6 * i, 6);
 			}
 		}
 

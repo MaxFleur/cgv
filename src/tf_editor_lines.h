@@ -46,7 +46,7 @@ private:
 
 	void create_centroid_boundaries();
 
-	void create_strips();
+	void create_quads();
 
 	void create_strip_borders(int index);
 
@@ -72,11 +72,11 @@ private:
 
 	// renderer for the 2d plot lines and quadstrips
 	cgv::glutil::generic_renderer m_renderer_lines;
-	cgv::glutil::generic_renderer m_renderer_strips;
-	cgv::glutil::generic_renderer m_renderer_strips_gauss;
+	cgv::glutil::generic_renderer m_renderer_quads;
+	cgv::glutil::generic_renderer m_renderer_quads_gauss;
 
 	// Geometry for the quadstrips and line relations
-	std::vector<tf_editor_shared_data_types::polygon_geometry> m_geometry_strips;
+	std::vector<tf_editor_shared_data_types::quad_geometry> m_quad_strips;
 	tf_editor_shared_data_types::line_geometry m_geometry_relations;
 
 	// widget and strip border lines
@@ -86,7 +86,7 @@ private:
 	cgv::glutil::line2d_style m_style_relations;
 	cgv::glutil::line2d_style m_style_widgets;
 	cgv::glutil::line2d_style m_style_strip_borders;
-	cgv::glutil::shape2d_style m_style_polygons;
+	cgv::glutil::shape2d_style m_style_quads;
 
 	cgv::glutil::shape2d_style m_style_plot;
 
