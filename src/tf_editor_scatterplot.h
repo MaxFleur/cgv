@@ -56,7 +56,7 @@ private:
 
 	void point_clicked(const vec2& mouse_pos);
 
-	void scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed);
+	void scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed, bool shift_pressed);
 
 private:
 

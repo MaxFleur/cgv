@@ -74,8 +74,9 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 			const auto modifiers = e.get_modifiers();
 			const auto negative_change = me.get_dy() > 0 ? true : false;
 			const auto ctrl_pressed = modifiers & cgv::gui::EM_CTRL ? true : false;
+			const auto shift_pressed = modifiers & cgv::gui::EM_SHIFT ? true : false;
 
-			scroll_centroid_width(mouse_pos.x(), mouse_pos.y(), negative_change, ctrl_pressed);
+			scroll_centroid_width(mouse_pos.x(), mouse_pos.y(), negative_change, ctrl_pressed, shift_pressed);
 		}
 
 		bool handled = false;
@@ -706,7 +707,7 @@ void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos) {
 	redraw();
 }
 
-void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed) {
+void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed, bool shift_pressed) {
 	auto found = false;
 	int found_index;
 	// Search through the rectangles
@@ -714,9 +715,13 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 		if (m_rectangles_calc.at(i).is_inside(x, y)) {
 			// If the rectangle is found, update the point's width in it depending on the ctrl modifier
 			auto& primitives = m_shared_data_ptr->primitives[m_interacted_point_id];
+			auto change = negative_change ? -0.02f : 0.02f;
+			if (shift_pressed) {
+				change *= 2.0f;
+			}
+
 			auto& width = primitives.centr_widths[ctrl_pressed ? m_points[m_interacted_point_id][i].m_stain_first : m_points[m_interacted_point_id][i].m_stain_second];
-			// auto width = 0.0f;
-			width += negative_change ? -0.02f : 0.02f;
+			width += change;
 			width = cgv::math::clamp(width, 0.0f, 10.0f);
 
 			found = true;

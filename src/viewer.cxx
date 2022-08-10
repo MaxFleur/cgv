@@ -776,7 +776,7 @@ void viewer::create_gui() {
 
 void viewer::add_primitive() {
 	// Hardcoded boundary, this might change later
-	if (m_shared_data_ptr->primitives.size() == 5) {
+	if (m_shared_data_ptr->primitives.size() == 8) {
 		return;
 	}
 
