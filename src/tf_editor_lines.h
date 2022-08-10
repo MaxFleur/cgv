@@ -76,7 +76,7 @@ private:
 	cgv::glutil::generic_renderer m_renderer_quads_gauss;
 
 	// Geometry for the quadstrips and line relations
-	std::vector<tf_editor_shared_data_types::quad_geometry> m_quad_strips;
+	tf_editor_shared_data_types::quad_geometry m_quad_strips;
 	tf_editor_shared_data_types::line_geometry m_geometry_relations;
 
 	// widget and strip border lines

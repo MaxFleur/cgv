@@ -618,7 +618,7 @@ void tf_editor_lines::create_quads() {
 				bp[strip_id_3],
 				bp[strip_id_4],
 				color,
-				vec4(texture_position_1, texture_position_2, texture_position_4, texture_position_3)
+				vec4(texture_position_1, texture_position_2, texture_position_3, texture_position_4)
 			);
 		};
 
@@ -627,14 +627,14 @@ void tf_editor_lines::create_quads() {
 			tf_editor_shared_data_types::quad_geometry quad_strips;
 			const auto color = m_shared_data_ptr->primitives.at(i).color;
 
-			add_quad(quad_strips, 0, 1, 0, 6, 0, 1, 10, 11, i, color);
-			add_quad(quad_strips, 0, 3, 1, 12, 2, 18, 3, 19, i, color);
-			add_quad(quad_strips, 0, 2, 2, 8, 4, 12, 5, 13, i, color);
-			add_quad(quad_strips, 1, 2, 4, 10, 6, 16, 7, 17, i, color);
-			add_quad(quad_strips, 1, 3, 5, 13, 8, 20, 9, 21, i, color);
-			add_quad(quad_strips, 2, 3, 9, 14, 14, 15, 22, 23, i, color);
+			add_quad(m_quad_strips, 0, 1, 0, 6, 0, 1, 10, 11, i, color);
+			add_quad(m_quad_strips, 0, 3, 1, 12, 18, 19, 2, 3, i, color);
+			add_quad(m_quad_strips, 0, 2, 2, 8, 12, 13, 4, 5, i, color);
+			add_quad(m_quad_strips, 1, 2, 4, 10, 16, 17, 6, 7, i, color);
+			add_quad(m_quad_strips, 1, 3, 5, 13, 20, 21, 8, 9, i, color);
+			add_quad(m_quad_strips, 2, 3, 9, 14, 14, 15, 22, 23, i, color);
 
-			m_quad_strips.push_back(quad_strips);
+			// m_quad_strips.push_back(quad_strips);
 		}
 	}
 }
@@ -769,7 +769,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 				auto& quad_renderer = type == shared_data::TYPE_GAUSS ? m_renderer_quads_gauss : m_renderer_quads;
 
 				content_canvas.set_view(ctx, quad_renderer.enable_prog(ctx));
-				quad_renderer.render(ctx, PT_POINTS, m_quad_strips.at(i), 6 * i, 6);
+				quad_renderer.render(ctx, PT_POINTS, m_quad_strips, 6 * i, 6);
 			}
 		}
 
