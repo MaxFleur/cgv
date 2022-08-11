@@ -170,6 +170,9 @@ protected:
 	// alpha value of individual data values in the plot
 	float m_alpha = 0.0001f;
 
+	// Time used to estimate a double click
+	double m_click_time;
+
 	// tone mapping parameters
 	bool use_tone_mapping = false;
 	unsigned tm_normalization_count = 1000;

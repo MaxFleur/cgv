@@ -75,7 +75,13 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 
 		// Reset dragging by clicking the left mouse
 		if (me.get_action() == cgv::gui::MA_PRESS && me.get_button() == cgv::gui::MB_LEFT_BUTTON && !m_currently_dragging) {
-			point_clicked(mouse_pos);
+			// Check for a double click
+			auto is_double_clicked = false;
+			if ((me.get_time() - m_click_time) < 0.3) {
+				is_double_clicked = true;
+			}
+			m_click_time = me.get_time();
+			point_clicked(mouse_pos, is_double_clicked);
 		}
 		// Set width if a scroll is done
 		else if(me.get_action() == cgv::gui::MA_WHEEL && is_interacting) {
@@ -906,7 +912,7 @@ void tf_editor_lines::update_point_positions() {
 	}
 }
 
-void tf_editor_lines::point_clicked(const vec2& mouse_pos) {
+void tf_editor_lines::point_clicked(const vec2& mouse_pos, bool double_clicked) {
 	m_is_point_dragged = false;
 	auto found = false;
 
@@ -923,7 +929,16 @@ void tf_editor_lines::point_clicked(const vec2& mouse_pos) {
 	is_interacting = found;
 	m_shared_data_ptr->is_primitive_selected = found;
 	m_shared_data_ptr->selected_primitive_id = m_interacted_primitive_ids[0];
-	if (!found) {
+	
+	if (found && double_clicked) {
+		// Set width for a double click
+		auto& current_width = m_shared_data_ptr->primitives.at(m_interacted_primitive_ids[0]).centr_widths[m_interacted_primitive_ids[1] / 3];
+		current_width = current_width < 2.0f ? 10.0f : 0.5f;
+
+		m_is_point_dragged = true;
+		m_shared_data_ptr->set_synchronized();
+	}
+	else {
 		m_interacted_primitive_ids[0] = INT_MAX;
 	}
 	redraw();

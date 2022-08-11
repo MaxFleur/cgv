@@ -66,7 +66,13 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 		const auto mouse_pos = get_local_mouse_pos(ivec2(me.get_x(), me.get_y()));
 
 		if (me.get_action() == cgv::gui::MA_PRESS && me.get_button() == cgv::gui::MB_LEFT_BUTTON && !m_currently_dragging) {
-			point_clicked(mouse_pos);
+			// Check for a double click
+			auto is_double_clicked = false;
+			if ((me.get_time() - m_click_time) < 0.3) {
+				is_double_clicked = true;
+			}
+			m_click_time = me.get_time();
+			point_clicked(mouse_pos, is_double_clicked, e.get_modifiers() & cgv::gui::EM_CTRL);
 		}
 
 		// Set width if a scroll is done
@@ -682,9 +688,11 @@ void tf_editor_scatterplot::set_point_positions() {
 	post_redraw();
 }
 
-void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos) {
+void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos, bool double_clicked, bool ctrl_pressed) {
 	m_is_point_dragged = false;
 	auto found = false;
+	auto index_j = 0;
+	auto stain_index = 0;
 
 	for (unsigned i = 0; i < m_points.size(); ++i) {
 		for (int j = 0; j < m_points[i].size(); j++) {
@@ -693,6 +701,9 @@ void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos) {
 				const auto& found_point = m_points[i][j];
 
 				m_interacted_point_id = i;
+				index_j = j;
+				stain_index = ctrl_pressed ? m_points[i][j].m_stain_first : m_points[i][j].m_stain_second;
+
 				found = true;
 			}
 		}
@@ -701,7 +712,15 @@ void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos) {
 	is_interacting = found;
 	m_shared_data_ptr->is_primitive_selected = found;
 	m_shared_data_ptr->selected_primitive_id = m_interacted_point_id;
-	if (!found) {
+
+	if (found && double_clicked) {
+		// Set width for a double click
+		auto& current_width = m_shared_data_ptr->primitives.at(m_interacted_point_id).centr_widths[stain_index];
+		current_width = current_width < 2.0f ? 10.0f : 0.5f;
+
+		m_shared_data_ptr->set_synchronized();
+	}
+	else {
 		m_interacted_point_id = INT_MAX;
 	}
 	redraw();
