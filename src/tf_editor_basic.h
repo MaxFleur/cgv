@@ -55,6 +55,8 @@ protected:
 
 	virtual void update_content() = 0;
 
+	void handle_mouse_click_end(bool found, bool double_clicked, int i, int j, int& interacted_point_id, bool is_lbe);
+
 	// Called when a mouse drag is ended
 	void end_drag() {
 		m_currently_dragging = false;

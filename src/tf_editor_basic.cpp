@@ -120,4 +120,26 @@ void tf_editor_basic::create_gui_coloring() {
 	add_member_control(this, "Coloring", vis_mode, "dropdown", "enums=Basic, Gaussian");
 }
 
+void tf_editor_basic::handle_mouse_click_end(bool found, bool double_clicked, int i, int j, int& interacted_point_id, bool is_lbe) {
+	if (found) {
+		if (double_clicked) {
+			// Set width for a double click
+			auto& current_width = m_shared_data_ptr->primitives.at(i).centr_widths[j];
+			current_width = current_width < 2.0f ? 10.0f : 0.5f;
+
+			m_is_point_dragged = true;
+		}
+	}
+	else {
+		interacted_point_id = INT_MAX;
+	}
+
+	is_interacting = found;
+	m_shared_data_ptr->is_primitive_selected = found;
+	m_shared_data_ptr->selected_primitive_id = interacted_point_id;
+
+	m_shared_data_ptr->set_synchronized(is_lbe);
+	redraw();
+}
+
 /** END - MFLEURY **/

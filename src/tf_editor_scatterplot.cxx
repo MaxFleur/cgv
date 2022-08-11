@@ -184,6 +184,8 @@ void tf_editor_scatterplot::create_gui() {
 }
 
 void tf_editor_scatterplot::resynchronize() {
+	m_interacted_point_id = m_shared_data_ptr->selected_primitive_id;
+
 	// Clear and readd points
 	m_points.clear();
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
@@ -610,6 +612,7 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 }
 
 void tf_editor_scatterplot::set_point_positions() {
+	std::cout << "RAGG" << std::endl;
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
 	m_currently_dragging = true;
@@ -709,21 +712,8 @@ void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos, bool double_cli
 		}
 	}
 
-	is_interacting = found;
-	m_shared_data_ptr->is_primitive_selected = found;
-	m_shared_data_ptr->selected_primitive_id = m_interacted_point_id;
-
-	if (found && double_clicked) {
-		// Set width for a double click
-		auto& current_width = m_shared_data_ptr->primitives.at(m_interacted_point_id).centr_widths[stain_index];
-		current_width = current_width < 2.0f ? 10.0f : 0.5f;
-
-		m_shared_data_ptr->set_synchronized();
-	}
-	else {
-		m_interacted_point_id = INT_MAX;
-	}
-	redraw();
+	tf_editor_basic::handle_mouse_click_end(found, double_clicked, m_interacted_point_id,
+											stain_index, m_interacted_point_id, false);
 }
 
 void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed, bool shift_pressed) {

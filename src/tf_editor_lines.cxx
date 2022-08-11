@@ -198,6 +198,9 @@ void tf_editor_lines::create_gui() {
 
 // Called if something in the primitives has been updated
 void tf_editor_lines::resynchronize() {
+	std::cout << "Calling with: " << m_shared_data_ptr->selected_primitive_id << std::endl;
+	m_interacted_primitive_ids[0] = m_shared_data_ptr->selected_primitive_id;
+
 	// Clear and readd points
 	m_points.clear();
 	for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
@@ -926,22 +929,8 @@ void tf_editor_lines::point_clicked(const vec2& mouse_pos, bool double_clicked) 
 		}
 	}
 
-	is_interacting = found;
-	m_shared_data_ptr->is_primitive_selected = found;
-	m_shared_data_ptr->selected_primitive_id = m_interacted_primitive_ids[0];
-	
-	if (found && double_clicked) {
-		// Set width for a double click
-		auto& current_width = m_shared_data_ptr->primitives.at(m_interacted_primitive_ids[0]).centr_widths[m_interacted_primitive_ids[1] / 3];
-		current_width = current_width < 2.0f ? 10.0f : 0.5f;
-
-		m_is_point_dragged = true;
-		m_shared_data_ptr->set_synchronized();
-	}
-	else {
-		m_interacted_primitive_ids[0] = INT_MAX;
-	}
-	redraw();
+	tf_editor_basic::handle_mouse_click_end(found, double_clicked, m_interacted_primitive_ids[0], 
+											m_interacted_primitive_ids[1] / 3, m_interacted_primitive_ids[0], true);
 }
 
 void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed) {
