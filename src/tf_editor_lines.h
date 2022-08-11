@@ -119,9 +119,18 @@ private:
 
 
 
-
+	enum Mode {
+		M_COMPUTE = 0,
+		M_VERTEX = 1,
+		M_GEOM = 2,
+		M_COMPUTE_2 = 3
+	} m_mode = M_COMPUTE_2;
 	GLuint plot_buffer;
 	texture plot_texture;
+
+	ivec2 plot_resolution;
+	GLuint plot_buffers2[6];
+	texture plot_textures[6];
 	cgv::glutil::shader_library shaders;
 
 

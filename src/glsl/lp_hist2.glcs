@@ -13,24 +13,19 @@ struct data_type {
 	uint64_t ba;
 };
 
-layout(std430, binding = 0) buffer plot_buffer {
-	data_type rgba[];
-} plot;
+#define DEF_SP_BUF(I) layout(std430, binding = I) buffer plot##I##_buffer { data_type rgba[]; } plot##I;
+
+DEF_SP_BUF(0)
+DEF_SP_BUF(1)
+DEF_SP_BUF(2)
+DEF_SP_BUF(3)
+DEF_SP_BUF(4)
+DEF_SP_BUF(5)
 
 uniform int num_data_values;
 uniform ivec2 resolution;
 uniform float threshold;
-
-struct relation {
-	ivec2 indices;
-	vec4 line_a;
-	vec4 line_b;
-};
-
-uniform relation relations[6];
-
-
-
+uniform	ivec2 indices[6];
 
 struct tf_primitive {
 	int type;
@@ -41,6 +36,8 @@ struct tf_primitive {
 
 uniform tf_primitive mdtf[8];
 uniform int num_mdtf_primitives;
+
+shared uint64_t temp[4*2*128];
 
 // return an alpha value equivalent to the value of a gaussian function at the given centroid position with the specified with
 float evaluate_gauss_primitive(vec4 density, vec4 gaussian_centroid, vec4 gaussian_width) {
@@ -118,71 +115,42 @@ vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 	return vec4(color_sum, 1.0);
 }
 
-
-
-
-
-
-
-/*
-// 4x uint
-#define PLOT_POINT(BUF, I, J, COL) \
-	int BUF##_idx = plot_coords[I] + plot_size * plot_coords[J]; \
-	atomicAdd(BUF.rgba[BUF##_idx][0], COL.r); \
-	atomicAdd(BUF.rgba[BUF##_idx][1], COL.g); \
-	atomicAdd(BUF.rgba[BUF##_idx][2], COL.b); \
-	atomicAdd(BUF.rgba[BUF##_idx][3], COL.a);
-*/
-
-/*
-// 4x float
-#define PLOT_POINT(BUF, I, J, COL) \
-	int BUF##_idx = plot_coords[I] + plot_size * plot_coords[J]; \
-	atomicAdd(BUF.rgba[BUF##_idx][0], COL.r); \
-	atomicAdd(BUF.rgba[BUF##_idx][1], COL.g); \
-	atomicAdd(BUF.rgba[BUF##_idx][2], COL.b); \
-	atomicAdd(BUF.rgba[BUF##_idx][3], COL.a);
-*/
- 
-// 2x uint64_t
-#define PLOT_POINT(BUF, I, J, PCOL_RG, PCOL_BA) \
-	int BUF##_idx = plot_coords[I] + plot_size * plot_coords[J]; \
-	atomicAdd(BUF.rgba[BUF##_idx].rg, PCOL_RG); \
-	atomicAdd(BUF.rgba[BUF##_idx].ba, PCOL_BA);
-
-void plot_pixel(in ivec2 p, uint64_t pc_rg, uint64_t pc_ba) {
-	int idx = p.x + resolution.x * p.y;
-	atomicAdd(plot.rgba[idx].rg, pc_rg);
-	atomicAdd(plot.rgba[idx].ba, pc_ba);
-}
-
-void bresenham(int x0, int y0, int x1, int y1, uint64_t pc_rg, uint64_t pc_ba) {
-    int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-    int err = dx + dy, e2;
-    
-    while(true) {
-        plot_pixel(ivec2(x0, y0), pc_rg, pc_ba);
-        if(x0 == x1 && y0 == y1)
-			break;
-        e2 = 2 * err;
-        if(e2 > dy) { err += dy; x0 += sx; }
-        if(e2 < dx) { err += dx; y0 += sy; }
+#define PLOT_LINE(BUF, INDICES, PCOL_RG, PCOL_BA) \
+	int y0 = int(mix(0, resolution.y - 1, p[INDICES.x])); \
+	int y1 = int(mix(0, resolution.y - 1, p[INDICES.y])); \
+	int x0 = 0, x1 = resolution.x - 1; \
+	int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1; \
+    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1; \
+    int err = dx + dy, e2; \
+    \
+    while(x0 < resolution.x) { \
+        int idx = x0 + resolution.x * y0; \
+		atomicAdd(BUF.rgba[idx].rg, PCOL_RG); \
+		atomicAdd(BUF.rgba[idx].ba, PCOL_BA); \
+        \
+		e2 = 2 * err; \
+        if(e2 > dy) { err += dy; x0 += sx; } \
+        if(e2 < dx) { err += dx; y0 += sy; } \
     }
-}
 
-void plot_line(in vec4 p, in relation rel, uint64_t pc_rg, uint64_t pc_ba) {
-	vec4 l = rel.line_a;
-	vec4 r = rel.line_b;
+#define STEP(O) \
+	atomicAdd(temp[2*y0 + 0 + O], packed_color_rg); \
+	atomicAdd(temp[2*y0 + 1 + O], packed_color_ba); \
+	e2 = 2 * err; \
+	if(e2 > dy) { err += dy; x0 += sx; } \
+	if(e2 < dx) { err += dx; y0 += sy; }
 
-	ivec2 s = ivec2(mix(l.xy, l.zw, 0.8*p[rel.indices.x] + 0.1));
-	ivec2 e = ivec2(mix(r.xy, r.zw, 0.8*p[rel.indices.y] + 0.1));
-
-	bresenham(s.x, s.y, e.x, e.y, pc_rg, pc_ba);
-}
+#define WRITE_AND_CLEAR(O) \
+	plot_idx = x + resolution.x * lidx; \
+	atomicAdd(plot0.rgba[plot_idx].rg, temp[2*lidx + 0 + O]); \
+	atomicAdd(plot0.rgba[plot_idx].ba, temp[2*lidx + 1 + O]); \
+	temp[2*lidx + 0 + O] = uint64_t(0); \
+	temp[2*lidx + 1 + O] = uint64_t(0); \
+	++x;
 
 void main() {
 	int idx = int(gl_GlobalInvocationID.x);
+	int lidx = int(gl_LocalInvocationID.x);
 
 	if(idx < num_data_values) {
 		ivec3 src_size = imageSize(src_tex);
@@ -205,53 +173,53 @@ void main() {
 			uint64_t packed_color_rg = packUint2x32(c8_rg);
 			uint64_t packed_color_ba = packUint2x32(c8_ba);
 
-			plot_line(p, relations[0], packed_color_rg, packed_color_ba);
-			plot_line(p, relations[1], packed_color_rg, packed_color_ba);
-			plot_line(p, relations[2], packed_color_rg, packed_color_ba);
-			plot_line(p, relations[3], packed_color_rg, packed_color_ba);
-			plot_line(p, relations[4], packed_color_rg, packed_color_ba);
-			plot_line(p, relations[5], packed_color_rg, packed_color_ba);
 
-			/*relation rel = relations[0];
-			vec4 l = rel.line_a;
-			vec4 r = rel.line_b;
+			int y0 = int(mix(0, resolution.y - 1, p[indices[0].x]));
+			int y1 = int(mix(0, resolution.y - 1, p[indices[0].y]));
+			int x0 = 0, x1 = resolution.x - 1;
+			int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+			int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+			int err = dx + dy, e2;
 
-			ivec2 s = ivec2(mix(l.xy, l.zw, 0.8*p[rel.indices.x]) + 0.1);
-			ivec2 e = ivec2(mix(r.xy, r.zw, 0.8*p[rel.indices.y]) + 0.1);
+			int plot_idx;
+			for(int x = 0; x < 128;) {
+				STEP(0*256)
+				STEP(1*256)
+				STEP(2*256)
+				STEP(3*256)
+				
+				barrier();
 
-			//plot_pixel(ivec2(s.x, s.y), packed_color_rg, packed_color_ba);
-			//plot_pixel(ivec2(e.x, e.y), packed_color_rg, packed_color_ba);
+				WRITE_AND_CLEAR(0*256);
+				WRITE_AND_CLEAR(1*256);
+				WRITE_AND_CLEAR(2*256);
+				WRITE_AND_CLEAR(3*256);
+				
+				barrier();
+			}
 
-			bresenham(s.x, s.y, e.x, e.y, packed_color_rg, packed_color_ba);*/
+			/*while(x0 < resolution.x) {
+				int idx = x0 + resolution.x * y0;
+				atomicAdd(plot0.rgba[idx].rg, packed_color_rg);
+				atomicAdd(plot0.rgba[idx].ba, packed_color_ba);
+				
+				if(e2 > dy) { err += dy; x0 += sx; }
+				if(e2 < dx) { err += dx; y0 += sy; }
+			}*/
+
+
+
+
+
+			//{ PLOT_LINE(plot0, indices[0], packed_color_rg, packed_color_ba); }
+
+
+
+			//{ PLOT_LINE(plot1, indices[1], packed_color_rg, packed_color_ba); }
+			//{ PLOT_LINE(plot2, indices[2], packed_color_rg, packed_color_ba); }
+			//{ PLOT_LINE(plot3, indices[3], packed_color_rg, packed_color_ba); }
+			//{ PLOT_LINE(plot4, indices[4], packed_color_rg, packed_color_ba); }
+			//{ PLOT_LINE(plot5, indices[5], packed_color_rg, packed_color_ba); }
 		}
-
-
-
-
-
-
-
-
-		/*if (avg > threshold) {
-			ivec2 plot_coords = clamp(ivec2(p.xy * resolution), ivec2(0), resolution - 1);
-
-			vec4 color = vec4(1.0, 0.0, 0.0, 1.0);//evaluate_transfer_function(p, 1.0);
-			uvec2 c8_rg = uvec2(color.rg * 128);
-			uvec2 c8_ba = uvec2(color.ba * 128);
-
-			uint64_t packed_color_rg = packUint2x32(c8_rg);
-			uint64_t packed_color_ba = packUint2x32(c8_ba);
-
-			int plot_idx = plot_coords.x + resolution.x * plot_coords.y;
-			atomicAdd(plot.rgba[plot_idx].rg, packed_color_rg);
-			atomicAdd(plot.rgba[plot_idx].ba, packed_color_ba);
-
-			//PLOT_POINT(sp0, 0, 1, packed_color_rg, packed_color_ba);
-			//PLOT_POINT(sp1, 0, 2, packed_color_rg, packed_color_ba);
-			//PLOT_POINT(sp2, 0, 3, packed_color_rg, packed_color_ba);
-			//PLOT_POINT(sp3, 3, 1, packed_color_rg, packed_color_ba);
-			//PLOT_POINT(sp4, 3, 2, packed_color_rg, packed_color_ba);
-			//PLOT_POINT(sp5, 2, 1, packed_color_rg, packed_color_ba);
-		}*/
 	}
 }

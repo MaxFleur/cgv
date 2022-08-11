@@ -105,7 +105,7 @@ void tf_editor_lines::on_set(void* member_ptr) {
 			init_styles(*ctx_ptr);
 	}
 	// Update if the vis mode is changed
-	if(member_ptr == &vis_mode) {
+	if(member_ptr == &vis_mode || member_ptr == &m_threshold) {
 		update_content();
 	}
 
@@ -151,14 +151,49 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	shaders.add("hist", "lp_hist");
 	shaders.add("transfer", "lp_ssbo_to_tex2d");
 	shaders.add("clear", "lp_ssbo_clear");
+
+	shaders.add("hist2", "lp_hist2");
+	shaders.add("transfer2", "lp_ssbo_to_tex2d2");
+	shaders.add("clear2", "lp_ssbo_clear2");
+
+	shaders.add("plot_line", "plot2d_line.glpr");
+	shaders.add("plot_line2", "plot2d_line2.glpr");
 	success &= shaders.load_shaders(ctx, "tf_editor_lines::init");
 
 	glGenBuffers(1, &plot_buffer);
 
+	
 
 
 
+	plot_resolution = ivec2(128, 128);
 
+	/*std::vector<float> data(4 * 256 * 256, 1.0f);
+
+	for(size_t i = 0; i < 256*256; ++i) {
+		float mul = static_cast<float>(i / 256) + 1.0f;
+		float val = static_cast<float>(i % 256) * 0.2f*mul;
+		data[4 * i + 0] = val;
+		data[4 * i + 1] = val;
+		data[4 * i + 2] = val;
+		data[4 * i + 3] = val;
+	}
+
+	cgv::data::data_view dv = cgv::data::data_view(new cgv::data::data_format(256, 256, TI_FLT32, cgv::data::CF_RGBA), data.data());
+	*/
+
+	glGenBuffers(6, plot_buffers2);
+
+	for(size_t i = 0; i < 6; ++i) {
+		plot_textures[i] = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_NEAREST, cgv::render::TF_NEAREST);
+		plot_textures[i].create(ctx, TT_2D, plot_resolution.x(), plot_resolution.y());
+		//.create(ctx, dv, 0);
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, plot_buffers2[i]);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, 4 * sizeof(float) * plot_resolution.x() * plot_resolution.y(), (void*)0, GL_DYNAMIC_COPY);
+	}
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 
 
@@ -212,17 +247,6 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 
 
 		std::vector<float> data(overlay_size.x() * overlay_size.y() * 4, 1.0f);
-
-		int count = 0;
-		for(size_t i = 0; i < 200000; i += 4) {
-			float val = (count & 1) == 0 ? 100.0f : 0.0f;
-
-			data[i + 0] = val;
-			data[i + 1] = 0.0f;
-			data[i + 2] = 0.0f;
-			data[i + 3] = val;
-		}
-
 		cgv::data::data_view dv = cgv::data::data_view(new cgv::data::data_format(overlay_size.x(), overlay_size.y(), TI_FLT32, cgv::data::CF_RGBA), data.data());
 
 		if(plot_texture.is_created())
@@ -230,7 +254,6 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 		plot_texture = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_NEAREST, cgv::render::TF_NEAREST);
 		plot_texture.create(ctx, dv, 0);
 
-		
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, plot_buffer);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, 4 * sizeof(float)*overlay_size.x()*overlay_size.y(), (void*)0, GL_DYNAMIC_COPY);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
@@ -246,6 +269,8 @@ void tf_editor_lines::create_gui() {
 	tf_editor_basic::create_gui_basic();
 	tf_editor_basic::create_gui_coloring();
 	tf_editor_basic::create_gui_tm();
+
+	add_member_control(this, "Render Mode", m_mode, "dropdown", "enums='Compute Shader, Vertex Shader, Geometry Shader, Compute 2'");
 }
 
 // Called if something in the primitives has been updated
@@ -358,6 +383,10 @@ void tf_editor_lines::update_content() {
 
 
 
+	auto ctx_ptr = get_context();
+	if(!ctx_ptr)
+		return;
+	auto& ctx = *ctx_ptr;
 
 
 
@@ -365,19 +394,12 @@ void tf_editor_lines::update_content() {
 
 
 
+	GLuint time_query = 0;
+	glGenQueries(1, &time_query);
+	
+	glBeginQuery(GL_TIME_ELAPSED, time_query);
 
-
-
-
-
-
-
-
-
-
-	if(auto ctx_ptr = get_context()) {
-		auto& ctx = *ctx_ptr;
-
+	if(m_mode == M_COMPUTE) {
 		// setup group and plot size
 		const unsigned group_size = 128;
 		const ivec2 resolution(
@@ -417,65 +439,26 @@ void tf_editor_lines::update_content() {
 		plot_prog.set_uniform(ctx, "resolution", resolution);
 		plot_prog.set_uniform(ctx, "threshold", m_threshold);
 
-		{
-			/*// Left to right
-			m_geometry_relations.add(m_widget_lines.at(0).interpolate(v[0]), col);
-			m_geometry_relations.add(m_widget_lines.at(6).interpolate(v[1]), col);
-			// Left to center
-			m_geometry_relations.add(m_widget_lines.at(1).interpolate(v[0]), col);
-			m_geometry_relations.add(m_widget_lines.at(12).interpolate(v[3]), col);
-			// Left to bottom
-			m_geometry_relations.add(m_widget_lines.at(2).interpolate(v[0]), col);
-			m_geometry_relations.add(m_widget_lines.at(8).interpolate(v[2]), col);
-			// Right to bottom
-			m_geometry_relations.add(m_widget_lines.at(4).interpolate(v[1]), col);
-			m_geometry_relations.add(m_widget_lines.at(10).interpolate(v[2]), col);
-			// Right to center
-			m_geometry_relations.add(m_widget_lines.at(5).interpolate(v[1]), col);
-			m_geometry_relations.add(m_widget_lines.at(13).interpolate(v[3]), col);
-			// Bottom to center
-			m_geometry_relations.add(m_widget_lines.at(9).interpolate(v[2]), col);
-			m_geometry_relations.add(m_widget_lines.at(14).interpolate(v[3]), col);
-			*/
+		auto set_relation_uniforms = [&](unsigned idx, unsigned li0, unsigned li1, unsigned i0, unsigned i1) {
+			const auto& l0 = m_widget_lines[li0];
+			const auto& l1 = m_widget_lines[li1];
 
-			auto set_relation_uniforms = [&](unsigned idx, unsigned li0, unsigned li1, unsigned i0, unsigned i1) {
-				const auto& l0 = m_widget_lines[li0];
-				const auto& l1 = m_widget_lines[li1];
+			vec4 line_a(l0.a.x(), l0.a.y(), l0.b.x(), l0.b.y());
+			vec4 line_b(l1.a.x(), l1.a.y(), l1.b.x(), l1.b.y());
 
-				vec4 line_a(l0.a.x(), l0.a.y(), l0.b.x(), l0.b.y());
-				vec4 line_b(l1.a.x(), l1.a.y(), l1.b.x(), l1.b.y());
+			std::string name = "relations[" + std::to_string(idx) + "].";
 
-				std::string name = "relations[" + std::to_string(idx) + "].";
+			plot_prog.set_uniform(ctx, name + "indices", ivec2(i0, i1));
+			plot_prog.set_uniform(ctx, name + "line_a", line_a);
+			plot_prog.set_uniform(ctx, name + "line_b", line_b);
+		};
 
-				plot_prog.set_uniform(ctx, name + "indices", ivec2(i0, i1));
-				plot_prog.set_uniform(ctx, name + "line_a", line_a);
-				plot_prog.set_uniform(ctx, name + "line_b", line_b);
-			};
-
-			
-			/*vec4 line_a, line_b;
-			line_a.x() = m_widget_lines[0].a.x();
-			line_a.y() = m_widget_lines[0].a.y();
-			line_a.z() = m_widget_lines[0].b.x();
-			line_a.w() = m_widget_lines[0].b.y();
-
-			line_b.x() = m_widget_lines[6].a.x();
-			line_b.y() = m_widget_lines[6].a.y();
-			line_b.z() = m_widget_lines[6].b.x();
-			line_b.w() = m_widget_lines[6].b.y();
-
-			plot_prog.set_uniform(ctx, "relations[0].line_a", line_a);
-			plot_prog.set_uniform(ctx, "relations[0].line_b", line_b);
-
-			plot_prog.set_uniform(ctx, "relations[0].indices", ivec2(0, 1));*/
-
-			set_relation_uniforms(0, 0, 6, 0, 1);
-			set_relation_uniforms(1, 1, 12, 0, 3);
-			set_relation_uniforms(2, 2, 8, 0, 2);
-			set_relation_uniforms(3, 4, 10, 1, 2);
-			set_relation_uniforms(4, 5, 13, 1, 3);
-			set_relation_uniforms(5, 9, 14, 2, 3);
-		}
+		set_relation_uniforms(0, 0, 6, 0, 1);
+		set_relation_uniforms(1, 1, 12, 0, 3);
+		set_relation_uniforms(2, 2, 8, 0, 2);
+		set_relation_uniforms(3, 4, 10, 1, 2);
+		set_relation_uniforms(4, 5, 13, 1, 3);
+		set_relation_uniforms(5, 9, 14, 2, 3);
 
 		// set transfer function uniforms
 		const int mdtf_size = static_cast<int>(m_shared_data_ptr->primitives.size());
@@ -512,7 +495,7 @@ void tf_editor_lines::update_content() {
 		// bind the plot texture
 		const int handle = (const int&)(plot_texture.handle) - 1;
 		glBindImageTexture(0, handle, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-		
+
 		glDispatchCompute(num_groups_image_order, 1, 1);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -522,7 +505,233 @@ void tf_editor_lines::update_content() {
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
 
 		transfer_prog.disable(ctx);
+	} else if(m_mode == M_VERTEX) {
+		fbc_plot.enable(ctx);
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE);
+
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		const ivec2 resolution(
+			fbc_plot.ref_frame_buffer().get_width(),
+			fbc_plot.ref_frame_buffer().get_height()
+		);
+
+		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
+		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
+		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
+
+		unsigned n = width * height * depth; // number of data points
+
+		auto& plot_prog = shaders.get("plot_line");
+		plot_prog.enable(ctx);
+
+		plot_prog.set_uniform(ctx, "resolution", resolution);
+		plot_prog.set_uniform(ctx, "threshold", m_threshold);
+
+		auto set_relation_uniforms = [&](unsigned idx, unsigned li0, unsigned li1, unsigned i0, unsigned i1) {
+			const auto& l0 = m_widget_lines[li0];
+			const auto& l1 = m_widget_lines[li1];
+
+			vec4 line_a(l0.a.x(), l0.a.y(), l0.b.x(), l0.b.y());
+			vec4 line_b(l1.a.x(), l1.a.y(), l1.b.x(), l1.b.y());
+
+			std::string name = "relations[" + std::to_string(idx) + "].";
+
+			plot_prog.set_uniform(ctx, name + "indices", ivec2(i0, i1));
+			plot_prog.set_uniform(ctx, name + "line_a", line_a);
+			plot_prog.set_uniform(ctx, name + "line_b", line_b);
+		};
+
+		set_relation_uniforms(0, 0, 6, 0, 1);
+		set_relation_uniforms(1, 1, 12, 0, 3);
+		set_relation_uniforms(2, 2, 8, 0, 2);
+		set_relation_uniforms(3, 4, 10, 1, 2);
+		set_relation_uniforms(4, 5, 13, 1, 3);
+		set_relation_uniforms(5, 9, 14, 2, 3);
+
+		m_data_set_ptr->volume_tex.enable(ctx, 0);
+		glDrawArrays(GL_LINES, 0, 2 * 6 * n);
+		m_data_set_ptr->volume_tex.disable(ctx);
+
+		plot_prog.disable(ctx);
+
+		// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
+		fbc_plot.disable(ctx);
+
+		// reset blending and depth test
+		glDisable(GL_BLEND);
+		glEnable(GL_DEPTH_TEST);
+	} else if(m_mode == M_GEOM) {
+		fbc_plot.enable(ctx);
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE);
+
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		const ivec2 resolution(
+			fbc_plot.ref_frame_buffer().get_width(),
+			fbc_plot.ref_frame_buffer().get_height()
+		);
+
+		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
+		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
+		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
+
+		unsigned n = width * height * depth; // number of data points
+
+		auto& plot_prog = shaders.get("plot_line2");
+		plot_prog.enable(ctx);
+
+		plot_prog.set_uniform(ctx, "resolution", resolution);
+		plot_prog.set_uniform(ctx, "threshold", m_threshold);
+
+		auto set_relation_uniforms = [&](unsigned idx, unsigned li0, unsigned li1, unsigned i0, unsigned i1) {
+			const auto& l0 = m_widget_lines[li0];
+			const auto& l1 = m_widget_lines[li1];
+
+			vec4 line_a(l0.a.x(), l0.a.y(), l0.b.x(), l0.b.y());
+			vec4 line_b(l1.a.x(), l1.a.y(), l1.b.x(), l1.b.y());
+
+			std::string name = "relations[" + std::to_string(idx) + "].";
+
+			plot_prog.set_uniform(ctx, name + "indices", ivec2(i0, i1));
+			plot_prog.set_uniform(ctx, name + "line_a", line_a);
+			plot_prog.set_uniform(ctx, name + "line_b", line_b);
+		};
+
+		set_relation_uniforms(0, 0, 6, 0, 1);
+		set_relation_uniforms(1, 1, 12, 0, 3);
+		set_relation_uniforms(2, 2, 8, 0, 2);
+		set_relation_uniforms(3, 4, 10, 1, 2);
+		set_relation_uniforms(4, 5, 13, 1, 3);
+		set_relation_uniforms(5, 9, 14, 2, 3);
+
+		m_data_set_ptr->volume_tex.enable(ctx, 0);
+		glDrawArrays(GL_POINTS, 0, n);
+		m_data_set_ptr->volume_tex.disable(ctx);
+
+		plot_prog.disable(ctx);
+
+		// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
+		fbc_plot.disable(ctx);
+
+		// reset blending and depth test
+		glDisable(GL_BLEND);
+		glEnable(GL_DEPTH_TEST);
+	} else {
+		// setup group and plot size
+		const unsigned group_size = 128;
+		//const ivec2 resolution(
+		//	256,
+		//	256
+		//);
+
+		// calculate the necessary number of work groups
+		unsigned num_groups_image_order = (plot_resolution.x() * plot_resolution.y() + group_size - 1) / group_size;
+
+		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
+		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
+		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
+
+		unsigned n = width * height * depth; // number of data points
+		unsigned num_groups_data_order = (n + group_size - 1) / group_size;
+
+		// bind shader storage buffers
+		for(size_t i = 0; i < 6; ++i)
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, plot_buffers2[i]);
+
+		// clear the previous contents
+		auto& clear_prog = shaders.get("clear2");
+		clear_prog.enable(ctx);
+		clear_prog.set_uniform(ctx, "resolution", plot_resolution);
+
+		glDispatchCompute(num_groups_image_order, 1, 1);
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+		clear_prog.disable(ctx);
+
+		// plot the data lines to the plot
+		auto& plot_prog = shaders.get("hist2");
+		plot_prog.enable(ctx);
+
+		// set general uniforms
+		plot_prog.set_uniform(ctx, "num_data_values", static_cast<int>(n));
+		plot_prog.set_uniform(ctx, "resolution", plot_resolution);
+		plot_prog.set_uniform(ctx, "threshold", m_threshold);
+
+		plot_prog.set_uniform(ctx, "indices[0]", ivec2(1, 0));
+		plot_prog.set_uniform(ctx, "indices[1]", ivec2(0, 3));
+		plot_prog.set_uniform(ctx, "indices[2]", ivec2(0, 2));
+		plot_prog.set_uniform(ctx, "indices[3]", ivec2(1, 2));
+		plot_prog.set_uniform(ctx, "indices[4]", ivec2(1, 3));
+		plot_prog.set_uniform(ctx, "indices[5]", ivec2(3, 2));
+		
+		// set transfer function uniforms
+		const int mdtf_size = static_cast<int>(m_shared_data_ptr->primitives.size());
+		plot_prog.set_uniform(ctx, "num_mdtf_primitives", mdtf_size);
+
+		for(int i = 0; i < mdtf_size; i++) {
+			const auto& p = m_shared_data_ptr->primitives[i];
+
+			std::string id = "mdtf[" + std::to_string(i) + "].";
+
+			plot_prog.set_uniform(ctx, id + "type", static_cast<int>(p.type));
+			plot_prog.set_uniform(ctx, id + "cntrd", p.centr_pos);
+			plot_prog.set_uniform(ctx, id + "width", p.centr_widths);
+			plot_prog.set_uniform(ctx, id + "color", p.color);
+		}
+
+		// bind the source 3D texture containing the data values
+		const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
+		glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+		glDispatchCompute(num_groups_data_order, 1, 1);
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+		// unbind the source data texture
+		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+		plot_prog.disable(ctx);
+
+		// transfer the shader storage buffer contents to the plot texture
+		auto& transfer_prog = shaders.get("transfer2");
+		transfer_prog.enable(ctx);
+		transfer_prog.set_uniform(ctx, "resolution", plot_resolution);
+
+		// bind the plot textures
+		for(unsigned i = 0; i < 6; ++i) {
+			const int handle = (const int&)(plot_textures[i].handle) - 1;
+			glBindImageTexture(i, handle, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+		}
+
+		glDispatchCompute(num_groups_image_order, 1, 1);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		// unbind textures and buffers
+		for(size_t i = 0; i < 6; ++i) {
+			glBindImageTexture(i, 0, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
+		}
+
+		transfer_prog.disable(ctx);
 	}
+
+	glEndQuery(GL_TIME_ELAPSED);
+
+	GLint done = false;
+	while(!done) {
+		glGetQueryObjectiv(time_query, GL_QUERY_RESULT_AVAILABLE, &done);
+	}
+	GLuint64 elapsed_time = 0;
+	glGetQueryObjectui64v(time_query, GL_QUERY_RESULT, &elapsed_time);
+
+	double time = static_cast<double>(elapsed_time) / 1000000.0;
+	std::cout << "TIME: " << time << " ms" << std::endl;
 
 
 
@@ -976,10 +1185,62 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 
 	m_style_plot.apply(ctx, tone_mapping_prog);
 
-	plot_texture.enable(ctx, 0);
-	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
-	plot_texture.disable(ctx);
-	
+	if(m_mode == M_COMPUTE) {
+		plot_texture.enable(ctx, 0);
+		content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
+		plot_texture.disable(ctx);
+	} else if(m_mode == M_COMPUTE_2) {
+
+		int li0[6] = { 0, 12, 8, 10, 13, 9 };
+		int li1[6] = { 6, 1, 2, 4, 5, 14 };
+
+		for(size_t i = 0; i < 6; ++i) {
+			plot_textures[i].enable(ctx, 0);
+
+			auto& l0 = m_widget_lines[li0[i]];
+			auto& l1 = m_widget_lines[li1[i]];
+
+			vec2 delta = l0.b - l0.a;
+
+			vec2 scale(
+				length(l1.a - l0.a),
+				0.8f*l0.get_length()
+			);
+
+			vec2 offset = l1.a + 0.1f*delta;
+
+			vec2 dir = normalize(delta);
+			float angle = atan2(-dir.x(), dir.y());
+
+			// 0 myo
+			// 1 act
+			// 2 obs
+			// 3 sal
+
+			// 0, 1
+			// 0, 3 -> 3, 0
+			// 0, 2 -> 2, 0
+			// 1, 2 -> 2, 1
+			// 1, 3 -> 3, 1
+			// 2, 3
+
+			content_canvas.push_modelview_matrix();
+			content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(offset));
+			content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(cgv::math::rad2deg(angle)));
+			content_canvas.mul_modelview_matrix(ctx, cgv::math::scale2h(scale / 256.0f));
+
+			content_canvas.set_view(ctx, tone_mapping_prog);
+
+			content_canvas.draw_shape(ctx, ivec2(0), ivec2(256));
+
+			content_canvas.pop_modelview_matrix(ctx);
+			plot_textures[i].disable(ctx);
+		}
+	} else {
+		fbc_plot.enable_attachment(ctx, "color", 0);
+		content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
+		fbc_plot.disable_attachment(ctx, "color");
+	}
 	content_canvas.disable_current_shader(ctx);
 
 
@@ -1016,7 +1277,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	
 	// draw widget lines first
 	auto& line_prog = m_renderer_lines.ref_prog();
-	line_prog.enable(ctx);
+	/*line_prog.enable(ctx);
 	content_canvas.set_view(ctx, line_prog);
 	m_style_widgets.apply(ctx, line_prog);
 	line_prog.disable(ctx);
@@ -1035,7 +1296,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 			content_canvas.draw_shape2(ctx, a, b);
 		}
 	}
-	content_canvas.disable_current_shader(ctx);
+	content_canvas.disable_current_shader(ctx);*/
 	
 	// Do not draw quadstrips and the border lines for peak mode
 	if (!is_peak_mode) {

@@ -1,0 +1,39 @@
+#version 450
+
+layout(local_size_x = 128) in;
+
+#define DEF_SP_BUF(I) layout(std430, binding = I) buffer plot##I##_buffer { ivec4 rgba[]; } plot##I;
+
+DEF_SP_BUF(0)
+DEF_SP_BUF(1)
+DEF_SP_BUF(2)
+DEF_SP_BUF(3)
+DEF_SP_BUF(4)
+DEF_SP_BUF(5)
+
+layout(rgba32f, binding = 0) uniform writeonly image2D img0;
+layout(rgba32f, binding = 1) uniform writeonly image2D img1;
+layout(rgba32f, binding = 2) uniform writeonly image2D img2;
+layout(rgba32f, binding = 3) uniform writeonly image2D img3;
+layout(rgba32f, binding = 4) uniform writeonly image2D img4;
+layout(rgba32f, binding = 5) uniform writeonly image2D img5;
+
+uniform ivec2 resolution;
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+
+	if(idx < resolution.x * resolution.y) {
+		ivec2 img_coord = ivec2(
+			idx % resolution.x,
+			idx / resolution.x
+		);
+	
+		imageStore(img0, img_coord, vec4(plot0.rgba[idx]) / 128.0);
+		imageStore(img1, img_coord, vec4(plot1.rgba[idx]) / 128.0);
+		imageStore(img2, img_coord, vec4(plot2.rgba[idx]) / 128.0);
+		imageStore(img3, img_coord, vec4(plot3.rgba[idx]) / 128.0);
+		imageStore(img4, img_coord, vec4(plot4.rgba[idx]) / 128.0);
+		imageStore(img5, img_coord, vec4(plot5.rgba[idx]) / 128.0);
+	}
+}

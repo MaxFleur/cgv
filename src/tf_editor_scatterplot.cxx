@@ -106,7 +106,7 @@ void tf_editor_scatterplot::on_set(void* member_ptr) {
 	}
 
 	// Update if the visualization mode has changed
-	if (member_ptr == &vis_mode || m_threshold) {
+	if (member_ptr == &vis_mode || member_ptr == &m_threshold) {
 		update_content();
 	}
 
