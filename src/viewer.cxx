@@ -150,19 +150,8 @@ bool viewer::handle_event(cgv::gui::event& e) {
 				break;
 			case 'R':
 				if (m_shared_data_ptr->is_primitive_selected) {
-					m_shared_data_ptr->primitives.erase(m_shared_data_ptr->primitives.begin() + m_shared_data_ptr->selected_primitive_id);
-					m_shared_data_ptr->is_primitive_selected = false;
-					m_shared_data_ptr->selected_primitive_id = INT_MAX;
-
+					remove_primitive(m_shared_data_ptr->selected_primitive_id);
 					handled = true;
-					post_recreate_gui();
-
-					if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
-						m_editor_lines_ptr->resynchronize();
-					}
-					if (m_editor_scatterplot_ptr && m_editor_scatterplot_ptr->is_visible()) {
-						m_editor_scatterplot_ptr->resynchronize();
-					}
 				}
 				break;
 			default: break;
@@ -413,34 +402,36 @@ void viewer::init_frame(cgv::render::context& ctx) {
 	}
 
 	// If draggables were selected, open the color selector (if not visible)
-	if (m_shared_data_ptr->is_primitive_selected && cs_ptr) {
-		if (!cs_ptr->is_visible()) {
-			cs_ptr->set_visibility(true);
-			m_selected_primitve_id = m_shared_data_ptr->selected_primitive_id;
-			// Also set its color to the selected primitive of the draggable
-			cs_ptr->set_rgba_color(m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color);
-		}
-		else {
-			// If another primitive was selected, reupdate the selector colors
-			if (m_selected_primitve_id != m_shared_data_ptr->selected_primitive_id) {
+	if (m_shared_data_ptr->is_primitive_selected) {
+		if (cs_ptr) {
+			if (!cs_ptr->is_visible()) {
+				cs_ptr->set_visibility(true);
 				m_selected_primitve_id = m_shared_data_ptr->selected_primitive_id;
+				// Also set its color to the selected primitive of the draggable
 				cs_ptr->set_rgba_color(m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color);
 			}
-			if (cs_ptr->was_updated()) {
-				// If the selector was updated, set the colors to the selected primitive
-				m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color = cs_ptr->get_rgba_color();
-				if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
-					m_editor_lines_ptr->resynchronize();
+			else {
+				// If another primitive was selected, reupdate the selector colors
+				if (m_selected_primitve_id != m_shared_data_ptr->selected_primitive_id) {
+					m_selected_primitve_id = m_shared_data_ptr->selected_primitive_id;
+					cs_ptr->set_rgba_color(m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color);
 				}
-				if (m_editor_scatterplot_ptr && m_editor_scatterplot_ptr->is_visible()) {
-					m_editor_scatterplot_ptr->resynchronize();
+				if (cs_ptr->was_updated()) {
+					// If the selector was updated, set the colors to the selected primitive
+					m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color = cs_ptr->get_rgba_color();
+					if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
+						m_editor_lines_ptr->resynchronize();
+					}
+					if (m_editor_scatterplot_ptr && m_editor_scatterplot_ptr->is_visible()) {
+						m_editor_scatterplot_ptr->resynchronize();
+					}
+					// Also update the gui to show the new color
+					post_recreate_gui();
 				}
-				// Also update the gui to show the new color
-				recreate_gui();
 			}
 		}
 	}
-	else if(!m_shared_data_ptr->is_primitive_selected && cs_ptr && cs_ptr->is_visible()) {
+	else if (cs_ptr && cs_ptr->is_visible()) {
 		cs_ptr->set_visibility(false);
 	}
 	/** END - MFLEURY **/
@@ -703,28 +694,35 @@ void viewer::create_gui() {
 			connect_copy(add_primitive_button->click, rebind(this, &viewer::add_primitive));
 
 			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-				const auto header_string = "Primitive " + std::to_string(i + 1) + " Parameters:";
-				add_decorator(header_string, "heading", "level=3");
 
-				add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=Gaussian, Hyperbox, Hyperellipsoid");
+				if (begin_tree_node("Primitive " + std::to_string(i + 1), m_shared_data_ptr->primitives.at(i), true)) {
+					align("\a");
 
-				// Color widget
-				add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
-				// Centroid parameters themselves
-				add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centr_pos[0], "value_slider",
-					"min=0.0;max=1.0;step=0.0001;ticks=true");
-				add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centr_pos[1], "value_slider",
-					"min=0.0;max=1.0;step=0.0001;ticks=true");
-				add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centr_pos[2], "value_slider",
-					"min=0.0;max=1.0;step=0.0001;ticks=true");
-				add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centr_pos[3], "value_slider",
-					"min=0.0;max=1.0;step=0.0001;ticks=true");
+					connect_copy(add_button("@9+", "w=20;")->click, cgv::signal::rebind(this, &viewer::remove_primitive, cgv::signal::_c<size_t>(i)));
 
-				// Gaussian width
-				add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).centr_widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-				add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).centr_widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-				add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).centr_widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-				add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).centr_widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=Gaussian, Hyperbox, Hyperellipsoid");
+
+					// Color widget
+					add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
+					// Centroid parameters themselves
+					add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centr_pos[0], "value_slider",
+						"min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centr_pos[1], "value_slider",
+						"min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centr_pos[2], "value_slider",
+						"min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centr_pos[3], "value_slider",
+						"min=0.0;max=1.0;step=0.0001;ticks=true");
+
+					// Gaussian width
+					add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).centr_widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).centr_widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).centr_widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).centr_widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+
+					align("\b");
+					end_tree_node(m_shared_data_ptr->primitives.at(i));
+				}
 			}
 
 			align("\b");
@@ -789,6 +787,25 @@ void viewer::add_primitive() {
 	}
 	if (m_editor_scatterplot_ptr) {
 		m_editor_scatterplot_ptr->primitive_added();
+	}
+
+	post_recreate_gui();
+}
+
+void viewer::remove_primitive(int index) {
+	std::cout << "Primitve hit!" << std::endl;
+	
+	m_shared_data_ptr->primitives.erase(m_shared_data_ptr->primitives.begin() + index);
+	m_shared_data_ptr->is_primitive_selected = false;
+	m_shared_data_ptr->selected_primitive_id = INT_MAX;
+
+	post_recreate_gui();
+
+	if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
+		m_editor_lines_ptr->resynchronize();
+	}
+	if (m_editor_scatterplot_ptr && m_editor_scatterplot_ptr->is_visible()) {
+		m_editor_scatterplot_ptr->resynchronize();
 	}
 }
 

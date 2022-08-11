@@ -269,6 +269,8 @@ private:
 
 	void add_primitive();
 
+	void remove_primitive(int index);
+
 /** BEGIN - MFLEURY **/
 private:
 	shared_data_ptr m_shared_data_ptr = nullptr;
