@@ -64,7 +64,7 @@ viewer::viewer() : application_plugin("Viewer") {
 
 	m_editor_lines_ptr = register_overlay<tf_editor_lines>("TF Lines Overlay");
 	m_editor_lines_ptr->set_shared_data(m_shared_data_ptr);
-	m_editor_lines_ptr->set_visibility(false);
+	m_editor_lines_ptr->set_visibility(true);
 
 	m_editor_scatterplot_ptr = register_overlay<tf_editor_scatterplot>("TF Scatterplot Overlay");
 	m_editor_scatterplot_ptr->set_shared_data(m_shared_data_ptr);
@@ -665,7 +665,7 @@ void viewer::create_gui() {
 
 		add_decorator("", "separator");
 
-		if(begin_tree_node("TF Editor - Lines", m_editor_lines_ptr, false)) {
+		if(begin_tree_node("TF Editor - Lines", m_editor_lines_ptr, true)) {
 			align("\a");
 			inline_object_gui(m_editor_lines_ptr);
 			align("\b");

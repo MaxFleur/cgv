@@ -1227,11 +1227,11 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 			content_canvas.push_modelview_matrix();
 			content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(offset));
 			content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(cgv::math::rad2deg(angle)));
-			content_canvas.mul_modelview_matrix(ctx, cgv::math::scale2h(scale / 256.0f));
+			content_canvas.mul_modelview_matrix(ctx, cgv::math::scale2h(scale / 128.0f));
 
 			content_canvas.set_view(ctx, tone_mapping_prog);
 
-			content_canvas.draw_shape(ctx, ivec2(0), ivec2(256));
+			content_canvas.draw_shape(ctx, ivec2(0), ivec2(128));
 
 			content_canvas.pop_modelview_matrix(ctx);
 			plot_textures[i].disable(ctx);

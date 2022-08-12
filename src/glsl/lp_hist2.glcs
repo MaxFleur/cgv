@@ -37,8 +37,6 @@ struct tf_primitive {
 uniform tf_primitive mdtf[8];
 uniform int num_mdtf_primitives;
 
-shared uint64_t temp[4*2*128];
-
 // return an alpha value equivalent to the value of a gaussian function at the given centroid position with the specified with
 float evaluate_gauss_primitive(vec4 density, vec4 gaussian_centroid, vec4 gaussian_width) {
 
@@ -115,23 +113,285 @@ vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 	return vec4(color_sum, 1.0);
 }
 
-#define PLOT_LINE(BUF, INDICES, PCOL_RG, PCOL_BA) \
-	int y0 = int(mix(0, resolution.y - 1, p[INDICES.x])); \
-	int y1 = int(mix(0, resolution.y - 1, p[INDICES.y])); \
-	int x0 = 0, x1 = resolution.x - 1; \
-	int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1; \
-    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1; \
-    int err = dx + dy, e2; \
-    \
-    while(x0 < resolution.x) { \
-        int idx = x0 + resolution.x * y0; \
-		atomicAdd(BUF.rgba[idx].rg, PCOL_RG); \
-		atomicAdd(BUF.rgba[idx].ba, PCOL_BA); \
-        \
-		e2 = 2 * err; \
-        if(e2 > dy) { err += dy; x0 += sx; } \
-        if(e2 < dx) { err += dx; y0 += sy; } \
-    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+// VERSION 4 : 100 | 145 ms
+shared uvec4 temp[4*128];
+
+#define WRITE_SHARED(ADDR, COLOR) \
+	atomicAdd(temp[ADDR][0], COLOR[0]); \
+	atomicAdd(temp[ADDR][1], COLOR[1]); \
+	atomicAdd(temp[ADDR][2], COLOR[2]); \
+	atomicAdd(temp[ADDR][3], COLOR[3]); \
+
+#define SHARED_TO_GLOBAL(BUF, GADDR, SADDR) \
+	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(uvec2(temp[SADDR].rg))); \
+	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(uvec2(temp[SADDR].ba))); \
+
+#define WRITE_GLOBAL(BUF, GADDR, COLOR) \
+	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(COLOR.rg)); \
+	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(COLOR.ba)); \
+
+#define STEP(O) \
+	WRITE_SHARED(y0 + O, c8) \
+	e2 = 2 * err; \
+	if(e2 > dy) { err += dy; x0 += sx; } \
+	if(e2 < dx) { err += dx; y0 += sy; }
+
+#define WRITE_AND_CLEAR(O) \
+	plot_idx = x + resolution.x * lidx; \
+	SHARED_TO_GLOBAL(plot0, plot_idx, lidx + O) \
+	temp[lidx + O] = uvec4(0); \
+	++x;
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+	int lidx = int(gl_LocalInvocationID.x);
+
+	if(idx < num_data_values) {
+		ivec3 src_size = imageSize(src_tex);
+		ivec3 src_coord;
+
+		src_coord.x = idx % src_size.x;
+		src_coord.y = (idx / src_size.x) % src_size.y;
+		src_coord.z = idx / (src_size.x * src_size.y);
+
+		vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
+
+		float avg = p[0] + p[1] + p[2] + p[3];
+		avg *= 0.25f;
+
+		bool rasterize = avg > threshold;
+		vec4 color = rasterize ?
+			evaluate_transfer_function(p, 1.0) :
+			vec4(0.0);
+
+		uvec4 c8 = uvec4(color * 128);
+
+		int y0 = int(mix(0, resolution.y - 1, p[indices[0].x]));
+		int y1 = int(mix(0, resolution.y - 1, p[indices[0].y]));
+		int x0 = 0, x1 = resolution.x - 1;
+		int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+		int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+		int err = dx + dy, e2;
+
+		int local_offset = lidx >> 5;
+		local_offset *= 128;
+
+		int plot_idx;
+		for(int x = 0; x < 128;) {
+			if(rasterize) {
+				WRITE_SHARED(y0 + local_offset, c8)
+				e2 = 2 * err;
+				if(e2 > dy) { err += dy; x0 += sx; }
+				if(e2 < dx) { err += dx; y0 += sy; }
+			}
+				
+			barrier();
+
+			uvec4 c = temp[lidx] + temp[lidx + 128] + temp[lidx + 2*128] + temp[lidx + 3*128];
+			
+			plot_idx = x + resolution.x * lidx;
+			WRITE_GLOBAL(plot0, plot_idx, c)
+			temp[lidx + 0*128] = uvec4(0);
+			temp[lidx + 1*128] = uvec4(0);
+			temp[lidx + 2*128] = uvec4(0);
+			temp[lidx + 3*128] = uvec4(0);
+			++x;
+
+			barrier();
+		}
+	}
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// VERSION 3 : 80 | 125 ms
+shared uvec4 temp[4*128];
+
+#define STEP(O) \
+	atomicAdd(temp[y0 + O][0], c8.r); \
+	atomicAdd(temp[y0 + O][1], c8.g); \
+	atomicAdd(temp[y0 + O][2], c8.b); \
+	atomicAdd(temp[y0 + O][3], c8.a); \
+	e2 = 2 * err; \
+	if(e2 > dy) { err += dy; x0 += sx; } \
+	if(e2 < dx) { err += dx; y0 += sy; }
+
+#define WRITE_AND_CLEAR(O) \
+	plot_idx = x + resolution.x * lidx; \
+	atomicAdd(plot0.rgba[plot_idx].rg, packUint2x32(uvec2(temp[lidx + O].rg))); \
+	atomicAdd(plot0.rgba[plot_idx].ba, packUint2x32(uvec2(temp[lidx + O].ba))); \
+	temp[lidx + O] = uvec4(0); \
+	++x;
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+	int lidx = int(gl_LocalInvocationID.x);
+
+	if(idx < num_data_values) {
+		ivec3 src_size = imageSize(src_tex);
+		ivec3 src_coord;
+
+		src_coord.x = idx % src_size.x;
+		src_coord.y = (idx / src_size.x) % src_size.y;
+		src_coord.z = idx / (src_size.x * src_size.y);
+
+		vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
+
+		float avg = p[0] + p[1] + p[2] + p[3];
+		avg *= 0.25f;
+
+		bool rasterize = avg > threshold;
+		vec4 color = rasterize ?
+			evaluate_transfer_function(p, 1.0) :
+			vec4(0.0);
+
+		uvec4 c8 = uvec4(color * 128);
+
+		int y0 = int(mix(0, resolution.y - 1, p[indices[0].x]));
+		int y1 = int(mix(0, resolution.y - 1, p[indices[0].y]));
+		int x0 = 0, x1 = resolution.x - 1;
+		int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+		int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+		int err = dx + dy, e2;
+
+		int plot_idx;
+		for(int x = 0; x < 128;) {
+			if(rasterize) {
+				STEP(0*128)
+				STEP(1*128)
+				STEP(2*128)
+				STEP(3*128)
+			}
+				
+			barrier();
+
+			WRITE_AND_CLEAR(0*128)
+			WRITE_AND_CLEAR(1*128)
+			WRITE_AND_CLEAR(2*128)
+			WRITE_AND_CLEAR(3*128)
+				
+			barrier();
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+// VERSION 2: 85 | 240 ms
+shared uint64_t temp[4*2*128];
 
 #define STEP(O) \
 	atomicAdd(temp[2*y0 + 0 + O], packed_color_rg); \
@@ -164,6 +424,107 @@ void main() {
 
 		float avg = p[0] + p[1] + p[2] + p[3];
 		avg *= 0.25f;
+		
+		bool rasterize = avg > threshold;
+		vec4 color = rasterize ?
+			evaluate_transfer_function(p, 1.0) :
+			vec4(0.0);
+
+		uvec2 c8_rg = uvec2(color.rg * 128);
+		uvec2 c8_ba = uvec2(color.ba * 128);
+
+		uint64_t packed_color_rg = packUint2x32(c8_rg);
+		uint64_t packed_color_ba = packUint2x32(c8_ba);
+
+		int y0 = int(mix(0, resolution.y - 1, p[indices[0].x]));
+		int y1 = int(mix(0, resolution.y - 1, p[indices[0].y]));
+		int x0 = 0, x1 = resolution.x - 1;
+		int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+		int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+		int err = dx + dy, e2;
+
+		int plot_idx;
+		for(int x = 0; x < 128;) {
+			if(rasterize) {
+				STEP(0*256)
+				STEP(1*256)
+				STEP(2*256)
+				STEP(3*256)
+			}
+				
+			barrier();
+
+			WRITE_AND_CLEAR(0*256);
+			WRITE_AND_CLEAR(1*256);
+			WRITE_AND_CLEAR(2*256);
+			WRITE_AND_CLEAR(3*256);
+				
+			barrier();
+		}
+	}
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+// VERSION 1: 8.3 | 275 ms
+#define PLOT_LINE(BUF, INDICES, PCOL_RG, PCOL_BA) \
+	int y0 = int(mix(0, resolution.y - 1, p[INDICES.x])); \
+	int y1 = int(mix(0, resolution.y - 1, p[INDICES.y])); \
+	int x0 = 0, x1 = resolution.x - 1; \
+	int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1; \
+    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1; \
+    int err = dx + dy, e2; \
+    \
+    while(x0 < resolution.x) { \
+        int idx = x0 + resolution.x * y0; \
+		atomicAdd(BUF.rgba[idx].rg, PCOL_RG); \
+		atomicAdd(BUF.rgba[idx].ba, PCOL_BA); \
+        \
+		e2 = 2 * err; \
+        if(e2 > dy) { err += dy; x0 += sx; } \
+        if(e2 < dx) { err += dx; y0 += sy; } \
+    }
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+	int lidx = int(gl_LocalInvocationID.x);
+
+	if(idx < num_data_values) {
+		ivec3 src_size = imageSize(src_tex);
+		ivec3 src_coord;
+
+		src_coord.x = idx % src_size.x;
+		src_coord.y = (idx / src_size.x) % src_size.y;
+		src_coord.z = idx / (src_size.x * src_size.y);
+
+		vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
+
+		float avg = p[0] + p[1] + p[2] + p[3];
+		avg *= 0.25f;
 
 		if (avg > threshold) {
 			vec4 color = evaluate_transfer_function(p, 1.0);
@@ -173,48 +534,7 @@ void main() {
 			uint64_t packed_color_rg = packUint2x32(c8_rg);
 			uint64_t packed_color_ba = packUint2x32(c8_ba);
 
-
-			int y0 = int(mix(0, resolution.y - 1, p[indices[0].x]));
-			int y1 = int(mix(0, resolution.y - 1, p[indices[0].y]));
-			int x0 = 0, x1 = resolution.x - 1;
-			int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-			int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-			int err = dx + dy, e2;
-
-			int plot_idx;
-			for(int x = 0; x < 128;) {
-				STEP(0*256)
-				STEP(1*256)
-				STEP(2*256)
-				STEP(3*256)
-				
-				barrier();
-
-				WRITE_AND_CLEAR(0*256);
-				WRITE_AND_CLEAR(1*256);
-				WRITE_AND_CLEAR(2*256);
-				WRITE_AND_CLEAR(3*256);
-				
-				barrier();
-			}
-
-			/*while(x0 < resolution.x) {
-				int idx = x0 + resolution.x * y0;
-				atomicAdd(plot0.rgba[idx].rg, packed_color_rg);
-				atomicAdd(plot0.rgba[idx].ba, packed_color_ba);
-				
-				if(e2 > dy) { err += dy; x0 += sx; }
-				if(e2 < dx) { err += dx; y0 += sy; }
-			}*/
-
-
-
-
-
-			//{ PLOT_LINE(plot0, indices[0], packed_color_rg, packed_color_ba); }
-
-
-
+			{ PLOT_LINE(plot0, indices[0], packed_color_rg, packed_color_ba); }
 			//{ PLOT_LINE(plot1, indices[1], packed_color_rg, packed_color_ba); }
 			//{ PLOT_LINE(plot2, indices[2], packed_color_rg, packed_color_ba); }
 			//{ PLOT_LINE(plot3, indices[3], packed_color_rg, packed_color_ba); }
@@ -223,3 +543,4 @@ void main() {
 		}
 	}
 }
+*/
