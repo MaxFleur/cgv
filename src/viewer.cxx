@@ -695,7 +695,37 @@ void viewer::create_gui() {
 
 			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 
-				if (begin_tree_node("Primitive " + std::to_string(i + 1), m_shared_data_ptr->primitives.at(i), true)) {
+				bool node_is_open = begin_tree_node_void("Primitive " + std::to_string(i + 1), &m_shared_data_ptr->primitives.at(i), -1, true, "level=2;options='w=180';align=''");
+
+				connect_copy(add_button("@9+", "w=20;")->click, cgv::signal::rebind(this, &viewer::remove_primitive, cgv::signal::_c<size_t>(i)));
+
+				if(node_is_open) {
+					align("\a");
+					add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=Gaussian, Hyperbox, Hyperellipsoid");
+
+					// Color widget
+					add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
+					// Centroid parameters themselves
+					add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centr_pos[0], "value_slider",
+						"min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centr_pos[1], "value_slider",
+						"min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centr_pos[2], "value_slider",
+						"min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centr_pos[3], "value_slider",
+						"min=0.0;max=1.0;step=0.0001;ticks=true");
+
+					// Gaussian width
+					add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).centr_widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).centr_widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).centr_widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).centr_widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+
+					align("\b");
+					end_tree_node(m_shared_data_ptr->primitives.at(i));
+				}
+
+				/*if (begin_tree_node("Primitive " + std::to_string(i + 1), m_shared_data_ptr->primitives.at(i), true)) {
 					align("\a");
 
 					connect_copy(add_button("@9+", "w=20;")->click, cgv::signal::rebind(this, &viewer::remove_primitive, cgv::signal::_c<size_t>(i)));
@@ -722,7 +752,7 @@ void viewer::create_gui() {
 
 					align("\b");
 					end_tree_node(m_shared_data_ptr->primitives.at(i));
-				}
+				}*/
 			}
 
 			align("\b");
