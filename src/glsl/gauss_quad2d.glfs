@@ -18,8 +18,9 @@ void finish_fragment2d(in vec4 color, in vec2 texcoords);
 flat in vec2 size;
 flat in vec4 position01_fs;
 flat in vec4 position23_fs;
+flat in vec4 tex_coords_fs;
+
 in vec2 pix_coord;
-in float tex_coord;
 flat in vec4 color_fs;
 
 // https://www.shadertoy.com/view/lsBSDm
@@ -38,10 +39,6 @@ vec2 inv_bilinear(in vec2 p, in vec2 a, in vec2 b, in vec2 c, in vec2 d) {
     float k2 = cross_2d(g, f);
     float k1 = cross_2d(e, f) + cross_2d(h, g);
     float k0 = cross_2d(h, e);
-    
-	//k2 /= k0;
-	//k1 /= k0;
-	//k0 = 1.0;
 
     if(abs(k2) < 0.001) {
 		// if edges are parallel, this is a linear equation
@@ -95,17 +92,25 @@ void main() {
 	
 	float dist = sd_quad(pix_coord, position01_fs.xy, position23_fs.xy, position23_fs.zw, position01_fs.zw);
 	vec4 color = get_active_color(color_fs);
+
+    vec4 tex_coord01 = vec4(1.0, tex_coords_fs[0], 0.0, tex_coords_fs[1]);
+    vec4 tex_coord23 = vec4(1.0, tex_coords_fs[2], 0.0, tex_coords_fs[3]);
 	
 	vec2 inv_res = 1.0 / resolution;
+
 	vec2 uv = inv_bilinear(
 		pix_coord * inv_res,
-		position01_fs.xy * inv_res,
-		position01_fs.zw * inv_res,
-		position23_fs.zw * inv_res,
-		position23_fs.xy * inv_res
+        tex_coord01.xy * inv_res,
+	    tex_coord01.zw * inv_res,
+	    tex_coord23.zw * inv_res,
+	    tex_coord23.xy * inv_res
+        //position01_fs.xy * inv_res,
+		//position01_fs.zw * inv_res,
+		//position23_fs.zw * inv_res,
+		//position23_fs.xy * inv_res
 	);
 
-    float t = (tex_coord * 2.0) - 1.0;
+    float t = (uv.y * 2.0) - 1.0;
 	color.a *= exp((-t*t)/(0.5*0.5));
     
 	finish_sdf_fragment2d(dist, color, uv);

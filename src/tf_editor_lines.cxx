@@ -579,7 +579,7 @@ void tf_editor_lines::create_quads() {
 	}
 	create_centroid_boundaries();
 
-	// Only draw quadstrips for the shape mode
+	// Only draw quads for the shape mode
 	if(vis_mode == VM_SHAPES) {
 		m_quad_strips.clear();
 
@@ -614,10 +614,10 @@ void tf_editor_lines::create_quads() {
 			int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
 			int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
 			// Get the positions for the corner points
-			const auto texture_position_1 = texture_distance(i, protein_index_left, widget_line_index_left, true);
-			const auto texture_position_2 = texture_distance(i, protein_index_left, widget_line_index_left, false);
-			const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, true);
-			const auto texture_position_4 = texture_distance(i, protein_index_right, widget_line_index_right, false);
+			const auto texture_position_0 = texture_distance(i, protein_index_left, widget_line_index_left, true);
+			const auto texture_position_1 = texture_distance(i, protein_index_left, widget_line_index_left, false);
+			const auto texture_position_2 = texture_distance(i, protein_index_right, widget_line_index_right, true);
+			const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, false);
 
 			const auto& bp = m_strip_boundary_points[i];
 
@@ -627,23 +627,21 @@ void tf_editor_lines::create_quads() {
 				bp[strip_id_3],
 				bp[strip_id_4],
 				color,
-				vec4(texture_position_1, texture_position_2, texture_position_3, texture_position_4)
+				vec4(texture_position_0, texture_position_1, texture_position_2, texture_position_3)
 			);
 		};
 
-		// Now strips themselves
+		// Now quads themselves
 		for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 			tf_editor_shared_data_types::quad_geometry quad_strips;
 			const auto color = m_shared_data_ptr->primitives.at(i).color;
 
 			add_quad(m_quad_strips, 0, 1, 0, 6, 0, 1, 10, 11, i, color);
-			add_quad(m_quad_strips, 0, 3, 1, 12, 18, 19, 2, 3, i, color);
-			add_quad(m_quad_strips, 0, 2, 2, 8, 12, 13, 4, 5, i, color);
-			add_quad(m_quad_strips, 1, 2, 4, 10, 16, 17, 6, 7, i, color);
-			add_quad(m_quad_strips, 1, 3, 5, 13, 20, 21, 8, 9, i, color);
+			add_quad(m_quad_strips, 3, 0, 12, 1, 18, 19, 2, 3, i, color);
+			add_quad(m_quad_strips, 2, 0, 8, 2, 12, 13, 4, 5, i, color);
+			add_quad(m_quad_strips, 2, 1, 10, 4, 16, 17, 6, 7, i, color);
+			add_quad(m_quad_strips, 3, 1, 13, 5, 20, 21, 8, 9, i, color);
 			add_quad(m_quad_strips, 2, 3, 9, 14, 14, 15, 22, 23, i, color);
-
-			// m_quad_strips.push_back(quad_strips);
 		}
 	}
 }

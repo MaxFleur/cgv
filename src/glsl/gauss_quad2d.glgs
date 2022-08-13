@@ -29,8 +29,9 @@ flat in vec4 texcoords_gs[];
 flat out vec2 size;
 flat out vec4 position01_fs;
 flat out vec4 position23_fs;
+flat out vec4 tex_coords_fs;
+
 out vec2 pix_coord;
-out float tex_coord;
 flat out vec4 color_fs;
 
 vec2 scale_corner(in vec2 a, in vec2 d0, in vec2 d1, in float scale) {
@@ -43,7 +44,7 @@ vec2 scale_corner(in vec2 a, in vec2 d0, in vec2 d1, in float scale) {
 
 void emit_corner(int id, vec2 p) {
 	pix_coord = p;
-	tex_coord = texcoords_gs[0][id];
+	tex_coords_fs = texcoords_gs[0];
 
 	gl_Position = transform_world_to_window_space(p);
 	EmitVertex();
