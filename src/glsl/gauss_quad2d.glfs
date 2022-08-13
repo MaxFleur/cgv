@@ -93,8 +93,8 @@ void main() {
 	float dist = sd_quad(pix_coord, position01_fs.xy, position23_fs.xy, position23_fs.zw, position01_fs.zw);
 	vec4 color = get_active_color(color_fs);
 
-    vec4 tex_coord01 = vec4(1.0, tex_coords_fs[0], 0.0, tex_coords_fs[1]);
-    vec4 tex_coord23 = vec4(1.0, tex_coords_fs[2], 0.0, tex_coords_fs[3]);
+    vec4 tex_coord01 = vec4(0.0, tex_coords_fs[0], 0.0, tex_coords_fs[1]);
+    vec4 tex_coord23 = vec4(1.0, tex_coords_fs[2], 1.0, tex_coords_fs[3]);
 	
 	vec2 inv_res = 1.0 / resolution;
 
