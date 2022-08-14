@@ -100,10 +100,6 @@ void main() {
 
 	vec2 uv = inv_bilinear(
 		pix_coord * inv_res,
-        //tex_coord01.xy * inv_res,
-	    //tex_coord01.zw * inv_res,
-	    //tex_coord23.zw * inv_res,
-	    //tex_coord23.xy * inv_res
         position01_fs.xy * inv_res,
 		position01_fs.zw * inv_res,
 		position23_fs.zw * inv_res,
@@ -132,9 +128,5 @@ void main() {
     float t = (st.y * 2.0) - 1.0;
 	color.a *= exp((-t*t)/(0.5*0.5));
     
-	// debug only
-	//color = vec4(uv, 0.0, 1.0);
-	//color = vec4(st, 0.0, 1.0);
-
 	finish_sdf_fragment2d(dist, color, uv);
 }

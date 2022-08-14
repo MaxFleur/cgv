@@ -119,6 +119,7 @@ bool viewer::handle_event(cgv::gui::event& e) {
 			bool handled = false;
 
 			switch (ke.get_key()) {
+			/** BEGIN - MFLEURY **/
 			case 'T':
 				if(volume_mode == VM_4_CHANNEL) {
 					if(tf_editor_ptr) {
@@ -156,6 +157,7 @@ bool viewer::handle_event(cgv::gui::event& e) {
 				break;
 			default: break;
 			}
+			/** END - MFLEURY **/
 
 			if(handled) {
 				post_redraw();
@@ -280,12 +282,11 @@ void viewer::on_set(void* member_ptr) {
 		} else {
 			if(tf_editor_ptr && tf_editor_ptr->is_visible()) {
 				tf_editor_ptr->set_visibility(false);
-				// m_editor_lines_ptr->set_visibility(true);
 			}
 		}
 		post_recreate_gui();
 	}
-
+	/** BEGIN - MFLEURY **/
 	// look for updated centroid data
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
 		auto value = 0.0f;
@@ -296,6 +297,11 @@ void viewer::on_set(void* member_ptr) {
 				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
 				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
 
+				if (member_ptr == &m_shared_data_ptr->primitives.at(i).color && 
+					m_shared_data_ptr->selected_primitive_id == i &&
+					cs_ptr->is_visible()) {
+					cs_ptr->set_rgba_color(m_shared_data_ptr->primitives.at(i).color);
+				}
 				if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
 					m_editor_lines_ptr->resynchronize();
 				}
@@ -305,6 +311,7 @@ void viewer::on_set(void* member_ptr) {
 			}
 		}
 	}
+	/** END - MFLEURY **/
 
 	update_member(member_ptr);
 	post_redraw();
@@ -586,7 +593,7 @@ void viewer::draw(cgv::render::context& ctx) {
 				const int size = m_shared_data_ptr->primitives.size();
 				vol_prog.set_uniform(ctx, "centroid_values_size", size);
 				// send all primitive data to the shader
-				for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
+				for(int i = 0; i < size; i++) {
 					const auto color = m_shared_data_ptr->primitives.at(i).color;
 					vec4 color_vec{ color.R(), color.G(), color.B(), color.alpha() };
 
@@ -663,7 +670,6 @@ void viewer::create_gui() {
 			end_tree_node(tf_editor_ptr);
 		}
 	} else {
-		/** BEGIN - MFLEURY **/
 		if(begin_tree_node("Volume Rendering", mdtf_vstyle, false)) {
 			align("\a");
 			add_gui("vstyle", mdtf_vstyle);
@@ -672,7 +678,7 @@ void viewer::create_gui() {
 		}
 
 		add_decorator("", "separator");
-
+		/** BEGIN - MFLEURY **/
 		if(begin_tree_node("TF Editor - Lines", m_editor_lines_ptr, false)) {
 			align("\a");
 			inline_object_gui(m_editor_lines_ptr);
@@ -724,35 +730,6 @@ void viewer::create_gui() {
 					align("\b");
 					end_tree_node(m_shared_data_ptr->primitives.at(i));
 				}
-
-				/*if (begin_tree_node("Primitive " + std::to_string(i + 1), m_shared_data_ptr->primitives.at(i), true)) {
-					align("\a");
-
-					connect_copy(add_button("@9+", "w=20;")->click, cgv::signal::rebind(this, &viewer::remove_primitive, cgv::signal::_c<size_t>(i)));
-
-					add_member_control(this, "Type", m_shared_data_ptr->primitives.at(i).type, "dropdown", "enums=Gaussian, Hyperbox, Hyperellipsoid");
-
-					// Color widget
-					add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
-					// Centroid parameters themselves
-					add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centr_pos[0], "value_slider",
-						"min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centr_pos[1], "value_slider",
-						"min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centr_pos[2], "value_slider",
-						"min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centr_pos[3], "value_slider",
-						"min=0.0;max=1.0;step=0.0001;ticks=true");
-
-					// Gaussian width
-					add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).centr_widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).centr_widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).centr_widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).centr_widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-
-					align("\b");
-					end_tree_node(m_shared_data_ptr->primitives.at(i));
-				}*/
 			}
 
 			align("\b");
@@ -802,6 +779,8 @@ void viewer::create_gui() {
 	}
 }
 
+/** BEGIN - MFLEURY **/
+
 void viewer::add_primitive() {
 	// Hardcoded boundary, this might change later
 	if (m_shared_data_ptr->primitives.size() == 8) {
@@ -823,8 +802,6 @@ void viewer::add_primitive() {
 }
 
 void viewer::remove_primitive(int index) {
-	std::cout << "Primitve hit!" << std::endl;
-	
 	m_shared_data_ptr->primitives.erase(m_shared_data_ptr->primitives.begin() + index);
 	m_shared_data_ptr->is_primitive_selected = false;
 	m_shared_data_ptr->selected_primitive_id = INT_MAX;
@@ -838,6 +815,8 @@ void viewer::remove_primitive(int index) {
 		m_editor_scatterplot_ptr->resynchronize();
 	}
 }
+
+/** END - MFLEURY **/
 
 bool viewer::read_data_set(context& ctx, const std::string& filename) {
 

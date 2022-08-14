@@ -198,7 +198,6 @@ void tf_editor_lines::create_gui() {
 
 // Called if something in the primitives has been updated
 void tf_editor_lines::resynchronize() {
-	std::cout << "Calling with: " << m_shared_data_ptr->selected_primitive_id << std::endl;
 	m_interacted_primitive_ids[0] = m_shared_data_ptr->selected_primitive_id;
 
 	// Clear and readd points
@@ -583,34 +582,7 @@ void tf_editor_lines::create_quads() {
 	if(vis_mode == VM_SHAPES) {
 		m_quad_strips.clear();
 
-		// Get the texture distance values for the gaussian strips
-		/*const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index, bool negative) {
-			// Get position and width of the current primitive protein index
-			const auto pos = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[protein_index];
-			auto width = m_shared_data_ptr->primitives.at(primitive_index).centr_widths[protein_index] / 2.0f;
-			if (negative)
-				width *= -1.0f;
-
-			// Position of the theoretical boundary of position with applied width
-			const auto pos_boundary = m_widget_lines.at(widget_line_index).interpolate(pos + width, false);
-			// Get the current line value border
-			const auto pos_value_border = negative ? m_widget_lines.at(widget_line_index).a : m_widget_lines.at(widget_line_index).b;
-			// Distance between the stain position and the value border
-			const auto d1 = cgv::math::length(m_widget_lines.at(widget_line_index).interpolate(pos) - pos_value_border);
-			// Distance between the value border and the boundary
-			const auto d2 = cgv::math::length(pos_boundary - pos_value_border);
-
-			// If the strip width is within the line value border limit, return the maximum boundary
-			if (cgv::math::length(m_widget_lines.at(widget_line_index).interpolate(pos) - pos_boundary) <= d1) {
-				return negative ? 1.0f : 0.0f;
-			}
-			// Else map between the value ranges (bottom: 0 - 0.5, up: 0.5 - 1)
-			float relation = negative ? 1 - ((d2 / d1) * 0.5) : (d2 / d1) * 0.5;
-				
-			return negative ? cgv::math::clamp(relation, 0.5f, 1.0f) : cgv::math::clamp(relation, 0.0f, 0.5f);
-		};*/
-
-		const auto texture_distance2 = [&](int primitive_index, int protein_index, int widget_line_index) {
+		const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index) {
 			// Get position and width of the current primitive protein index
 			const auto& primitive = m_shared_data_ptr->primitives.at(primitive_index);
 			float pos = primitive.centr_pos[protein_index];
@@ -634,27 +606,8 @@ void tf_editor_lines::create_quads() {
 			int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
 			int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
 
-				if(protein_index_left == 0) {
-					int ii = 0;
-				}
-
-			// Get the positions for the corner points
-			//const auto texture_position_0 = texture_distance(i, protein_index_left, widget_line_index_left, true);
-			//const auto texture_position_1 = texture_distance(i, protein_index_left, widget_line_index_left, false);
-			//const auto texture_position_2 = texture_distance(i, protein_index_right, widget_line_index_right, true);
-			//const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, false);
-
-			vec2 texture_position_01 = texture_distance2(i, protein_index_left, widget_line_index_left);
-			vec2 texture_position_23 = texture_distance2(i, protein_index_right, widget_line_index_right);
-
-			/*if(protein_index_left == 0) {
-				std::cout << "TEXCOORDS" << std::endl;
-				std::cout << texture_position_01[0] << std::endl;
-				std::cout << texture_position_01[1] << std::endl;
-				std::cout << texture_position_23[0] << std::endl;
-				std::cout << texture_position_23[1] << std::endl;
-				std::cout << std::endl;
-			}*/
+			vec2 texture_position_01 = texture_distance(i, protein_index_left, widget_line_index_left);
+			vec2 texture_position_23 = texture_distance(i, protein_index_right, widget_line_index_right);
 
 			const auto& bp = m_strip_boundary_points[i];
 
