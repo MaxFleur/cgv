@@ -584,7 +584,7 @@ void tf_editor_lines::create_quads() {
 		m_quad_strips.clear();
 
 		// Get the texture distance values for the gaussian strips
-		const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index, bool negative) {
+		/*const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index, bool negative) {
 			// Get position and width of the current primitive protein index
 			const auto pos = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[protein_index];
 			auto width = m_shared_data_ptr->primitives.at(primitive_index).centr_widths[protein_index] / 2.0f;
@@ -608,16 +608,53 @@ void tf_editor_lines::create_quads() {
 			float relation = negative ? 1 - ((d2 / d1) * 0.5) : (d2 / d1) * 0.5;
 				
 			return negative ? cgv::math::clamp(relation, 0.5f, 1.0f) : cgv::math::clamp(relation, 0.0f, 0.5f);
+		};*/
+
+		const auto texture_distance2 = [&](int primitive_index, int protein_index, int widget_line_index) {
+			// Get position and width of the current primitive protein index
+			const auto& primitive = m_shared_data_ptr->primitives.at(primitive_index);
+			float pos = primitive.centr_pos[protein_index];
+			float half_width = primitive.centr_widths[protein_index] / 2.0f;
+
+			float lower = pos - half_width;
+			float upper = pos + half_width;
+
+			float t0 = (0.0f - lower) / (pos - lower);
+			float t1 = (1.0f - pos) / (upper - pos);
+			t0 = cgv::math::clamp(t0, 0.0f, 1.0f);
+			t1 = cgv::math::clamp(t1, 0.0f, 1.0f);
+			
+			return vec2(
+				cgv::math::lerp(0.0f, 0.5f, t0),
+				cgv::math::lerp(0.5f, 1.0f, t1)
+			);
 		};
 
 		const auto add_quad = [&](tf_editor_shared_data_types::quad_geometry& geom,
 			int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
 			int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
+
+				if(protein_index_left == 0) {
+					int ii = 0;
+				}
+
 			// Get the positions for the corner points
-			const auto texture_position_0 = texture_distance(i, protein_index_left, widget_line_index_left, true);
-			const auto texture_position_1 = texture_distance(i, protein_index_left, widget_line_index_left, false);
-			const auto texture_position_2 = texture_distance(i, protein_index_right, widget_line_index_right, true);
-			const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, false);
+			//const auto texture_position_0 = texture_distance(i, protein_index_left, widget_line_index_left, true);
+			//const auto texture_position_1 = texture_distance(i, protein_index_left, widget_line_index_left, false);
+			//const auto texture_position_2 = texture_distance(i, protein_index_right, widget_line_index_right, true);
+			//const auto texture_position_3 = texture_distance(i, protein_index_right, widget_line_index_right, false);
+
+			vec2 texture_position_01 = texture_distance2(i, protein_index_left, widget_line_index_left);
+			vec2 texture_position_23 = texture_distance2(i, protein_index_right, widget_line_index_right);
+
+			/*if(protein_index_left == 0) {
+				std::cout << "TEXCOORDS" << std::endl;
+				std::cout << texture_position_01[0] << std::endl;
+				std::cout << texture_position_01[1] << std::endl;
+				std::cout << texture_position_23[0] << std::endl;
+				std::cout << texture_position_23[1] << std::endl;
+				std::cout << std::endl;
+			}*/
 
 			const auto& bp = m_strip_boundary_points[i];
 
@@ -627,7 +664,12 @@ void tf_editor_lines::create_quads() {
 				bp[strip_id_3],
 				bp[strip_id_4],
 				color,
-				vec4(texture_position_0, texture_position_1, texture_position_2, texture_position_3)
+				vec4(
+					texture_position_01[0],
+					texture_position_01[1],
+					texture_position_23[0],
+					texture_position_23[1]
+				)
 			);
 		};
 
