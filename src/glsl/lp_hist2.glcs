@@ -3,6 +3,7 @@
 #extension GL_NV_gpu_shader5 : enable
 #extension GL_NV_shader_atomic_int64 : enable
 #extension GL_NV_shader_atomic_float : enable
+#extension GL_KHR_shader_subgroup_vote : enable
 
 layout(local_size_x = 128) in;
 
@@ -260,7 +261,7 @@ void main() {
 
 
 
-// VERSION 3 : 80 | 125 ms
+// VERSION 3 : 80 | 125 ms --- !!! resolution.x must be >= resolution.y !!!
 shared uvec4 temp[4*128];
 
 #define STEP(O) \
@@ -330,6 +331,7 @@ void main() {
 		}
 	}
 }
+
 
 
 
@@ -488,7 +490,6 @@ void main() {
 
 
 
-
 /*
 // VERSION 1: 8.3 | 275 ms
 #define PLOT_LINE(BUF, INDICES, PCOL_RG, PCOL_BA) \
@@ -526,7 +527,7 @@ void main() {
 		float avg = p[0] + p[1] + p[2] + p[3];
 		avg *= 0.25f;
 
-		if (avg > threshold) {
+		if(avg > threshold) {
 			vec4 color = evaluate_transfer_function(p, 1.0);
 			uvec2 c8_rg = uvec2(color.rg * 128);
 			uvec2 c8_ba = uvec2(color.ba * 128);

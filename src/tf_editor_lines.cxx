@@ -168,7 +168,8 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 
 	plot_resolution = ivec2(128, 128);
 
-	/*std::vector<float> data(4 * 256 * 256, 1.0f);
+	/*
+	std::vector<float> data(4 * 256 * 256, 1.0f);
 
 	for(size_t i = 0; i < 256*256; ++i) {
 		float mul = static_cast<float>(i / 256) + 1.0f;
@@ -185,9 +186,8 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	glGenBuffers(6, plot_buffers2);
 
 	for(size_t i = 0; i < 6; ++i) {
-		plot_textures[i] = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_NEAREST, cgv::render::TF_NEAREST);
+		plot_textures[i] = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_LINEAR, cgv::render::TF_LINEAR);
 		plot_textures[i].create(ctx, TT_2D, plot_resolution.x(), plot_resolution.y());
-		//.create(ctx, dv, 0);
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, plot_buffers2[i]);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, 4 * sizeof(float) * plot_resolution.x() * plot_resolution.y(), (void*)0, GL_DYNAMIC_COPY);
@@ -251,7 +251,7 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 
 		if(plot_texture.is_created())
 			plot_texture.destruct(ctx);
-		plot_texture = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_NEAREST, cgv::render::TF_NEAREST);
+		plot_texture = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_LINEAR, cgv::render::TF_LINEAR);
 		plot_texture.create(ctx, dv, 0);
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, plot_buffer);
@@ -387,6 +387,14 @@ void tf_editor_lines::update_content() {
 	if(!ctx_ptr)
 		return;
 	auto& ctx = *ctx_ptr;
+
+
+
+
+
+
+
+
 
 
 
@@ -626,11 +634,7 @@ void tf_editor_lines::update_content() {
 	} else {
 		// setup group and plot size
 		const unsigned group_size = 128;
-		//const ivec2 resolution(
-		//	256,
-		//	256
-		//);
-
+		
 		// calculate the necessary number of work groups
 		unsigned num_groups_image_order = (plot_resolution.x() * plot_resolution.y() + group_size - 1) / group_size;
 
@@ -1227,11 +1231,11 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 			content_canvas.push_modelview_matrix();
 			content_canvas.mul_modelview_matrix(ctx, cgv::math::translate2h(offset));
 			content_canvas.mul_modelview_matrix(ctx, cgv::math::rotate2h(cgv::math::rad2deg(angle)));
-			content_canvas.mul_modelview_matrix(ctx, cgv::math::scale2h(scale / 128.0f));
+			content_canvas.mul_modelview_matrix(ctx, cgv::math::scale2h(scale / plot_resolution));
 
 			content_canvas.set_view(ctx, tone_mapping_prog);
 
-			content_canvas.draw_shape(ctx, ivec2(0), ivec2(128));
+			content_canvas.draw_shape(ctx, ivec2(0), ivec2(plot_resolution));
 
 			content_canvas.pop_modelview_matrix(ctx);
 			plot_textures[i].disable(ctx);
