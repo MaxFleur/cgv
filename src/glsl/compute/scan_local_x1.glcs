@@ -46,17 +46,17 @@ void main() {
 	// Each thread loads and scans 4 values
 	uvec4 key = keys[thread_offset];
 
-	b0 = key.x&3;
-    k0 = 1<<(b0<<3);
+	b0 = key.x&1;
+    k0 = 1<<(b0<<4);
     
-	b1 = key.y&3;
-    k1 = (1<<(b1<<3)) + k0;
+	b1 = key.y&1;
+    k1 = (1<<(b1<<4)) + k0;
     
-	b2 = key.z&3;
-    k2 = (1<<(b2<<3)) + k1;
+	b2 = key.z&1;
+    k2 = (1<<(b2<<4)) + k1;
     
-	b3 = key.w&3;
-    scan_values[addr(tid)] = (1<<(b3<<3)) + k2;
+	b3 = key.w&1;
+    scan_values[addr(tid)] = (1<<(b3<<4)) + k2;
 
 	uint offset = 1; // start offset for prefix sum calculation
 
@@ -75,9 +75,9 @@ void main() {
         offset += offset;
     }
 
-    if(tid < 4) {
-        uint shift = tid<<3;
-		uint val = ((scan_values[addr(31)]>>shift)&0x000000FF) + ((scan_values[addr(63)]>>shift)&0x000000FF);
+    if(tid < 2) {
+        uint shift = tid<<4;
+		uint val = ((scan_values[addr(31)]>>shift)&0x0000FFFF) + ((scan_values[addr(63)]>>shift)&0x0000FFFF);
 
         blocksum[n_blocksums * tid + gl_WorkGroupID.x] = val;
     }
@@ -109,10 +109,10 @@ void main() {
 
     uint scan_value = scan_values[addr(tid)];
 
-	uint val = (scan_value>>(b0<<3))&0x000000FF;
-	val |= (((scan_value + k0)>>(b1<<3))&0x000000FF) << 8;
-	val |= (((scan_value + k1)>>(b2<<3))&0x000000FF) << 16;
-	val |= (((scan_value + k2)>>(b3<<3))&0x000000FF) << 24;
+	uint val = (scan_value>>(b0<<4))&0x000000FF;
+	val |= (((scan_value + k0)>>(b1<<4))&0x000000FF) << 8;
+	val |= (((scan_value + k1)>>(b2<<4))&0x000000FF) << 16;
+	val |= (((scan_value + k2)>>(b3<<4))&0x000000FF) << 24;
 	
 	prefix_sum[thread_offset] = val;
     

@@ -10,22 +10,29 @@ namespace gpgpu {
 /** GPU filter routine implemented using a prefix-sum based radix sort. */
 class CGV_API scan_and_compact : public gpu_algorithm {
 protected:
-	bool load_shader_programs(context& ctx);
-
-	void delete_buffers();
-
-	std::string data_type_def = "";
-	std::string vote_definition = "";
+	unsigned n = 0;
+	unsigned n_pad = 0;
+	unsigned group_size = 0;
+	unsigned num_groups = 0;
+	unsigned num_scan_groups = 0;
+	unsigned num_blocksums = 0;
 
 	GLuint votes_ssbo = 0;
 	GLuint prefix_sum_ssbo = 0;
 	GLuint blocksums_ssbo = 0;
 	GLuint last_sums_ssbo = 0;
 
+	std::string data_type_def = "";
+	std::string vote_definition = "";
+
 	shader_program vote_prog;
 	shader_program scan_local_prog;
 	shader_program scan_global_prog;
 	shader_program compact_prog;
+
+	bool load_shader_programs(context& ctx);
+
+	void delete_buffers();
 
 public:
 	scan_and_compact() : gpu_algorithm() {}

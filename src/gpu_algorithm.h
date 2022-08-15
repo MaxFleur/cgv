@@ -43,6 +43,17 @@ protected:
 		return data;
 	}
 
+	unsigned calculate_padding(unsigned num_elements, unsigned num_elements_per_group) {
+		unsigned n_pad = num_elements_per_group - (num_elements % (num_elements_per_group));
+		if(num_elements % num_elements_per_group == 0)
+			n_pad = 0;
+		return n_pad;
+	}
+
+	unsigned calculate_num_groups(unsigned num_elements, unsigned num_elements_per_group) {
+		return (num_elements + num_elements_per_group - 1) / num_elements_per_group;
+	}
+
 public:
 	gpu_algorithm() {}
 	~gpu_algorithm() {}

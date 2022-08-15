@@ -72,19 +72,17 @@ bool scan_and_compact::init(context& ctx, size_t count) {
 	num_blocksums = num;
 
 	size_t data_size = (n + n_pad) * sizeof(unsigned int);
-	size_t blocksums_size = 4 * num_blocksums * sizeof(unsigned int);
+	size_t blocksums_size = 2 * num_blocksums * sizeof(unsigned int);
 
-	create_buffer(keys_in_ssbo, data_size);
-	create_buffer(values_out_ssbo, data_size);
-	create_buffer(values_out_ssbo, value_component_count*data_size);
+	create_buffer(votes_ssbo, data_size);
 	create_buffer(prefix_sum_ssbo, data_size / 4);
 	create_buffer(blocksums_ssbo, blocksums_size);
-	create_buffer(scratch_ssbo, 8 * sizeof(unsigned int));
+	create_buffer(last_sums_ssbo, 8 * sizeof(unsigned int));
 
-	distance_prog.enable(ctx);
-	distance_prog.set_uniform(ctx, "n", n);
-	distance_prog.set_uniform(ctx, "n_padded", n + n_pad);
-	distance_prog.disable(ctx);
+	vote_prog.enable(ctx);
+	vote_prog.set_uniform(ctx, "n", n);
+	vote_prog.set_uniform(ctx, "n_padded", n + n_pad);
+	vote_prog.disable(ctx);
 
 	scan_local_prog.enable(ctx);
 	scan_local_prog.set_uniform(ctx, "n", n + n_pad);
@@ -96,11 +94,11 @@ bool scan_and_compact::init(context& ctx, size_t count) {
 	scan_global_prog.set_uniform(ctx, "n", num_blocksums);
 	scan_global_prog.disable(ctx);
 
-	scatter_prog.enable(ctx);
-	scatter_prog.set_uniform(ctx, "n", n + n_pad);
-	scatter_prog.set_uniform(ctx, "n_blocksums", num_blocksums);
-	scatter_prog.set_uniform(ctx, "last_blocksum_idx", ((n + n_pad) >> blocksum_offset_shift) - 1);
-	scatter_prog.disable(ctx);
+	compact_prog.enable(ctx);
+	compact_prog.set_uniform(ctx, "n", n + n_pad);
+	compact_prog.set_uniform(ctx, "n_blocksums", num_blocksums);
+	compact_prog.set_uniform(ctx, "last_blocksum_idx", ((n + n_pad) >> blocksum_offset_shift) - 1);
+	compact_prog.disable(ctx);
 
 	return true;
 }
