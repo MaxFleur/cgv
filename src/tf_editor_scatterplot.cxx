@@ -612,7 +612,6 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 }
 
 void tf_editor_scatterplot::set_point_positions() {
-	std::cout << "RAGG" << std::endl;
 	// Update original value
 	m_point_handles.get_dragged()->update_val();
 	m_currently_dragging = true;

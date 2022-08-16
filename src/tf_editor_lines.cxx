@@ -760,7 +760,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	}
 	content_canvas.disable_current_shader(ctx);
 
-	// Do not draw quadstrips and the border lines for peak mode
+	// Do not draw quads and the border lines for peak mode
 	if (!is_peak_mode) {
 		// Now create the centroid boundaries and strips
 		create_quads();
@@ -831,7 +831,6 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 		auto& line_prog = m_renderer_lines.ref_prog();
 		line_prog.enable(ctx);
 		content_canvas.set_view(ctx, line_prog);
-		m_style_relations.fill_color = rgba(rgb(0.0f), m_alpha);
 		m_style_relations.apply(ctx, line_prog);
 		line_prog.disable(ctx);
 		m_renderer_lines.render(ctx, PT_LINES, m_geometry_relations, m_total_count, count);

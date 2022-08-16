@@ -103,18 +103,20 @@ protected:
 
 			// Draw 
 			shader_program& point_prog = m_renderer_draggables.ref_prog();
+			if (i == interacted_id) {
+				point_prog.enable(ctx);
+				m_style_draggables_interacted.apply(ctx, point_prog);
+				point_prog.set_attribute(ctx, "size", vec2(16.0f));
+				point_prog.disable(ctx);
+				m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
+				continue;
+			}
 			point_prog.enable(ctx);
 			content_canvas.set_view(ctx, point_prog);
 			m_style_draggables.apply(ctx, point_prog);
 			point_prog.set_attribute(ctx, "size", vec2(12.0f));
 			point_prog.disable(ctx);
 			m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables);
-
-			point_prog.enable(ctx);
-			m_style_draggables_interacted.apply(ctx, point_prog);
-			point_prog.set_attribute(ctx, "size", vec2(16.0f));
-			point_prog.disable(ctx);
-			m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
 		}
 	}
 
@@ -154,9 +156,6 @@ protected:
 	cgv::glutil::shape2d_style m_style_draggables;
 	cgv::glutil::shape2d_style m_style_draggables_interacted;
 
-	// Font storage and renderer
-	//cgv::glutil::msdf_font m_font;
-	//cgv::glutil::msdf_gl_font_renderer m_renderer_fonts;
 	// Text geometry, storing individual labels
 	cgv::glutil::msdf_text_geometry m_labels;
 	const float m_font_size = 18.0f;
