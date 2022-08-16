@@ -8,21 +8,21 @@ layout(std430, binding = 0) readonly buffer keys_buffer {
     uvec4 keys[];
 };
 
-layout(std430, binding = 4) writeonly buffer prefix_sum_buffer {
-    uint prefix_sum[];
+layout(std430, binding = 4) writeonly buffer prefix_sums_buffer {
+    uint prefix_sums[];
 };
 
-layout(std430, binding = 5) writeonly buffer blocksum_buffer {
-    uint blocksum[];
+layout(std430, binding = 5) writeonly buffer block_sums_buffer {
+    uint block_sums[];
 };
 
 layout(std430, binding = 6) writeonly buffer scratch_buffer {
-    uint scratch[];
+    uint last_sum[];
 };
 
 uniform uint n; // the total number of items to sort
 uniform uint n_scan_groups; // the total number of local scan groups
-uniform uint n_blocksums; // the total number of blocksums
+//uniform uint n_block_sums; // the total number of blocksums
 
 shared uint scan_values[LOCAL_SIZE + 16]; // make room for all values plus some space for offset addresses
 
@@ -47,16 +47,20 @@ void main() {
 	uvec4 key = keys[thread_offset];
 
 	b0 = key.x&1;
-    k0 = 1<<(b0<<4);
+    //k0 = 1<<(b0<<4);
+    k0 = b0;
     
 	b1 = key.y&1;
-    k1 = (1<<(b1<<4)) + k0;
+    //k1 = (1<<(b1<<4)) + k0;
+    k1 = b1 + k0;
     
 	b2 = key.z&1;
-    k2 = (1<<(b2<<4)) + k1;
+    //k2 = (1<<(b2<<4)) + k1;
+    k2 = b2 + k1;
     
 	b3 = key.w&1;
-    scan_values[addr(tid)] = (1<<(b3<<4)) + k2;
+    //scan_values[addr(tid)] = (1<<(b3<<4)) + k2;
+    scan_values[addr(tid)] = b3 + k2;
 
 	uint offset = 1; // start offset for prefix sum calculation
 
@@ -75,14 +79,18 @@ void main() {
         offset += offset;
     }
 
-    if(tid < 2) {
-        uint shift = tid<<4;
-		uint val = ((scan_values[addr(31)]>>shift)&0x0000FFFF) + ((scan_values[addr(63)]>>shift)&0x0000FFFF);
-
-        blocksum[n_blocksums * tid + gl_WorkGroupID.x] = val;
-    }
+    //if(tid < 2) {
+    //  uint shift = tid<<4;
+	//	uint val = ((scan_values[addr(31)]>>shift)&0x0000FFFF) + ((scan_values[addr(63)]>>shift)&0x0000FFFF);
+	//
+    //    block_sums[n_block_sums * tid + gl_WorkGroupID.x] = val;
+    //}
 
     if(tid < 1) {
+		uint val = (scan_values[addr(31)]&0x0000FFFF) + (scan_values[addr(63)]&0x0000FFFF);
+		
+		block_sums[gl_WorkGroupID.x] = val;
+
         scan_values[addr(63)] = scan_values[addr(31)];
         scan_values[addr(31)] = 0;
     }
@@ -109,16 +117,20 @@ void main() {
 
     uint scan_value = scan_values[addr(tid)];
 
-	uint val = (scan_value>>(b0<<4))&0x000000FF;
-	val |= (((scan_value + k0)>>(b1<<4))&0x000000FF) << 8;
-	val |= (((scan_value + k1)>>(b2<<4))&0x000000FF) << 16;
-	val |= (((scan_value + k2)>>(b3<<4))&0x000000FF) << 24;
+	//uint val = (scan_value>>(b0<<4))&0x000000FF;
+	//val |= (((scan_value + k0)>>(b1<<4))&0x000000FF) << 8;
+	//val |= (((scan_value + k1)>>(b2<<4))&0x000000FF) << 16;
+	//val |= (((scan_value + k2)>>(b3<<4))&0x000000FF) << 24;
+
+	uint val = scan_value&0x000000FF;
+	val |= ((scan_value + k0)&0x000000FF) << 8;
+	val |= ((scan_value + k1)&0x000000FF) << 16;
+	val |= ((scan_value + k2)&0x000000FF) << 24;
 	
-	prefix_sum[thread_offset] = val;
+	prefix_sums[thread_offset] = val;
     
     if(tid == 63 && gl_WorkGroupID.x == n_scan_groups - 1) {
-		uint last_sum = scan_value + k2;
-		scratch[4] = last_sum;
-		scratch[5] = b3;
+		last_sum[0] = scan_value + k2;
+		last_sum[1] = b3;
 	}
 }

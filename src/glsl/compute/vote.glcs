@@ -14,8 +14,8 @@ layout(std430, binding = 0) readonly buffer data_buffer {
     data_type data[];
 };
 
-layout(std430, binding = 1) writeonly buffer vote_buffer {
-    uint vote[];
+layout(std430, binding = 2) writeonly buffer votes_buffer {
+    uint votes[];
 };
 
 uniform uint n;
@@ -29,9 +29,9 @@ void main() {
 
     for(uint idx = gl_WorkGroupID.x*gl_WorkGroupSize.x + gl_LocalInvocationID.x; idx < n_padded; idx += gl_WorkGroupSize.x*gl_NumWorkGroups.x) {
         if(idx < n) {
-            vote[idx] = get_vote(data[idx]) ? 1 : 0;
+            votes[idx] = get_vote(data[idx]) ? 1 : 0;
         } else {
-            vote[idx] = uint(0);
+            votes[idx] = uint(0);
         }
     }
 }

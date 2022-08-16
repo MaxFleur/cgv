@@ -15,12 +15,12 @@ protected:
 	unsigned group_size = 0;
 	unsigned num_groups = 0;
 	unsigned num_scan_groups = 0;
-	unsigned num_blocksums = 0;
+	unsigned num_block_sums = 0;
 
 	GLuint votes_ssbo = 0;
-	GLuint prefix_sum_ssbo = 0;
-	GLuint blocksums_ssbo = 0;
-	GLuint last_sums_ssbo = 0;
+	GLuint prefix_sums_ssbo = 0;
+	GLuint block_sums_ssbo = 0;
+	GLuint last_sum_ssbo = 0;
 
 	std::string data_type_def = "";
 	std::string vote_definition = "";
@@ -41,7 +41,7 @@ public:
 
 	bool init(context& ctx, size_t count);
 
-	void execute(context& ctx, GLuint data_buffer, GLuint value_buffer, const vec3& eye_pos, const vec3& view_dir, GLuint auxiliary_buffer = 0);
+	void execute(context& ctx, GLuint in_buffer, GLuint out_buffer);
 
 	/** GLSL code to define the data type and structure of one element of the input data buffer.
 		This effectively defines the contents of a struct used to represent one array element.

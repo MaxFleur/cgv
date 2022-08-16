@@ -197,6 +197,38 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 
 
 
+
+
+
+
+	unsigned test_n = 10000;
+
+	std::vector<int> test_values(test_n);
+	for(size_t i = 0; i < test_n; ++i)
+		test_values[i] = i;
+
+	GLuint test_buffer, out_buffer;
+	glGenBuffers(1, &test_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, test_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * test_n, (void*)0, GL_DYNAMIC_COPY);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+	glGenBuffers(1, &out_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, out_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * test_n, (void*)0, GL_DYNAMIC_COPY);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+
+	sac.set_data_type_override("int x");
+
+	sac.init(ctx, test_n);
+
+	sac.execute(ctx, test_buffer, out_buffer);
+
+
+
+
+
 	return success;
 }
 

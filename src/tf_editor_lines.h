@@ -5,6 +5,7 @@
 #include <cgv_glutil/generic_renderer.h>
 
 #include "tf_editor_basic.h"
+#include "scan_and_compact.h"
 
 /* 
 This class provides the line based editor of the transfer function. Added primitives can be modified here. 
@@ -33,6 +34,17 @@ public:
 	void resynchronize();
 
 	void primitive_added();
+
+	void set_data_set(sliced_volume_data_set* data_set_ptr) {
+		m_data_set_ptr = data_set_ptr;
+		create_labels();
+
+		//auto ctx_ptr = get_context();
+		//if(ctx_ptr && m_data_set_ptr) {
+		//
+		//	sac.init(*ctx_ptr, );
+		//}
+	}
 
 private:
 
@@ -134,7 +146,7 @@ private:
 	cgv::glutil::shader_library shaders;
 
 
-
+	cgv::gpgpu::scan_and_compact sac;
 
 
 
