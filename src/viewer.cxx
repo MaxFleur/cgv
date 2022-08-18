@@ -155,6 +155,10 @@ bool viewer::handle_event(cgv::gui::event& e) {
 					handled = true;
 				}
 				break;
+			case cgv::gui::KEY_Space:
+				is_peak_mode = !is_peak_mode;
+				handled = true;
+				break;
 			default: break;
 			}
 			/** END - MFLEURY **/
@@ -592,6 +596,8 @@ void viewer::draw(cgv::render::context& ctx) {
 
 				const int size = m_shared_data_ptr->primitives.size();
 				vol_prog.set_uniform(ctx, "centroid_values_size", size);
+				vol_prog.set_uniform(ctx, "is_peak_mode", is_peak_mode);
+
 				// send all primitive data to the shader
 				for(int i = 0; i < size; i++) {
 					const auto color = m_shared_data_ptr->primitives.at(i).color;

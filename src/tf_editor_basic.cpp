@@ -117,7 +117,7 @@ void tf_editor_basic::create_gui_tm() {
 
 void tf_editor_basic::create_gui_coloring() {
 	add_decorator("Coloring Mode", "heading", "level=3");
-	add_member_control(this, "Coloring", vis_mode, "dropdown", "enums=Basic, Gaussian");
+	add_member_control(this, "Coloring", vis_mode, "dropdown", "enums=Shapes, Data Relations");
 }
 
 void tf_editor_basic::handle_mouse_click_end(bool found, bool double_clicked, int i, int j, int& interacted_point_id, bool is_lbe) {

@@ -279,6 +279,7 @@ private:
 	tf_editor_scatterplot_ptr m_editor_scatterplot_ptr = nullptr;
 
 	int m_selected_primitve_id = INT_MAX;
+	bool is_peak_mode = false;
 
 /** END - MFLEURY **/
 };
