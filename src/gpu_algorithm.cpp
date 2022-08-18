@@ -3,11 +3,11 @@
 namespace cgv {
 namespace gpgpu {
 
-void gpu_algorithm::create_buffer(GLuint& buffer, size_t size) {
+void gpu_algorithm::create_buffer(GLuint& buffer, size_t size, GLenum usage) {
 
 	glGenBuffers(1, &buffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, size, (void*)0, GL_DYNAMIC_COPY);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, size, (void*)0, usage);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 

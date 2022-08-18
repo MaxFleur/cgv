@@ -20,65 +20,39 @@ layout(std430, binding = 2) readonly buffer votes_buffer {
     uint votes[];
 };
 
-layout(std430, binding = 4) readonly buffer prefix_sums_buffer {
+layout(std430, binding = 3) readonly buffer prefix_sums_buffer {
+    uint last_sum;
+    uint p0, p1, p2; // padding
     uint prefix_sums[];
 };
 
-layout(std430, binding = 5) readonly buffer block_sums_buffer {
+layout(std430, binding = 4) readonly buffer block_sums_buffer {
     uint block_sums[];
 };
 
-layout(std430, binding = 6) readonly buffer last_sum_buffer {
-    uint last_sum[];
-};
-
 uniform uint n; // total number of items to sort
-uniform uint n_block_sums; // total number of blocksums including padding
-uniform uint last_block_sum_idx; // last non-padded blocksum index
 
 void main() {
 
 	uint tid = gl_LocalInvocationID.x;
 	uint wid = gl_WorkGroupID.x;
 
-	/*
-	uint count[4];
-	uint bucket_sums[4];
-
-    uint last_prefix_sum = last_sum[0];
-        
-    count[0] = (last_prefix_sum&0x000000FF) + block_sums[last_block_sum_idx];
-	last_prefix_sum = last_prefix_sum >> 8;
-	count[1] = (last_prefix_sum&0x000000FF) + block_sums[last_block_sum_idx + n_block_sums];
-	last_prefix_sum = last_prefix_sum >> 8;
-    count[2] = (last_prefix_sum&0x000000FF) + block_sums[last_block_sum_idx + n_block_sums + n_block_sums];
-	
-    count[last_sum[1]] += 1;
-
-    bucket_sums[0] = 0;
-    bucket_sums[1] = count[0];
-    bucket_sums[2] = count[0] + count[1];
-    bucket_sums[3] = count[0] + count[1] + count[2];
-	*/
-
 	uint bid = wid;
 
     for(uint idx = wid*gl_WorkGroupSize.x + tid; idx < n; idx += gl_WorkGroupSize.x*gl_NumWorkGroups.x) {
-		//data_type data = 
-		if(votes[idx] == 1) {
-			uint prefix_sum_value = prefix_sums[idx>>2] & 0x000000FF;
+		uint vote_ballot_idx = idx>>5;
+		uint vote_ballot = votes[vote_ballot_idx];
 
+		uint vote_idx = idx&31;
+
+
+
+		//if(votes[idx] == 1) {
+		if(((vote_ballot>>vote_idx)&1) == 1) {
+			uint prefix_sum_value = (prefix_sums[idx>>2]>>((idx&3)<<3)) & 0x000000FF;
 			uint block_sum_value = block_sums[bid];
-
 			uint addr = prefix_sum_value + block_sum_value;
         
-			////uint prefix_sum_value = (prefix_sum[idx>>2]>>(8*(idx&3)))&0x000000FF;
-			//uint prefix_sum_value = bitfieldExtract(prefix_sums[idx>>2], int(idx&3)<<3, 8);
-        	//
-			//uint block_sum_value = block_sums[bucket * n_block_sums + bid];
-			//
-			//uint scatter_addr = prefix_sum_value + block_sum_value + bucket_sums[bucket];
-
 			data_out[addr] = data_in[idx];
 		}
 

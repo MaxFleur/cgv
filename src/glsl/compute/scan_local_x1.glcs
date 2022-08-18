@@ -4,31 +4,26 @@
 
 layout(local_size_x = LOCAL_SIZE) in;
 
-layout(std430, binding = 0) readonly buffer keys_buffer {
-    uvec4 keys[];
+layout(std430, binding = 2) readonly buffer values_buffer {
+    uint values[];
 };
 
-layout(std430, binding = 4) writeonly buffer prefix_sums_buffer {
+layout(std430, binding = 3) writeonly buffer prefix_sums_buffer {
+    uint last_sum;
+    uint p0, p1, p2; // padding
     uint prefix_sums[];
 };
 
-layout(std430, binding = 5) writeonly buffer block_sums_buffer {
+layout(std430, binding = 4) writeonly buffer block_sums_buffer {
     uint block_sums[];
-};
-
-layout(std430, binding = 6) writeonly buffer scratch_buffer {
-    uint last_sum[];
 };
 
 uniform uint n; // the total number of items to sort
 uniform uint n_scan_groups; // the total number of local scan groups
-//uniform uint n_block_sums; // the total number of blocksums
 
 shared uint scan_values[LOCAL_SIZE + 16]; // make room for all values plus some space for offset addresses
 
-/*
-	Returns the address offset by 1 for every 32 steps to avoid bank conflicts.
-*/
+// Returns the address offset by 1 for every 32 steps to avoid bank conflicts.
 uint addr(uint i) {
 
 	return i + (i>>5);
@@ -40,27 +35,27 @@ void main() {
 	uint block_offset = LOCAL_SIZE*gl_WorkGroupID.x;
     uint thread_offset = tid + block_offset; // thread offset in global memory
 
-	uint b0, b1, b2, b3; // bit values
-    uint k0, k1, k2; // pre scanned keys
+    uint vote_offset = 8*gl_WorkGroupID.x;
+
+    uint vote_ballot_idx = (tid>>3) + vote_offset;
+    uint vote_nibble_idx = tid&7;
+
+    uint v0, v1, v2; // pre scanned values
 
 	// Each thread loads and scans 4 values
-	uvec4 key = keys[thread_offset];
+	//uvec4 value_pack = values[thread_offset];
+	//uint value_pack = (values[vote_ballot_idx]>>((tid&7)<<2))&0x0000000F;
+    uint value_pack = bitfieldExtract(values[vote_ballot_idx], int(vote_nibble_idx<<2), 4);
 
-	b0 = key.x&1;
-    //k0 = 1<<(b0<<4);
-    k0 = b0;
-    
-	b1 = key.y&1;
-    //k1 = (1<<(b1<<4)) + k0;
-    k1 = b1 + k0;
-    
-	b2 = key.z&1;
-    //k2 = (1<<(b2<<4)) + k1;
-    k2 = b2 + k1;
-    
-	b3 = key.w&1;
-    //scan_values[addr(tid)] = (1<<(b3<<4)) + k2;
-    scan_values[addr(tid)] = b3 + k2;
+    //v0 = (value_pack.x&1);
+    //v1 = (value_pack.y&1) + v0;
+    //v2 = (value_pack.z&1) + v1;
+    //scan_values[addr(tid)] = (value_pack.w&1) + v2;
+
+    v0 = (value_pack&1);
+    v1 = ((value_pack>>1)&1) + v0;
+    v2 = ((value_pack>>2)&1) + v1;
+    scan_values[addr(tid)] = ((value_pack>>3)&1) + v2;
 
 	uint offset = 1; // start offset for prefix sum calculation
 
@@ -78,13 +73,6 @@ void main() {
         }
         offset += offset;
     }
-
-    //if(tid < 2) {
-    //  uint shift = tid<<4;
-	//	uint val = ((scan_values[addr(31)]>>shift)&0x0000FFFF) + ((scan_values[addr(63)]>>shift)&0x0000FFFF);
-	//
-    //    block_sums[n_block_sums * tid + gl_WorkGroupID.x] = val;
-    //}
 
     if(tid < 1) {
 		uint val = (scan_values[addr(31)]&0x0000FFFF) + (scan_values[addr(63)]&0x0000FFFF);
@@ -117,20 +105,14 @@ void main() {
 
     uint scan_value = scan_values[addr(tid)];
 
-	//uint val = (scan_value>>(b0<<4))&0x000000FF;
-	//val |= (((scan_value + k0)>>(b1<<4))&0x000000FF) << 8;
-	//val |= (((scan_value + k1)>>(b2<<4))&0x000000FF) << 16;
-	//val |= (((scan_value + k2)>>(b3<<4))&0x000000FF) << 24;
-
-	uint val = scan_value&0x000000FF;
-	val |= ((scan_value + k0)&0x000000FF) << 8;
-	val |= ((scan_value + k1)&0x000000FF) << 16;
-	val |= ((scan_value + k2)&0x000000FF) << 24;
+	uint sums = scan_value&0x000000FF;
+	sums |= ((scan_value + v0)&0x000000FF) << 8;
+	sums |= ((scan_value + v1)&0x000000FF) << 16;
+	sums |= ((scan_value + v2)&0x000000FF) << 24;
 	
-	prefix_sums[thread_offset] = val;
+	prefix_sums[thread_offset] = sums;
     
     if(tid == 63 && gl_WorkGroupID.x == n_scan_groups - 1) {
-		last_sum[0] = scan_value + k2;
-		last_sum[1] = b3;
+		last_sum = scan_value + v2;
 	}
 }

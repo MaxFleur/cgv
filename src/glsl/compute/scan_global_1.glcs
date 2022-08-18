@@ -2,11 +2,22 @@
 
 layout(local_size_x = 512) in;
 
-layout(std430, binding = 5) buffer block_sums_buffer {
+layout(std430, binding = 3) buffer prefix_sums_buffer {
+    uint last_sum;
+    uint p0, p1, p2; // padding
+    uint prefix_sums[];
+};
+
+layout(std430, binding = 4) buffer block_sums_buffer {
     uint block_sums[];
 };
 
+layout(std430, binding = 5) buffer last_sum_buffer {
+    uint last_summ;
+};
+
 uniform uint n_block_sums; // the total number of blocksums
+uniform uint last_block_sum_idx; // last non-padded blocksum index
 
 void main() {
 
@@ -43,4 +54,13 @@ void main() {
             block_sums[bi] += t;
         }
     }
+
+    barrier();
+    memoryBarrier();
+
+    if(tid  == 0) {
+        uint last_prefix_sum = last_sum;
+        uint count = (last_prefix_sum&0x000000FF) + block_sums[last_block_sum_idx];
+        last_summ = count;
+	}
 }

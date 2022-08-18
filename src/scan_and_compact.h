@@ -41,7 +41,7 @@ public:
 
 	bool init(context& ctx, size_t count);
 
-	void execute(context& ctx, GLuint in_buffer, GLuint out_buffer);
+	unsigned execute(context& ctx, GLuint in_buffer, GLuint out_buffer, bool return_count = true);
 
 	/** GLSL code to define the data type and structure of one element of the input data buffer.
 		This effectively defines the contents of a struct used to represent one array element.
@@ -63,7 +63,7 @@ public:
 		* reserved (expert use only)
 			n, n_padded
 		* input (read only)
-			data_type d - the input data element of this shader invocation
+			data_type value - the input data element of this shader invocation
 		* output
 			bool
 		*/

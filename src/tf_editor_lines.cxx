@@ -201,7 +201,7 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 
 
 
-	unsigned test_n = 10000;
+	unsigned test_n = 1000;
 
 	std::vector<int> test_values(test_n);
 	for(size_t i = 0; i < test_n; ++i)
@@ -210,7 +210,7 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	GLuint test_buffer, out_buffer;
 	glGenBuffers(1, &test_buffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, test_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * test_n, (void*)0, GL_DYNAMIC_COPY);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * test_n, (void*)test_values.data(), GL_DYNAMIC_COPY);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	glGenBuffers(1, &out_buffer);
@@ -219,15 +219,26 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 
-	sac.set_data_type_override("int x");
+	sac.set_data_type_override("int x;");
+	sac.set_vote_definition_override("return (value.x & 1) == 0; ");
+	//sac.set_vote_definition_override("return (value.x&7) < 4;");
 
 	sac.init(ctx, test_n);
 
-	sac.execute(ctx, test_buffer, out_buffer);
+	float acc_time = 0.0f;
 
+	unsigned count = 0;
+	for(size_t i = 0; i < 40; ++i) {
+		sac.begin_time_query();
+		count = sac.execute(ctx, test_buffer, out_buffer, true);
+		float time = sac.end_time_query();
+		if(i > 7) acc_time += time;
+	}
 
+	std::cout << std::endl << "TIME: " << acc_time << " ms" << std::endl;
+	std::cout << "COUNT: " << count << std::endl << std::endl;
 
-
+	std::vector<int> out_values = sac.read_buffer<int>(out_buffer, test_n);
 
 	return success;
 }
