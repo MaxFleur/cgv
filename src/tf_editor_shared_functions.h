@@ -38,11 +38,12 @@ namespace tf_editor_shared_functions
 
 	// Apply an alpha value of 1 or 0 based on if the input values are inside the hyperbox
 	static float box_transfer_function(const vec4& data_values, const vec4& centroid_positions, const vec4& width) {
-		auto ret = 1.0f;
 		for (int i = 0; i < 4; i++) {
-			ret *= data_values[i] >= centroid_positions[i] - (width[i] / 2) && data_values[i] <= centroid_positions[i] + (width[i] / 2) ? 1.0f : 0.0f;
+			if (data_values[i] < centroid_positions[i] - (width[i] / 2) || data_values[i] > centroid_positions[i] + (width[i] / 2)) {
+				return 0.0f;
+			}
 		}
-		return ret;
+		return 1.0f;
 	}
 
 	// Apply an alpha value of 1 or 0 based on if the input values are inside the hyperellipsoid
