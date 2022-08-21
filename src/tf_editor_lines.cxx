@@ -9,6 +9,26 @@
 
 #include "tf_editor_shared_functions.h"
 
+
+
+
+
+
+
+
+
+#include <random>
+
+
+
+
+
+
+
+
+
+
+
 tf_editor_lines::tf_editor_lines() {
 	set_name("TF Editor Lines Overlay");
 	// set the size with an aspect ratio that makes lets the editor nicely fit inside
@@ -106,6 +126,38 @@ void tf_editor_lines::on_set(void* member_ptr) {
 	}
 	// Update if the vis mode is changed
 	if(member_ptr == &vis_mode || member_ptr == &m_threshold) {
+
+		if(member_ptr == &m_threshold) {
+			if(auto ctx_ptr = get_context()) {
+				auto& ctx = *ctx_ptr;
+
+				// bind the source 3D texture containing the data values
+				const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
+				glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+				auto& vote_prog = sac.ref_vote_prog();
+				vote_prog.enable(ctx);
+				vote_prog.set_uniform(ctx, "threshold", m_threshold);
+
+				//sac.begin_time_query();
+				filtered_count = sac.execute(ctx, -1, index_buffer, true);
+				//float time = sac.end_time_query();
+
+				//std::cout << std::endl << "TIME: " << time << " ms" << std::endl;
+				
+				// TODO: count not quite correct???
+				// if vote is true the count is one less than the number of voxel values
+				std::cout << "COUNT: " << filtered_count << std::endl << std::endl;
+
+				// unbind the source data texture
+				glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+
+				//auto& test = sac.read_buffer<int>(index_buffer, 1000);
+				//int ii = 0;
+			}
+		}
+
 		update_content();
 	}
 
@@ -199,29 +251,35 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 
 
 
-
+	/*std::mt19937 rng;
+	std::uniform_int_distribution<int> distr(0, 9);
 
 	unsigned test_n = 1000;
 
-	std::vector<int> test_values(test_n);
-	for(size_t i = 0; i < test_n; ++i)
-		test_values[i] = i;
+	std::vector<int> test_values;
+	for(size_t i = 0; i < test_n; ++i) {
+		test_values.push_back(i);
+		//test_values.push_back(distr(rng));
+		//test_values.push_back(distr(rng));
+	}
 
 	GLuint test_buffer, out_buffer;
 	glGenBuffers(1, &test_buffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, test_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * test_n, (void*)test_values.data(), GL_DYNAMIC_COPY);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 1 * test_n, (void*)test_values.data(), GL_DYNAMIC_COPY);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	glGenBuffers(1, &out_buffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, out_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * test_n, (void*)0, GL_DYNAMIC_COPY);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 1 * test_n, (void*)0, GL_DYNAMIC_COPY);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 
-	sac.set_data_type_override("int x;");
+	sac.set_data_type_override("int x;");// int y; ");
 	sac.set_vote_definition_override("return (value.x & 1) == 0; ");
-	//sac.set_vote_definition_override("return (value.x&7) < 4;");
+	//sac.set_vote_definition_override("return value.x == 5;");
+
+	sac.set_mode(cgv::gpgpu::scan_and_compact::M_CREATE_INDICES);
 
 	sac.init(ctx, test_n);
 
@@ -238,7 +296,20 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	std::cout << std::endl << "TIME: " << acc_time << " ms" << std::endl;
 	std::cout << "COUNT: " << count << std::endl << std::endl;
 
-	std::vector<int> out_values = sac.read_buffer<int>(out_buffer, test_n);
+	std::vector<int> out_values = sac.read_buffer<int>(out_buffer, test_n);*/
+
+
+
+	glGenBuffers(1, &index_buffer);
+
+
+
+
+
+
+
+
+
 
 	return success;
 }
@@ -685,7 +756,7 @@ void tf_editor_lines::update_content() {
 		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
 		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
 
-		unsigned n = width * height * depth; // number of data points
+		unsigned n = filtered_count;// width * height * depth; // number of data points
 		unsigned num_groups_data_order = (n + group_size - 1) / group_size;
 
 		// bind shader storage buffers
@@ -702,70 +773,79 @@ void tf_editor_lines::update_content() {
 
 		clear_prog.disable(ctx);
 
-		// plot the data lines to the plot
-		auto& plot_prog = shaders.get("hist2");
-		plot_prog.enable(ctx);
+		if(filtered_count > 0) {
 
-		// set general uniforms
-		plot_prog.set_uniform(ctx, "num_data_values", static_cast<int>(n));
-		plot_prog.set_uniform(ctx, "resolution", plot_resolution);
-		plot_prog.set_uniform(ctx, "threshold", m_threshold);
+			// plot the data lines to the plot
+			auto& plot_prog = shaders.get("hist2");
+			plot_prog.enable(ctx);
 
-		plot_prog.set_uniform(ctx, "indices[0]", ivec2(1, 0));
-		plot_prog.set_uniform(ctx, "indices[1]", ivec2(0, 3));
-		plot_prog.set_uniform(ctx, "indices[2]", ivec2(0, 2));
-		plot_prog.set_uniform(ctx, "indices[3]", ivec2(1, 2));
-		plot_prog.set_uniform(ctx, "indices[4]", ivec2(1, 3));
-		plot_prog.set_uniform(ctx, "indices[5]", ivec2(3, 2));
-		
-		// set transfer function uniforms
-		const int mdtf_size = static_cast<int>(m_shared_data_ptr->primitives.size());
-		plot_prog.set_uniform(ctx, "num_mdtf_primitives", mdtf_size);
+			// set general uniforms
+			plot_prog.set_uniform(ctx, "num_data_values", static_cast<int>(n));
+			plot_prog.set_uniform(ctx, "resolution", plot_resolution);
+			plot_prog.set_uniform(ctx, "threshold", m_threshold);
 
-		for(int i = 0; i < mdtf_size; i++) {
-			const auto& p = m_shared_data_ptr->primitives[i];
+			plot_prog.set_uniform(ctx, "indices[0]", ivec2(1, 0));
+			plot_prog.set_uniform(ctx, "indices[1]", ivec2(0, 3));
+			plot_prog.set_uniform(ctx, "indices[2]", ivec2(0, 2));
+			plot_prog.set_uniform(ctx, "indices[3]", ivec2(1, 2));
+			plot_prog.set_uniform(ctx, "indices[4]", ivec2(1, 3));
+			plot_prog.set_uniform(ctx, "indices[5]", ivec2(3, 2));
 
-			std::string id = "mdtf[" + std::to_string(i) + "].";
+			// set transfer function uniforms
+			const int mdtf_size = static_cast<int>(m_shared_data_ptr->primitives.size());
+			plot_prog.set_uniform(ctx, "num_mdtf_primitives", mdtf_size);
 
-			plot_prog.set_uniform(ctx, id + "type", static_cast<int>(p.type));
-			plot_prog.set_uniform(ctx, id + "cntrd", p.centr_pos);
-			plot_prog.set_uniform(ctx, id + "width", p.centr_widths);
-			plot_prog.set_uniform(ctx, id + "color", p.color);
+			for(int i = 0; i < mdtf_size; i++) {
+				const auto& p = m_shared_data_ptr->primitives[i];
+
+				std::string id = "mdtf[" + std::to_string(i) + "].";
+
+				plot_prog.set_uniform(ctx, id + "type", static_cast<int>(p.type));
+				plot_prog.set_uniform(ctx, id + "cntrd", p.centr_pos);
+				plot_prog.set_uniform(ctx, id + "width", p.centr_widths);
+				plot_prog.set_uniform(ctx, id + "color", p.color);
+			}
+
+			// bind the source 3D texture containing the data values
+			const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
+			glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+			// bind index buffer of filtered voxel values
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, index_buffer);
+
+			glDispatchCompute(num_groups_data_order, 1, 1);
+			glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+			// unbind index buffer
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
+
+			// unbind the source data texture
+			glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+			plot_prog.disable(ctx);
+
+			// transfer the shader storage buffer contents to the plot texture
+			auto& transfer_prog = shaders.get("transfer2");
+			transfer_prog.enable(ctx);
+			transfer_prog.set_uniform(ctx, "resolution", plot_resolution);
+
+			// bind the plot textures
+			for(unsigned i = 0; i < 6; ++i) {
+				const int handle = (const int&)(plot_textures[i].handle) - 1;
+				glBindImageTexture(i, handle, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+			}
+
+			glDispatchCompute(num_groups_image_order, 1, 1);
+			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+			transfer_prog.disable(ctx);
 		}
-
-		// bind the source 3D texture containing the data values
-		const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
-		glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-
-		glDispatchCompute(num_groups_data_order, 1, 1);
-		glMemoryBarrier(GL_ALL_BARRIER_BITS);
-
-		// unbind the source data texture
-		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-
-		plot_prog.disable(ctx);
-
-		// transfer the shader storage buffer contents to the plot texture
-		auto& transfer_prog = shaders.get("transfer2");
-		transfer_prog.enable(ctx);
-		transfer_prog.set_uniform(ctx, "resolution", plot_resolution);
-
-		// bind the plot textures
-		for(unsigned i = 0; i < 6; ++i) {
-			const int handle = (const int&)(plot_textures[i].handle) - 1;
-			glBindImageTexture(i, handle, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-		}
-
-		glDispatchCompute(num_groups_image_order, 1, 1);
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		// unbind textures and buffers
 		for(size_t i = 0; i < 6; ++i) {
 			glBindImageTexture(i, 0, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
 		}
-
-		transfer_prog.disable(ctx);
 	}
 
 	glEndQuery(GL_TIME_ELAPSED);

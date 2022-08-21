@@ -9,6 +9,10 @@ layout(local_size_x = 128) in;
 
 layout(rgba8ui, binding = 0) uniform readonly coherent uimage3D src_tex;
 
+layout(std430, binding = 6) readonly buffer index_buffer {
+	int volume_indices[];
+};
+
 struct data_type {
 	uint64_t rg;
 	uint64_t ba;
@@ -288,19 +292,22 @@ void main() {
 		ivec3 src_size = imageSize(src_tex);
 		ivec3 src_coord;
 
-		src_coord.x = idx % src_size.x;
-		src_coord.y = (idx / src_size.x) % src_size.y;
-		src_coord.z = idx / (src_size.x * src_size.y);
+		int volume_idx = volume_indices[idx];
+
+		src_coord.x = volume_idx % src_size.x;
+		src_coord.y = (volume_idx / src_size.x) % src_size.y;
+		src_coord.z = volume_idx / (src_size.x * src_size.y);
 
 		vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
 
-		float avg = p[0] + p[1] + p[2] + p[3];
-		avg *= 0.25f;
-
-		bool rasterize = avg > threshold;
-		vec4 color = rasterize ?
-			evaluate_transfer_function(p, 1.0) :
-			vec4(0.0);
+		//float avg = p[0] + p[1] + p[2] + p[3];
+		//avg *= 0.25f;
+		//
+		//bool rasterize = avg > threshold;
+		//vec4 color = rasterize ?
+		//	evaluate_transfer_function(p, 1.0) :
+		//	vec4(0.0);
+		vec4 color = evaluate_transfer_function(p, 1.0);
 
 		uvec4 c8 = uvec4(color * 128);
 
@@ -313,12 +320,10 @@ void main() {
 
 		int plot_idx;
 		for(int x = 0; x < 128;) {
-			if(rasterize) {
-				STEP(0*128)
-				STEP(1*128)
-				STEP(2*128)
-				STEP(3*128)
-			}
+			STEP(0*128)
+			STEP(1*128)
+			STEP(2*128)
+			STEP(3*128)
 				
 			barrier();
 

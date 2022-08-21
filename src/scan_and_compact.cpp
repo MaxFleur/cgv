@@ -27,7 +27,10 @@ bool scan_and_compact::load_shader_programs(context& ctx) {
 	if(vote_definition != "")
 		vote_defines["VOTE_DEFINITION"] = vote_definition;
 
-	res = res && cgv::glutil::shader_library::load(ctx, vote_prog, "vote", vote_defines, true, where);
+	if(mode == M_CREATE_INDICES)
+		compact_defines["CREATE_INDICES"] = "1";
+
+	res = res && cgv::glutil::shader_library::load(ctx, vote_prog, vote_prog_name == "" ? "vote" : vote_prog_name, vote_defines, true, where);
 	res = res && cgv::glutil::shader_library::load(ctx, scan_local_prog, "scan_local_x1", true, where);
 	res = res && cgv::glutil::shader_library::load(ctx, scan_global_prog, "scan_global_1", true, where);
 	res = res && cgv::glutil::shader_library::load(ctx, compact_prog, "compact", compact_defines, true, where);
@@ -40,7 +43,6 @@ void scan_and_compact::delete_buffers() {
 	delete_buffer(votes_ssbo);
 	delete_buffer(prefix_sums_ssbo);
 	delete_buffer(block_sums_ssbo);
-	delete_buffer(last_sum_ssbo);
 }
 
 bool scan_and_compact::init(context& ctx, size_t count) {
@@ -79,7 +81,6 @@ bool scan_and_compact::init(context& ctx, size_t count) {
 	create_buffer(votes_ssbo, data_size);
 	create_buffer(prefix_sums_ssbo, 4 * sizeof(unsigned int) + data_size / 4);
 	create_buffer(block_sums_ssbo, blocksums_size);
-	create_buffer(last_sum_ssbo, 4 * sizeof(unsigned int), GL_DYNAMIC_READ);
 
 	vote_prog.enable(ctx);
 	vote_prog.set_uniform(ctx, "n", n);
@@ -109,38 +110,18 @@ unsigned scan_and_compact::execute(context& ctx, GLuint data_in_buffer, GLuint d
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, data_out_buffer);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, votes_ssbo);
 	
-	vote_prog.enable(ctx);
+	if(!vote_prog.is_enabled()) vote_prog.enable(ctx);
 	glDispatchCompute(num_scan_groups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 	vote_prog.disable(ctx);
 
-	//auto& votes = read_buffer<unsigned>(votes_ssbo, 1000);
-
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, prefix_sums_ssbo);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, block_sums_ssbo);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, last_sum_ssbo);
 
 	scan_local_prog.enable(ctx);
 	glDispatchCompute(num_scan_groups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 	scan_local_prog.disable(ctx);
-
-	/*auto& sums = read_buffer<unsigned>(prefix_sums_ssbo, 100);
-
-	std::vector<unsigned> sums2;
-	for(size_t i = 0; i < 10; ++i) {
-		unsigned sum = sums[i];
-		unsigned v[4];
-		v[0] = (sum >> 0) & 0x000000FF;
-		v[1] = (sum >> 8) & 0x000000FF;
-		v[2] = (sum >> 16) & 0x000000FF;
-		v[3] = (sum >> 24) & 0x000000FF;
-
-		sums2.push_back(v[0]);
-		sums2.push_back(v[1]);
-		sums2.push_back(v[2]);
-		sums2.push_back(v[3]);
-	}*/
 
 	scan_global_prog.enable(ctx);
 	glDispatchCompute(1, 1, 1);
@@ -155,7 +136,7 @@ unsigned scan_and_compact::execute(context& ctx, GLuint data_in_buffer, GLuint d
 	unsigned count = -1;
 
 	if(return_count) {
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, last_sum_ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, prefix_sums_ssbo);
 		void* ptr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
 		memcpy(&count, ptr, sizeof(unsigned int));
 		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);

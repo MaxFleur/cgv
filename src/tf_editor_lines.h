@@ -39,11 +39,30 @@ public:
 		m_data_set_ptr = data_set_ptr;
 		create_labels();
 
-		//auto ctx_ptr = get_context();
-		//if(ctx_ptr && m_data_set_ptr) {
-		//
-		//	sac.init(*ctx_ptr, );
-		//}
+		auto ctx_ptr = get_context();
+		if(ctx_ptr && m_data_set_ptr) {
+		
+			//unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
+			//unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
+			//unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
+			//
+			//unsigned n = width * height * depth; // number of data points
+			unsigned n = m_data_set_ptr->voxel_data.size();
+			std::cout << "VOXEL DATA SIZE " << n << std::endl;
+			
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, index_buffer);
+			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * n, (void*)0, GL_DYNAMIC_COPY);
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+			sac.set_vote_prog_name("volume_vote");
+			//sac.set_data_type_override("int x;");// int y; ");
+			//sac.set_vote_definition_override("return (value.x & 1) == 0; ");
+			//sac.set_vote_definition_override("return value.x == 5;");
+
+			sac.set_mode(cgv::gpgpu::scan_and_compact::M_CREATE_INDICES);
+
+			sac.init(*ctx_ptr, n);
+		}
 	}
 
 private:
@@ -145,7 +164,8 @@ private:
 	texture plot_textures[6];
 	cgv::glutil::shader_library shaders;
 
-
+	GLuint index_buffer = 0;
+	unsigned filtered_count = 0;
 	cgv::gpgpu::scan_and_compact sac;
 
 

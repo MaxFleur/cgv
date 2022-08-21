@@ -5,9 +5,9 @@
 
 #define DATA_TYPE_DEFINITION float x; float y; float z;
 
-#define VOTE_DEFINITION return false;
-
 layout(local_size_x = 256) in;
+
+layout(rgba8ui, binding = 0) uniform readonly coherent uimage3D src_tex;
 
 struct data_type {
 	DATA_TYPE_DEFINITION
@@ -23,26 +23,32 @@ layout(std430, binding = 2) writeonly buffer votes_buffer {
 
 uniform uint n;
 uniform uint n_padded;
+uniform float threshold;
 
-bool get_vote(in data_type value) {
-	VOTE_DEFINITION
+bool get_vote(in int idx) {
+	ivec3 src_size = imageSize(src_tex);
+	ivec3 src_coord;
+
+	src_coord.x = idx % src_size.x;
+	src_coord.y = (idx / src_size.x) % src_size.y;
+	src_coord.z = idx / (src_size.x * src_size.y);
+
+	vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
+
+	float avg = p[0] + p[1] + p[2] + p[3];
+	avg *= 0.25f;
+
+	return true;//avg > threshold;
 }
 
 void main() {
 
     for(uint idx = gl_WorkGroupID.x*gl_WorkGroupSize.x + gl_LocalInvocationID.x; idx < n_padded; idx += gl_WorkGroupSize.x*gl_NumWorkGroups.x) {
-        bool vote = idx < n ? get_vote(data[idx]) : false;
+        bool vote = idx < n ? get_vote(int(idx)) : false;
 
         uint ballot = subgroupBallot(vote).x;
 
         if(subgroupElect())
             votes[gl_SubgroupID + 8*gl_WorkGroupID.x] = ballot;
-
-		// old version (may be needed for back compatibility), needs to be rewritten to support 32 bit vote ballots
-        /*if(idx < n) {
-            votes[idx] = get_vote(data[idx]) ? 1 : 0;
-        } else {
-            votes[idx] = uint(0);
-        }*/
     }
 }

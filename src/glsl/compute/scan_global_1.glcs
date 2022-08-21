@@ -12,10 +12,6 @@ layout(std430, binding = 4) buffer block_sums_buffer {
     uint block_sums[];
 };
 
-layout(std430, binding = 5) buffer last_sum_buffer {
-    uint last_summ;
-};
-
 uniform uint n_block_sums; // the total number of blocksums
 uniform uint last_block_sum_idx; // last non-padded blocksum index
 
@@ -58,9 +54,6 @@ void main() {
     barrier();
     memoryBarrier();
 
-    if(tid  == 0) {
-        uint last_prefix_sum = last_sum;
-        uint count = (last_prefix_sum&0x000000FF) + block_sums[last_block_sum_idx];
-        last_summ = count;
-	}
+    if(tid  == 0)
+        last_sum = (last_sum&0x000000FF) + block_sums[last_block_sum_idx];
 }

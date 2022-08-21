@@ -35,23 +35,13 @@ void main() {
 	uint block_offset = LOCAL_SIZE*gl_WorkGroupID.x;
     uint thread_offset = tid + block_offset; // thread offset in global memory
 
-    uint vote_offset = 8*gl_WorkGroupID.x;
-
-    uint vote_ballot_idx = (tid>>3) + vote_offset;
+    uint vote_ballot_idx = (tid>>3) + 8*gl_WorkGroupID.x;
     uint vote_nibble_idx = tid&7;
 
-    uint v0, v1, v2; // pre scanned values
-
 	// Each thread loads and scans 4 values
-	//uvec4 value_pack = values[thread_offset];
-	//uint value_pack = (values[vote_ballot_idx]>>((tid&7)<<2))&0x0000000F;
     uint value_pack = bitfieldExtract(values[vote_ballot_idx], int(vote_nibble_idx<<2), 4);
 
-    //v0 = (value_pack.x&1);
-    //v1 = (value_pack.y&1) + v0;
-    //v2 = (value_pack.z&1) + v1;
-    //scan_values[addr(tid)] = (value_pack.w&1) + v2;
-
+	uint v0, v1, v2; // pre scanned values
     v0 = (value_pack&1);
     v1 = ((value_pack>>1)&1) + v0;
     v2 = ((value_pack>>2)&1) + v1;

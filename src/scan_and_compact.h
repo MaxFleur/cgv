@@ -9,7 +9,15 @@ namespace gpgpu {
 
 /** GPU filter routine implemented using a prefix-sum based radix sort. */
 class CGV_API scan_and_compact : public gpu_algorithm {
+public:
+	enum Mode {
+		M_CREATE_INDICES,
+		M_COPY_DATA
+	};
+
 protected:
+	Mode mode = M_COPY_DATA;
+
 	unsigned n = 0;
 	unsigned n_pad = 0;
 	unsigned group_size = 0;
@@ -20,8 +28,8 @@ protected:
 	GLuint votes_ssbo = 0;
 	GLuint prefix_sums_ssbo = 0;
 	GLuint block_sums_ssbo = 0;
-	GLuint last_sum_ssbo = 0;
 
+	std::string vote_prog_name = "";
 	std::string data_type_def = "";
 	std::string vote_definition = "";
 
@@ -42,7 +50,7 @@ public:
 	bool init(context& ctx, size_t count);
 
 	unsigned execute(context& ctx, GLuint in_buffer, GLuint out_buffer, bool return_count = true);
-
+	
 	/** GLSL code to define the data type and structure of one element of the input data buffer.
 		This effectively defines the contents of a struct used to represent one array element.
 		The default value is "float x, y, z;" to map the buffer contents to an array of vec3, e.g.
@@ -71,7 +79,13 @@ public:
 
 	/** Resets the vote definition to an empty string, which will not override the default
 		definition in the shader. */
-	void reset_key_definition_override() { vote_definition = ""; }
+	void reset_vote_definition_override() { vote_definition = ""; }
+
+	void set_vote_prog_name(const std::string& name = "") { vote_prog_name = name; }
+
+	void set_mode(Mode mode) { this->mode = mode; }
+
+	shader_program& ref_vote_prog() { return vote_prog; }
 };
 
 }
