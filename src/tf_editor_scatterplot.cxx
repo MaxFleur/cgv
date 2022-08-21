@@ -493,7 +493,7 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 		content_canvas.pop_modelview_matrix(ctx);
 	}
 	
-	// Shapes are next (if peak mode is enabled)
+	// Shapes are next (if peak mode is disabled)
 	if (!is_peak_mode) {
 		create_primitive_shapes();
 		draw_primitive_shapes(ctx);
@@ -519,8 +519,6 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 }
 
 bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
-
-	// enable the offline plot frame buffer, so all things are drawn into its attached textures
 	fbc_plot.enable(ctx);
 
 	if(use_tone_mapping) {
@@ -529,10 +527,7 @@ bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 
 	// make sure to reset the color buffer if we update the content from scratch
 	if (m_total_count == 0 || m_reset_plot) {
-		if(use_tone_mapping)
-			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		else
-			glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+		use_tone_mapping ? glClearColor(0.0f, 0.0f, 0.0f, 0.0f) : glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		m_reset_plot = false;
 	}
@@ -693,17 +688,13 @@ void tf_editor_scatterplot::set_point_positions() {
 void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos, bool double_clicked, bool ctrl_pressed) {
 	m_is_point_dragged = false;
 	auto found = false;
-	auto index_j = 0;
 	auto stain_index = 0;
 
 	for (unsigned i = 0; i < m_points.size(); ++i) {
 		for (int j = 0; j < m_points[i].size(); j++) {
 			// Now the relating draggable in the scatter plot has to be updated
 			if (m_points[i][j].is_inside(mouse_pos)) {
-				const auto& found_point = m_points[i][j];
-
 				m_interacted_point_id = i;
-				index_j = j;
 				stain_index = ctrl_pressed ? m_points[i][j].m_stain_first : m_points[i][j].m_stain_second;
 
 				found = true;
