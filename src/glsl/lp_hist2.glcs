@@ -268,6 +268,7 @@ void main() {
 // VERSION 3 : 80 | 125 ms --- !!! resolution.x must be >= resolution.y !!!
 shared uvec4 temp[4*128];
 
+/*
 #define STEP(O) \
 	atomicAdd(temp[y0 + O][0], c8.r); \
 	atomicAdd(temp[y0 + O][1], c8.g); \
@@ -281,6 +282,33 @@ shared uvec4 temp[4*128];
 	plot_idx = x + resolution.x * lidx; \
 	atomicAdd(plot0.rgba[plot_idx].rg, packUint2x32(uvec2(temp[lidx + O].rg))); \
 	atomicAdd(plot0.rgba[plot_idx].ba, packUint2x32(uvec2(temp[lidx + O].ba))); \
+	temp[lidx + O] = uvec4(0); \
+	++x;
+*/
+
+#define WRITE_SHARED(ADDR, COLOR) \
+	atomicAdd(temp[ADDR][0], COLOR[0]); \
+	atomicAdd(temp[ADDR][1], COLOR[1]); \
+	atomicAdd(temp[ADDR][2], COLOR[2]); \
+	atomicAdd(temp[ADDR][3], COLOR[3]); \
+
+#define SHARED_TO_GLOBAL(BUF, GADDR, SADDR) \
+	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(uvec2(temp[SADDR].rg))); \
+	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(uvec2(temp[SADDR].ba))); \
+
+#define WRITE_GLOBAL(BUF, GADDR, COLOR) \
+	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(COLOR.rg)); \
+	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(COLOR.ba)); \
+
+#define STEP(O) \
+	WRITE_SHARED(y0 + O, c8) \
+	e2 = 2 * err; \
+	if(e2 > dy) { err += dy; x0 += sx; } \
+	if(e2 < dx) { err += dx; y0 += sy; }
+
+#define WRITE_AND_CLEAR(O) \
+	plot_idx = x + resolution.x * lidx; \
+	SHARED_TO_GLOBAL(plot0, plot_idx, lidx + O) \
 	temp[lidx + O] = uvec4(0); \
 	++x;
 
@@ -319,7 +347,7 @@ void main() {
 		int err = dx + dy, e2;
 
 		int plot_idx;
-		for(int x = 0; x < 128;) {
+		for(int x = 0; x < 4;) {
 			STEP(0*128)
 			STEP(1*128)
 			STEP(2*128)

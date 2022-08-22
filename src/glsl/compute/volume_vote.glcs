@@ -38,7 +38,7 @@ bool get_vote(in int idx) {
 	float avg = p[0] + p[1] + p[2] + p[3];
 	avg *= 0.25f;
 
-	return true;//avg > threshold;
+	return avg > threshold;
 }
 
 void main() {

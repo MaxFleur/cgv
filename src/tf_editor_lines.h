@@ -42,6 +42,16 @@ public:
 		auto ctx_ptr = get_context();
 		if(ctx_ptr && m_data_set_ptr) {
 		
+			GLint max_work_group_invocations = 0;
+			GLint max_work_group_count = 0;
+			GLint max_work_group_size = 0;
+			glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &max_work_group_invocations);
+			glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &max_work_group_count);
+			glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &max_work_group_size);
+			
+				
+				
+
 			//unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
 			//unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
 			//unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
@@ -166,7 +176,7 @@ private:
 
 	GLuint index_buffer = 0;
 	unsigned filtered_count = 0;
-	cgv::gpgpu::scan_and_compact sac;
+	cgv::gpgpu::scan_and_compact sac, sac2;
 
 
 

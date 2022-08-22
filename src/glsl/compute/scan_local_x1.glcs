@@ -103,6 +103,6 @@ void main() {
 	prefix_sums[thread_offset] = sums;
     
     if(tid == 63 && gl_WorkGroupID.x == n_scan_groups - 1) {
-		last_sum = scan_value + v2;
+		last_sum = scan_value + ((value_pack>>3)&1) + v2;
 	}
 }

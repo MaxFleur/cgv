@@ -163,18 +163,6 @@ bool viewer::handle_event(cgv::gui::event& e) {
 		cgv::gui::mouse_event& me = (cgv::gui::mouse_event&)e;
 		cgv::gui::MouseAction ma = me.get_action();
 
-		/* ma is one of:
-			cgv::gui::[
-				MA_DRAG,
-				MA_ENTER,
-				MA_LEAVE,
-				MA_MOVE,
-				MA_PRESS,
-				MA_RELEASE,
-				MA_WHEEL
-			]
-		*/
-
 		return false;
 	}
 	else {
@@ -1285,7 +1273,7 @@ bool viewer::prepare_dataset() {
 	calculate_volume_gradients(*ctx_ptr);
 	std::cout << "done (" << s1.get_elapsed_time() << "s)" << std::endl;
 
-//#ifndef _DEBUG
+#ifndef _DEBUG
 	std::cout << "Computing histograms... ";
 	s1.restart();
 
@@ -1302,7 +1290,7 @@ bool viewer::prepare_dataset() {
 	histograms.hist2.resize(histograms.num_bins, 0);
 	histograms.hist3.resize(histograms.num_bins, 0);
 
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (int i = 0; i < data_views->size(); ++i) {
 		std::vector<unsigned>& hist = (*hists[i % 4]);
 		std::vector<unsigned> h = calculate_histogram((*data_views)[i]);
@@ -1315,7 +1303,7 @@ bool viewer::prepare_dataset() {
 	histograms.changed = true;
 	std::cout << "done (" << s1.get_elapsed_time() << "s)" << std::endl;
 
-//#endif
+#endif
 
 	if (prepare_btn)
 		prepare_btn->set("color", "");

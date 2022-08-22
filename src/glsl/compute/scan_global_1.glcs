@@ -54,6 +54,7 @@ void main() {
     barrier();
     memoryBarrier();
 
-    if(tid  == 0)
-        last_sum = (last_sum&0x000000FF) + block_sums[last_block_sum_idx];
+    if(tid  == 0) {
+        last_sum = last_sum + block_sums[last_block_sum_idx];
+	}
 }

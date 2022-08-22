@@ -128,7 +128,8 @@ void tf_editor_lines::on_set(void* member_ptr) {
 	if(member_ptr == &vis_mode || member_ptr == &m_threshold) {
 
 		if(member_ptr == &m_threshold) {
-			if(auto ctx_ptr = get_context()) {
+			auto ctx_ptr = get_context();
+			if(ctx_ptr && m_data_set_ptr) {
 				auto& ctx = *ctx_ptr;
 
 				// bind the source 3D texture containing the data values
@@ -144,17 +145,23 @@ void tf_editor_lines::on_set(void* member_ptr) {
 				//float time = sac.end_time_query();
 
 				//std::cout << std::endl << "TIME: " << time << " ms" << std::endl;
-				
-				// TODO: count not quite correct???
-				// if vote is true the count is one less than the number of voxel values
 				std::cout << "COUNT: " << filtered_count << std::endl << std::endl;
 
 				// unbind the source data texture
 				glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
 
+				unsigned max_index = m_data_set_ptr->voxel_data.size() - 1;
+				unsigned n = filtered_count;// m_data_set_ptr->voxel_data.size();
+				std::cout << "Reading " << n << " indices" << std::endl;
+				auto& test = sac.read_buffer<int>(index_buffer, n);
 
-				//auto& test = sac.read_buffer<int>(index_buffer, 1000);
-				//int ii = 0;
+				for(size_t i = 0; i < n; ++i)
+					if(test[i] < 0 || test[i] > max_index)
+						std::cout << "FOO at" << i << std::endl;
+
+				int ii = 0;
+
+				glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			}
 		}
 
@@ -251,10 +258,11 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 
 
 
-	/*std::mt19937 rng;
+	/*
+	std::mt19937 rng;
 	std::uniform_int_distribution<int> distr(0, 9);
 
-	unsigned test_n = 1000;
+	unsigned test_n = 256 * 4;// 1000;
 
 	std::vector<int> test_values;
 	for(size_t i = 0; i < test_n; ++i) {
@@ -275,28 +283,29 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 
-	sac.set_data_type_override("int x;");// int y; ");
-	sac.set_vote_definition_override("return (value.x & 1) == 0; ");
+	sac2.set_data_type_override("int x;");// int y; ");
+	sac2.set_vote_definition_override("return true;");// (value.x & 1) == 0; ");
 	//sac.set_vote_definition_override("return value.x == 5;");
 
-	sac.set_mode(cgv::gpgpu::scan_and_compact::M_CREATE_INDICES);
+	sac2.set_mode(cgv::gpgpu::scan_and_compact::M_CREATE_INDICES);
 
-	sac.init(ctx, test_n);
+	sac2.init(ctx, test_n);
 
 	float acc_time = 0.0f;
 
 	unsigned count = 0;
 	for(size_t i = 0; i < 40; ++i) {
-		sac.begin_time_query();
-		count = sac.execute(ctx, test_buffer, out_buffer, true);
-		float time = sac.end_time_query();
+		sac2.begin_time_query();
+		count = sac2.execute(ctx, test_buffer, out_buffer, true);
+		float time = sac2.end_time_query();
 		if(i > 7) acc_time += time;
 	}
 
 	std::cout << std::endl << "TIME: " << acc_time << " ms" << std::endl;
 	std::cout << "COUNT: " << count << std::endl << std::endl;
 
-	std::vector<int> out_values = sac.read_buffer<int>(out_buffer, test_n);*/
+	std::vector<int> out_values = sac2.read_buffer<int>(out_buffer, test_n);
+	*/
 
 
 
@@ -773,7 +782,7 @@ void tf_editor_lines::update_content() {
 
 		clear_prog.disable(ctx);
 
-		if(filtered_count > 0) {
+		if(n > 0) {
 
 			// plot the data lines to the plot
 			auto& plot_prog = shaders.get("hist2");
