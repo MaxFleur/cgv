@@ -264,7 +264,7 @@ float sphere_transfer_function(vec4 density, vec4 centroid_positions, vec4 width
 }
 
 // Calculate a color for a relations type, based on the current primitive type
-vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
+vec4 evaluate_transfer_function(vec4 density) {
 	
 	vec3 color_sum = vec3(0.0);
 	float alpha_sum = 0.0;
@@ -288,7 +288,6 @@ vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 		}
 		// Apply global opacity and primitive color alpha
 		alpha *= gtf.color.a;
-		alpha *= alpha_scale;
 
 		// Add for every primitive
 		color_sum += alpha*gtf.color.rgb;
@@ -526,18 +525,23 @@ void main()
 		float alpha_scale = opacity_scale;
 
 #if ENABLE_SCALE_ADJUSTMENT == 1
-		alpha_scale *= size_scale; 
+		alpha_scale *= size_scale;
 		alpha_scale *= -exp(-step_size * scale_adjust) + 1.0;
 #endif
 		/** BEGIN - MFLEURY **/
-		vec4 color_in = evaluate_transfer_function(density, alpha_scale);
+		vec4 color_in = evaluate_transfer_function(density);
 		if(is_peak_mode) {
 			const float average_value = (density[0] + density[1] + density[2] + density[3]) / 4;
-			const vec4 white = vec4(1.0, 1.0, 1.0, average_value);
+			vec4 white = vec4(vec3(mix(0.0, 1.0, pow(average_value, 0.05))), average_value);
 			
-			const vec4 lerped = mix(white, color_in, 0.97);
-			color_in = lerped;
+			//const vec4 lerped = mix(white, color_in, color_in.a);//0.97);
+			//color_in = lerped;
+
+			white.rgb *= white.a;
+			color_in = mix(white, color_in, color_in.a);
 		}
+
+		color_in *= alpha_scale;
 		/** END - MFLEURY **/
 		
 #if ENABLE_LIGHTING == 1
