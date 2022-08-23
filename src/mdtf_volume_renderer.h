@@ -67,6 +67,10 @@ namespace cgv { // @<
 			/// a bounding box used to define a subspace of the volume to be visualized
 			box3 clip_box;
 
+			/* BEGIN - MFLEURY */
+			float gamma_value = 0.05f;
+			/* END - MFLEURY*/
+
 			mat4 clip_box_transform;
 			mat4 volume_transform;
 			
@@ -124,16 +128,6 @@ namespace cgv { // @<
 			/// sets the 3D volume texture containing scalar values (density or other measured quantities)
 			bool set_volume_texture(texture* tex);
 
-			void setCentroid(vec4 centroid)
-			{
-				m_centroid = centroid;
-			};
-
-			void setGaussianWidth(float width)
-			{
-				m_gaussian_width = width;
-			};
-
 			bool set_gradient_texture(texture* tex);
 			bool set_depth_texture(texture* tex);
 
@@ -146,10 +140,6 @@ namespace cgv { // @<
 			///
 			void draw(context& ctx, size_t start, size_t count,
 				bool use_strips = false, bool use_adjacency = false, uint32_t strip_restart_index = -1);
-
-		private:
-			vec4 m_centroid;
-			float m_gaussian_width;
 		};
 	}
 }

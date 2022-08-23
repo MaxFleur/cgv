@@ -281,5 +281,7 @@ private:
 	int m_selected_primitve_id = INT_MAX;
 	bool is_peak_mode = false;
 
+	float gamma_value = 0.05f;
+
 /** END - MFLEURY **/
 };

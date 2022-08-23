@@ -75,6 +75,8 @@ uniform gtf_data gtfs[5];
 
 uniform int centroid_values_size;
 uniform bool is_peak_mode;
+
+uniform float gamma_value;
 /** END - MFLEURY **/
 
 /*--------------------------------------------------------------------------*\
@@ -532,10 +534,7 @@ void main()
 		vec4 color_in = evaluate_transfer_function(density);
 		if(is_peak_mode) {
 			const float average_value = (density[0] + density[1] + density[2] + density[3]) / 4;
-			vec4 white = vec4(vec3(mix(0.0, 1.0, pow(average_value, 0.05))), average_value);
-			
-			//const vec4 lerped = mix(white, color_in, color_in.a);//0.97);
-			//color_in = lerped;
+			vec4 white = vec4(vec3(mix(0.0, 1.0, pow(average_value, gamma_value))), average_value);
 
 			white.rgb *= white.a;
 			color_in = mix(white, color_in, color_in.a);

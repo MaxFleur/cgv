@@ -597,6 +597,7 @@ void viewer::draw(cgv::render::context& ctx) {
 				const int size = m_shared_data_ptr->primitives.size();
 				vol_prog.set_uniform(ctx, "centroid_values_size", size);
 				vol_prog.set_uniform(ctx, "is_peak_mode", is_peak_mode);
+				vol_prog.set_uniform(ctx, "gamma_value", mdtf_vstyle.gamma_value);
 
 				// send all primitive data to the shader
 				for(int i = 0; i < size; i++) {
@@ -678,6 +679,7 @@ void viewer::create_gui() {
 	} else {
 		if(begin_tree_node("Volume Rendering", mdtf_vstyle, false)) {
 			align("\a");
+			add_decorator("", "separator");
 			add_gui("vstyle", mdtf_vstyle);
 			align("\b");
 			end_tree_node(mdtf_vstyle);
