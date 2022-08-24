@@ -4,6 +4,7 @@
 #extension GL_NV_shader_atomic_int64 : enable
 #extension GL_NV_shader_atomic_float : enable
 #extension GL_KHR_shader_subgroup_vote : enable
+#extension GL_NV_shader_subgroup_partitioned : enable
 
 layout(local_size_x = 128) in;
 
@@ -143,23 +144,25 @@ vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 
 
 
-/*
-// VERSION 4 : 100 | 145 ms
+
+// VERSION 4 : 6 | 65 ms --- !!! resolution.x must be >= resolution.y !!!
 shared uvec4 temp[4*128];
 
 #define WRITE_SHARED(ADDR, COLOR) \
 	atomicAdd(temp[ADDR][0], COLOR[0]); \
 	atomicAdd(temp[ADDR][1], COLOR[1]); \
 	atomicAdd(temp[ADDR][2], COLOR[2]); \
-	atomicAdd(temp[ADDR][3], COLOR[3]); \
+	atomicAdd(temp[ADDR][3], COLOR[3]);
 
 #define SHARED_TO_GLOBAL(BUF, GADDR, SADDR) \
-	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(uvec2(temp[SADDR].rg))); \
-	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(uvec2(temp[SADDR].ba))); \
+	if(temp[SADDR].a > 0) { \
+		atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(uvec2(temp[SADDR].rg))); \
+		atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(uvec2(temp[SADDR].ba))); \
+	}
 
 #define WRITE_GLOBAL(BUF, GADDR, COLOR) \
 	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(COLOR.rg)); \
-	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(COLOR.ba)); \
+	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(COLOR.ba));
 
 #define STEP(O) \
 	WRITE_SHARED(y0 + O, c8) \
@@ -181,58 +184,85 @@ void main() {
 		ivec3 src_size = imageSize(src_tex);
 		ivec3 src_coord;
 
-		src_coord.x = idx % src_size.x;
-		src_coord.y = (idx / src_size.x) % src_size.y;
-		src_coord.z = idx / (src_size.x * src_size.y);
+		int volume_idx = volume_indices[idx];
+
+		src_coord.x = volume_idx % src_size.x;
+		src_coord.y = (volume_idx / src_size.x) % src_size.y;
+		src_coord.z = volume_idx / (src_size.x * src_size.y);
 
 		vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
 
-		float avg = p[0] + p[1] + p[2] + p[3];
-		avg *= 0.25f;
+		vec4 color = evaluate_transfer_function(p, 1.0);
 
-		bool rasterize = avg > threshold;
-		vec4 color = rasterize ?
-			evaluate_transfer_function(p, 1.0) :
-			vec4(0.0);
+		//color = vec4(0.25 + 0.25 * gl_SubgroupID);
 
 		uvec4 c8 = uvec4(color * 128);
 
-		int y0 = int(mix(0, resolution.y - 1, p[indices[0].x]));
-		int y1 = int(mix(0, resolution.y - 1, p[indices[0].y]));
-		int x0 = 0, x1 = resolution.x - 1;
-		int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+		int y0 = int(p[indices[0].x] * (resolution.y - 1));
+		int y1 = int(p[indices[0].y] * (resolution.y - 1));
+		int x1 = resolution.x - 1;
+		//int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+		int dx =  x1;
 		int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
 		int err = dx + dy, e2;
 
-		int local_offset = lidx >> 5;
-		local_offset *= 128;
-
 		int plot_idx;
 		for(int x = 0; x < 128;) {
-			if(rasterize) {
-				WRITE_SHARED(y0 + local_offset, c8)
-				e2 = 2 * err;
-				if(e2 > dy) { err += dy; x0 += sx; }
-				if(e2 < dx) { err += dx; y0 += sy; }
+			uvec4 sg = subgroupPartitionNV(y0);
+
+			uvec4 acc_sg_color = subgroupPartitionedAddNV(c8, sg);
+			uint first_partitioned_thread = subgroupPartitionedMinNV(gl_SubgroupInvocationID, sg);
+
+			//uint subgroup_offset = 128 * gl_SubgroupID;
+			//if(gl_SubgroupInvocationID == first_partitioned_thread) {
+			//	temp[y0 + subgroup_offset] = acc_sg_color;
+			//}
+
+			if(gl_SubgroupInvocationID == first_partitioned_thread) {
+				atomicAdd(temp[y0][0], acc_sg_color[0]);
+				atomicAdd(temp[y0][1], acc_sg_color[1]);
+				atomicAdd(temp[y0][2], acc_sg_color[2]);
+				atomicAdd(temp[y0][3], acc_sg_color[3]);
 			}
-				
+
+			e2 = 2 * err;
+			//if(e2 > dy) { err += dy; x0 += sx; }
+			err += dy;
+			if(e2 < dx) { err += dx; y0 += sy; }
+			
+			//STEP(0*128)
+			//STEP(1*128)
+			//STEP(2*128)
+			//STEP(3*128)
+
 			barrier();
 
-			uvec4 c = temp[lidx] + temp[lidx + 128] + temp[lidx + 2*128] + temp[lidx + 3*128];
-			
-			plot_idx = x + resolution.x * lidx;
-			WRITE_GLOBAL(plot0, plot_idx, c)
-			temp[lidx + 0*128] = uvec4(0);
-			temp[lidx + 1*128] = uvec4(0);
-			temp[lidx + 2*128] = uvec4(0);
-			temp[lidx + 3*128] = uvec4(0);
+
+			uvec4 acc_color =
+				temp[lidx + 0*128];// +
+				//temp[lidx + 1*128] +
+				//temp[lidx + 2*128] +
+				//temp[lidx + 3*128];
+
+			if(acc_color.a > 0) {
+				plot_idx = x + resolution.x * lidx;
+				WRITE_GLOBAL(plot0, plot_idx, acc_color);
+				temp[lidx + 0*128] = uvec4(0);
+				//temp[lidx + 1*128] = uvec4(0);
+				//temp[lidx + 2*128] = uvec4(0);
+				//temp[lidx + 3*128] = uvec4(0);
+			}
 			++x;
 
+			//WRITE_AND_CLEAR(0*128)
+			//WRITE_AND_CLEAR(1*128)
+			//WRITE_AND_CLEAR(2*128)
+			//WRITE_AND_CLEAR(3*128)
+				
 			barrier();
 		}
 	}
 }
-*/
 
 
 
@@ -264,41 +294,26 @@ void main() {
 
 
 
-
-// VERSION 3 : 80 | 125 ms --- !!! resolution.x must be >= resolution.y !!!
-shared uvec4 temp[4*128];
 
 /*
-#define STEP(O) \
-	atomicAdd(temp[y0 + O][0], c8.r); \
-	atomicAdd(temp[y0 + O][1], c8.g); \
-	atomicAdd(temp[y0 + O][2], c8.b); \
-	atomicAdd(temp[y0 + O][3], c8.a); \
-	e2 = 2 * err; \
-	if(e2 > dy) { err += dy; x0 += sx; } \
-	if(e2 < dx) { err += dx; y0 += sy; }
-
-#define WRITE_AND_CLEAR(O) \
-	plot_idx = x + resolution.x * lidx; \
-	atomicAdd(plot0.rgba[plot_idx].rg, packUint2x32(uvec2(temp[lidx + O].rg))); \
-	atomicAdd(plot0.rgba[plot_idx].ba, packUint2x32(uvec2(temp[lidx + O].ba))); \
-	temp[lidx + O] = uvec4(0); \
-	++x;
-*/
+// VERSION 3 : 6 | 65 ms --- !!! resolution.x must be >= resolution.y !!!
+shared uvec4 temp[4*128];
 
 #define WRITE_SHARED(ADDR, COLOR) \
 	atomicAdd(temp[ADDR][0], COLOR[0]); \
 	atomicAdd(temp[ADDR][1], COLOR[1]); \
 	atomicAdd(temp[ADDR][2], COLOR[2]); \
-	atomicAdd(temp[ADDR][3], COLOR[3]); \
+	atomicAdd(temp[ADDR][3], COLOR[3]);
 
 #define SHARED_TO_GLOBAL(BUF, GADDR, SADDR) \
-	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(uvec2(temp[SADDR].rg))); \
-	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(uvec2(temp[SADDR].ba))); \
+	if(temp[SADDR].a > 0) { \
+		atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(uvec2(temp[SADDR].rg))); \
+		atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(uvec2(temp[SADDR].ba))); \
+	}
 
 #define WRITE_GLOBAL(BUF, GADDR, COLOR) \
 	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(COLOR.rg)); \
-	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(COLOR.ba)); \
+	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(COLOR.ba));
 
 #define STEP(O) \
 	WRITE_SHARED(y0 + O, c8) \
@@ -347,23 +362,24 @@ void main() {
 		int err = dx + dy, e2;
 
 		int plot_idx;
-		for(int x = 0; x < 4;) {
+		for(int x = 0; x < 128;) {
 			STEP(0*128)
-			STEP(1*128)
-			STEP(2*128)
-			STEP(3*128)
+			//STEP(1*128)
+			//STEP(2*128)
+			//STEP(3*128)
 				
 			barrier();
 
 			WRITE_AND_CLEAR(0*128)
-			WRITE_AND_CLEAR(1*128)
-			WRITE_AND_CLEAR(2*128)
-			WRITE_AND_CLEAR(3*128)
+			//WRITE_AND_CLEAR(1*128)
+			//WRITE_AND_CLEAR(2*128)
+			//WRITE_AND_CLEAR(3*128)
 				
 			barrier();
 		}
 	}
 }
+*/
 
 
 
