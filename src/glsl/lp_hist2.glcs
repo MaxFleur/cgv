@@ -3,6 +3,7 @@
 #extension GL_NV_gpu_shader5 : enable
 #extension GL_NV_shader_atomic_int64 : enable
 #extension GL_NV_shader_atomic_float : enable
+#extension GL_KHR_shader_subgroup_ballot : enable
 #extension GL_KHR_shader_subgroup_vote : enable
 #extension GL_NV_shader_subgroup_partitioned : enable
 
@@ -138,6 +139,76 @@ vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 
 
 
+// VERSION 4.1 : 6 | 65 ms --- !!! resolution.x must be >= resolution.y !!!
+shared uvec4 temp[128];
+
+#define WRITE_SHARED(ADDR, COLOR) \
+	atomicAdd(temp[ADDR][0], COLOR[0]); \
+	atomicAdd(temp[ADDR][1], COLOR[1]); \
+	atomicAdd(temp[ADDR][2], COLOR[2]); \
+	atomicAdd(temp[ADDR][3], COLOR[3]);
+
+#define SHARED_TO_GLOBAL(BUF, GADDR, SADDR) \
+	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(uvec2(temp[SADDR].rg))); \
+	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(uvec2(temp[SADDR].ba))); \
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+	int lidx = int(gl_LocalInvocationID.x);
+
+	if(idx < num_data_values) {
+		ivec3 src_size = imageSize(src_tex);
+		ivec3 src_coord;
+
+		int volume_idx = volume_indices[idx];
+
+		src_coord.x = volume_idx % src_size.x;
+		src_coord.y = (volume_idx / src_size.x) % src_size.y;
+		src_coord.z = volume_idx / (src_size.x * src_size.y);
+
+		vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
+
+		vec4 color = evaluate_transfer_function(p, 1.0);
+
+		uvec4 c8 = uvec4(color * 128);
+
+		int y0 = int(p[indices[0].x] * (resolution.y - 1));
+		int y1 = int(p[indices[0].y] * (resolution.y - 1));
+		int x1 = resolution.x - 1;;
+		int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+		int err = x1 + dy, e2;
+
+		int plot_idx;
+		for(int x = 0; x < 128;) {
+			/*
+			uvec4 sg = subgroupPartitionNV(y0);
+
+			uvec4 acc_sg_color = subgroupPartitionedAddNV(c8, sg);
+			bool is_first_unique = gl_SubgroupInvocationID == subgroupBallotFindLSB(sg);
+
+			if(is_first_unique)
+				WRITE_SHARED(y0, acc_sg_color);
+			*/
+
+			WRITE_SHARED(y0, c8);
+
+			e2 = 2 * err;
+			err += dy;
+			if(e2 < x1) { err += x1; y0 += sy; }
+			
+			barrier();
+
+			if(temp[lidx].a > 0) {
+				plot_idx = x + resolution.x * lidx;
+				SHARED_TO_GLOBAL(plot0, plot_idx, lidx);
+				temp[lidx] = uvec4(0);
+			}
+			++x;
+	
+			barrier();
+		}
+	}
+}
 
 
 
@@ -145,6 +216,21 @@ vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 // VERSION 4 : 6 | 65 ms --- !!! resolution.x must be >= resolution.y !!!
 shared uvec4 temp[4*128];
 
@@ -200,35 +286,49 @@ void main() {
 
 		int y0 = int(p[indices[0].x] * (resolution.y - 1));
 		int y1 = int(p[indices[0].y] * (resolution.y - 1));
-		int x1 = resolution.x - 1;
-		//int dx =  abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-		int dx =  x1;
+		int x1 = resolution.x - 1;;
 		int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-		int err = dx + dy, e2;
+		int err = x1 + dy, e2;
 
 		int plot_idx;
 		for(int x = 0; x < 128;) {
+			/*
 			uvec4 sg = subgroupPartitionNV(y0);
 
 			uvec4 acc_sg_color = subgroupPartitionedAddNV(c8, sg);
-			uint first_partitioned_thread = subgroupPartitionedMinNV(gl_SubgroupInvocationID, sg);
+			bool is_first_unique = gl_SubgroupInvocationID == subgroupBallotFindLSB(sg);
+
+			if(is_first_unique)
+				WRITE_SHARED(y0, acc_sg_color);
+			*
+
+
+
+			/*
+			//uint first_partitioned_thread = subgroupPartitionedMinNV(gl_SubgroupInvocationID, sg);
 
 			//uint subgroup_offset = 128 * gl_SubgroupID;
-			//if(gl_SubgroupInvocationID == first_partitioned_thread) {
+			////if(gl_SubgroupInvocationID == first_partitioned_thread) {
+			//if(is_first_unique) {
 			//	temp[y0 + subgroup_offset] = acc_sg_color;
 			//}
 
-			if(gl_SubgroupInvocationID == first_partitioned_thread) {
+			//if(gl_SubgroupInvocationID == first_partitioned_thread) {
+			if(is_first_unique) {
 				atomicAdd(temp[y0][0], acc_sg_color[0]);
 				atomicAdd(temp[y0][1], acc_sg_color[1]);
 				atomicAdd(temp[y0][2], acc_sg_color[2]);
 				atomicAdd(temp[y0][3], acc_sg_color[3]);
-			}
+			}*
+
+
+
+			WRITE_SHARED(y0, c8);
+
 
 			e2 = 2 * err;
-			//if(e2 > dy) { err += dy; x0 += sx; }
 			err += dy;
-			if(e2 < dx) { err += dx; y0 += sy; }
+			if(e2 < x1) { err += x1; y0 += sy; }
 			
 			//STEP(0*128)
 			//STEP(1*128)
@@ -263,7 +363,7 @@ void main() {
 		}
 	}
 }
-
+*/
 
 
 
