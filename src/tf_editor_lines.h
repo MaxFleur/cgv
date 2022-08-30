@@ -164,7 +164,8 @@ private:
 		M_COMPUTE = 0,
 		M_VERTEX = 1,
 		M_GEOM = 2,
-		M_COMPUTE_2 = 3
+		M_COMPUTE_2 = 3,
+		M_COMPUTE_3 = 4,
 	} m_mode = M_COMPUTE_2;
 	GLuint plot_buffer;
 	texture plot_texture;
@@ -180,6 +181,8 @@ private:
 
 
 
+
+	GLuint plots_buffer = 0;
 
 };
 

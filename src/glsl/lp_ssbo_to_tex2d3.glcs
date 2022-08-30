@@ -1,0 +1,43 @@
+#version 450
+
+layout(local_size_x = 128) in;
+
+layout(std430, binding = 0) buffer plots_buffer {
+	ivec4 plots[];
+};
+
+layout(rgba32f, binding = 0) uniform writeonly image2D img0;
+layout(rgba32f, binding = 1) uniform writeonly image2D img1;
+layout(rgba32f, binding = 2) uniform writeonly image2D img2;
+layout(rgba32f, binding = 3) uniform writeonly image2D img3;
+layout(rgba32f, binding = 4) uniform writeonly image2D img4;
+layout(rgba32f, binding = 5) uniform writeonly image2D img5;
+
+uniform ivec2 resolution;
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+
+	int plot_size = resolution.x * resolution.y;
+
+	if(idx < plot_size) {
+		ivec2 img_coord = ivec2(
+			idx % resolution.x,
+			idx / resolution.x
+		);
+	
+		ivec4 plot0_val = 
+			plots[idx + 0*plot_size] +
+			plots[idx + 1*plot_size] +
+			plots[idx + 2*plot_size] +
+			plots[idx + 3*plot_size];
+
+		//imageStore(img0, img_coord, vec4(plots[idx + 0*plot_size]) / 128.0);
+		imageStore(img0, img_coord, vec4(plot0_val) / 128.0);
+		imageStore(img1, img_coord, vec4(plots[idx + 1*plot_size]) / 128.0);
+		imageStore(img2, img_coord, vec4(plots[idx + 2*plot_size]) / 128.0);
+		imageStore(img3, img_coord, vec4(plots[idx + 3*plot_size]) / 128.0);
+		imageStore(img4, img_coord, vec4(plots[idx + 4*plot_size]) / 128.0);
+		imageStore(img5, img_coord, vec4(plots[idx + 5*plot_size]) / 128.0);
+	}
+}

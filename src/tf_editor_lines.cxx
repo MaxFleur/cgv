@@ -215,6 +215,10 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	shaders.add("transfer2", "lp_ssbo_to_tex2d2");
 	shaders.add("clear2", "lp_ssbo_clear2");
 
+	shaders.add("hist3", "lp_hist3");
+	shaders.add("transfer3", "lp_ssbo_to_tex2d3");
+	shaders.add("clear3", "lp_ssbo_clear3");
+
 	shaders.add("plot_line", "plot2d_line.glpr");
 	shaders.add("plot_line2", "plot2d_line2.glpr");
 	success &= shaders.load_shaders(ctx, "tf_editor_lines::init");
@@ -255,6 +259,21 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 
+
+
+
+	glGenBuffers(1, &plots_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, plots_buffer);
+
+	unsigned pixels_per_plot = plot_resolution.x() * plot_resolution.y();
+	unsigned components_per_pixel = 4;
+	unsigned bytes_per_component = sizeof(float);
+	unsigned num_plots = 6;
+
+	unsigned num_bytes = num_plots * pixels_per_plot * components_per_pixel * bytes_per_component;
+
+	glBufferData(GL_SHADER_STORAGE_BUFFER, num_bytes, (void*)0, GL_DYNAMIC_COPY);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 
 
@@ -393,7 +412,7 @@ void tf_editor_lines::create_gui() {
 	tf_editor_basic::create_gui_coloring();
 	tf_editor_basic::create_gui_tm();
 
-	add_member_control(this, "Render Mode", m_mode, "dropdown", "enums='Compute Shader, Vertex Shader, Geometry Shader, Compute 2'");
+	add_member_control(this, "Render Mode", m_mode, "dropdown", "enums='Compute Shader, Vertex Shader, Geometry Shader, Compute 2, Compute 3'");
 }
 
 // Called if something in the primitives has been updated
@@ -429,7 +448,7 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_plot.use_blending = true;
 	m_style_plot.use_texture = true;
 	m_style_plot.feather_width = 0.0f;
-
+	
 	m_style_relations.use_blending = true;
 	m_style_relations.use_fill_color = false;
 	m_style_relations.width = 1.0f;
@@ -754,7 +773,7 @@ void tf_editor_lines::update_content() {
 		// reset blending and depth test
 		glDisable(GL_BLEND);
 		glEnable(GL_DEPTH_TEST);
-	} else {
+	} else if(m_mode == M_COMPUTE_2) {
 		// setup group and plot size
 		const unsigned group_size = 128;
 		
@@ -855,6 +874,105 @@ void tf_editor_lines::update_content() {
 			glBindImageTexture(i, 0, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
 		}
+	} else {
+		// setup group and plot size
+		const unsigned group_size = 128;
+
+		// calculate the necessary number of work groups
+		unsigned num_groups_image_order = (plot_resolution.x() * plot_resolution.y() + group_size - 1) / group_size;
+
+		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
+		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
+		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
+
+		unsigned n = filtered_count;// width * height * depth; // number of data points
+		//unsigned num_groups_data_order = (n + group_size - 1) / group_size;
+
+		// bind shader storage buffer
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, plots_buffer);
+
+		// clear the previous contents
+		auto& clear_prog = shaders.get("clear3");
+		clear_prog.enable(ctx);
+		clear_prog.set_uniform(ctx, "resolution", plot_resolution);
+
+		glDispatchCompute(num_groups_image_order, 1, 1);
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+		clear_prog.disable(ctx);
+
+		if(n > 0) {
+			// plot the data lines to the plot
+			auto& plot_prog = shaders.get("hist3");
+			plot_prog.enable(ctx);
+
+			// set general uniforms
+			plot_prog.set_uniform(ctx, "num_data_values", static_cast<int>(n));
+			plot_prog.set_uniform(ctx, "resolution", plot_resolution);
+			plot_prog.set_uniform(ctx, "threshold", m_threshold);
+
+			plot_prog.set_uniform(ctx, "indices[0]", ivec2(1, 0));
+			plot_prog.set_uniform(ctx, "indices[1]", ivec2(0, 3));
+			plot_prog.set_uniform(ctx, "indices[2]", ivec2(0, 2));
+			plot_prog.set_uniform(ctx, "indices[3]", ivec2(1, 2));
+			plot_prog.set_uniform(ctx, "indices[4]", ivec2(1, 3));
+			plot_prog.set_uniform(ctx, "indices[5]", ivec2(3, 2));
+
+			// set transfer function uniforms
+			const int mdtf_size = static_cast<int>(m_shared_data_ptr->primitives.size());
+			plot_prog.set_uniform(ctx, "num_mdtf_primitives", mdtf_size);
+
+			for(int i = 0; i < mdtf_size; i++) {
+				const auto& p = m_shared_data_ptr->primitives[i];
+
+				std::string id = "mdtf[" + std::to_string(i) + "].";
+
+				plot_prog.set_uniform(ctx, id + "type", static_cast<int>(p.type));
+				plot_prog.set_uniform(ctx, id + "cntrd", p.centr_pos);
+				plot_prog.set_uniform(ctx, id + "width", p.centr_widths);
+				plot_prog.set_uniform(ctx, id + "color", p.color);
+			}
+
+			// bind the source 3D texture containing the data values
+			const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
+			glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+			// bind index buffer of filtered voxel values
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, index_buffer);
+
+			glDispatchCompute(4, 1, 1);
+			glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+			// unbind index buffer
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
+
+			// unbind the source data texture
+			glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+			plot_prog.disable(ctx);
+			
+			// transfer the shader storage buffer contents to the plot texture
+			auto& transfer_prog = shaders.get("transfer3");
+			transfer_prog.enable(ctx);
+			transfer_prog.set_uniform(ctx, "resolution", plot_resolution);
+
+			// bind the plot textures
+			for(unsigned i = 0; i < 6; ++i) {
+				const int handle = (const int&)(plot_textures[i].handle) - 1;
+				glBindImageTexture(i, handle, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+			}
+
+			glDispatchCompute(num_groups_image_order, 1, 1);
+			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+			transfer_prog.disable(ctx);
+		}
+
+		// unbind textures and buffer
+		for(size_t i = 0; i < 6; ++i)
+			glBindImageTexture(i, 0, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+		
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
 	}
 
 	glEndQuery(GL_TIME_ELAPSED);
@@ -1319,13 +1437,18 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	tone_mapping_prog.set_uniform(ctx, "alpha", tm_alpha);
 	tone_mapping_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
 
+	if(m_mode == M_COMPUTE_2)
+		m_style_plot.texcoord_scaling = vec2(0.25f, 1.0f);
+	else
+		m_style_plot.texcoord_scaling = vec2(1.0f);
+
 	m_style_plot.apply(ctx, tone_mapping_prog);
 
 	if(m_mode == M_COMPUTE) {
 		plot_texture.enable(ctx, 0);
 		content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
 		plot_texture.disable(ctx);
-	} else if(m_mode == M_COMPUTE_2) {
+	} else if(m_mode == M_COMPUTE_2 || m_mode == M_COMPUTE_3) {
 
 		int li0[6] = { 0, 12, 8, 10, 13, 9 };
 		int li1[6] = { 6, 1, 2, 4, 5, 14 };

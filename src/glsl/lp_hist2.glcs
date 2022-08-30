@@ -139,6 +139,237 @@ vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
 
 
 
+
+// VERSION 4.2(all) : - | - ms --- !!! resolution.x must be >= resolution.y !!!
+shared uint temp[4*128];
+
+#define WRITE_SHARED(ADDR, COLOR) \
+	atomicAdd(temp[ADDR + 0*128], COLOR[0]); \
+	atomicAdd(temp[ADDR + 1*128], COLOR[1]); \
+	atomicAdd(temp[ADDR + 2*128], COLOR[2]); \
+	atomicAdd(temp[ADDR + 3*128], COLOR[3]);
+
+#define SHARED_TO_GLOBAL(BUF, GADDR, SADDR) \
+	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(uvec2(temp[SADDR + 0*128], temp[SADDR + 1*128]))); \
+	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(uvec2(temp[SADDR + 2*128], temp[SADDR + 3*128]))); \
+
+#define PLOT_LINE(I) \
+	y0 = int(p[indices[I].x] * my); \
+	y1 = int(p[indices[I].y] * my); \
+	dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1; \
+	err = mx + dy, e2; \
+	\
+	for(int x = 0; x < 128;) { \
+		WRITE_SHARED(y0, color8); \
+		e2 = 2 * err; \
+		err += dy; \
+		if(e2 < mx) { err += mx; y0 += sy; } \
+		e2 = 2 * err; \
+		err += dy; \
+		if(e2 < mx) { err += mx; y0 += sy; } \
+		e2 = 2 * err; \
+		err += dy; \
+		if(e2 < mx) { err += mx; y0 += sy; } \
+		e2 = 2 * err; \
+		err += dy; \
+		if(e2 < mx) { err += mx; y0 += sy; } \
+		barrier(); \
+		if(temp[lidx + 3*128] > 0) { \
+			plot_idx = (x/4) + resolution.x * lidx; \
+			SHARED_TO_GLOBAL(plot##I, plot_idx, lidx); \
+			temp[lidx + 0*128] = 0; \
+			temp[lidx + 1*128] = 0; \
+			temp[lidx + 2*128] = 0; \
+			temp[lidx + 3*128] = 0; \
+		} \
+		++x; \
+		++x; \
+		++x; \
+		++x; \
+		barrier(); \
+	}
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+	int lidx = int(gl_LocalInvocationID.x);
+
+	if(idx < num_data_values) {
+		ivec3 src_size = imageSize(src_tex);
+		ivec3 src_coord;
+
+		int volume_idx = volume_indices[idx];
+
+		src_coord.x = volume_idx % src_size.x;
+		src_coord.y = (volume_idx / src_size.x) % src_size.y;
+		src_coord.z = volume_idx / (src_size.x * src_size.y);
+
+		vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
+
+		uvec4 color8 = uvec4(128 * evaluate_transfer_function(p, 1.0));
+
+		int mx = resolution.x - 1;
+		int my = resolution.y - 1;
+		int y0, y1, dy, sy, err, e2;
+
+		int plot_idx;
+
+		PLOT_LINE(0)
+		PLOT_LINE(1)
+		PLOT_LINE(2)
+		PLOT_LINE(3)
+		PLOT_LINE(4)
+		PLOT_LINE(5)
+
+		/*y0 = int(p[indices[0].x] * my);
+		y1 = int(p[indices[0].y] * my);
+		dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+		err = mx + dy, e2;
+
+		for(int x = 0; x < 128;) {
+			WRITE_SHARED(y0, color8);
+
+			e2 = 2 * err;
+			err += dy;
+			if(e2 < mx) { err += mx; y0 += sy; }
+
+			barrier();
+
+			if(temp[lidx + 3*128] > 0) {
+				plot_idx = x + resolution.x * lidx;
+				SHARED_TO_GLOBAL(plot0, plot_idx, lidx);
+				temp[lidx + 0*128] = 0;
+				temp[lidx + 1*128] = 0;
+				temp[lidx + 2*128] = 0;
+				temp[lidx + 3*128] = 0;
+			}
+			++x;
+	
+			barrier();
+		}
+
+		y0 = int(p[indices[1].x] * my);
+		y1 = int(p[indices[1].y] * my);
+		dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+		err = mx + dy, e2;
+
+		for(int x = 0; x < 128;) {
+			WRITE_SHARED(y0, color8);
+
+			e2 = 2 * err;
+			err += dy;
+			if(e2 < mx) { err += mx; y0 += sy; }
+
+			barrier();
+
+			if(temp[lidx + 3*128] > 0) {
+				plot_idx = x + resolution.x * lidx;
+				SHARED_TO_GLOBAL(plot1, plot_idx, lidx);
+				temp[lidx + 0*128] = 0;
+				temp[lidx + 1*128] = 0;
+				temp[lidx + 2*128] = 0;
+				temp[lidx + 3*128] = 0;
+			}
+			++x;
+	
+			barrier();
+		}*/
+	}
+}
+
+
+
+
+
+
+
+
+/*
+// VERSION 4.2 : 5 | 60 ms --- !!! resolution.x must be >= resolution.y !!!
+shared uint temp[4*128];
+
+#define WRITE_SHARED(ADDR, COLOR) \
+	atomicAdd(temp[ADDR + 0*128], COLOR[0]); \
+	atomicAdd(temp[ADDR + 1*128], COLOR[1]); \
+	atomicAdd(temp[ADDR + 2*128], COLOR[2]); \
+	atomicAdd(temp[ADDR + 3*128], COLOR[3]);
+
+#define SHARED_TO_GLOBAL(BUF, GADDR, SADDR) \
+	atomicAdd(BUF.rgba[GADDR].rg, packUint2x32(uvec2(temp[SADDR + 0*128], temp[SADDR + 1*128]))); \
+	atomicAdd(BUF.rgba[GADDR].ba, packUint2x32(uvec2(temp[SADDR + 2*128], temp[SADDR + 3*128]))); \
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+	int lidx = int(gl_LocalInvocationID.x);
+
+	if(idx < num_data_values) {
+		ivec3 src_size = imageSize(src_tex);
+		ivec3 src_coord;
+
+		int volume_idx = volume_indices[idx];
+
+		src_coord.x = volume_idx % src_size.x;
+		src_coord.y = (volume_idx / src_size.x) % src_size.y;
+		src_coord.z = volume_idx / (src_size.x * src_size.y);
+
+		vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
+
+		vec4 color = evaluate_transfer_function(p, 1.0);
+
+		uvec4 c8 = uvec4(color * 128);
+
+		int y0 = int(p[indices[0].x] * (resolution.y - 1));
+		int y1 = int(p[indices[0].y] * (resolution.y - 1));
+		int x1 = resolution.x - 1;;
+		int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+		int err = x1 + dy, e2;
+
+		int plot_idx;
+		for(int x = 0; x < 128;) {
+			/*
+			uvec4 sg = subgroupPartitionNV(y0);
+
+			uvec4 acc_sg_color = subgroupPartitionedAddNV(c8, sg);
+			bool is_first_unique = gl_SubgroupInvocationID == subgroupBallotFindLSB(sg);
+
+			if(is_first_unique)
+				WRITE_SHARED(y0, acc_sg_color);
+			*
+
+			WRITE_SHARED(y0, c8);
+
+			e2 = 2 * err;
+			err += dy;
+			if(e2 < x1) { err += x1; y0 += sy; }
+
+			barrier();
+
+			if(temp[lidx + 3*128] > 0) {
+				plot_idx = x + resolution.x * lidx;
+				SHARED_TO_GLOBAL(plot0, plot_idx, lidx);
+				temp[lidx + 0*128] = 0;
+				temp[lidx + 1*128] = 0;
+				temp[lidx + 2*128] = 0;
+				temp[lidx + 3*128] = 0;
+			}
+			++x;
+	
+			barrier();
+		}
+	}
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+/*
 // VERSION 4.1 : 6 | 65 ms --- !!! resolution.x must be >= resolution.y !!!
 shared uvec4 temp[128];
 
@@ -188,7 +419,7 @@ void main() {
 
 			if(is_first_unique)
 				WRITE_SHARED(y0, acc_sg_color);
-			*/
+			*
 
 			WRITE_SHARED(y0, c8);
 
@@ -209,7 +440,7 @@ void main() {
 		}
 	}
 }
-
+*/
 
 
 

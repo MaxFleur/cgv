@@ -1,0 +1,245 @@
+#version 450
+
+#extension GL_NV_gpu_shader5 : enable
+#extension GL_NV_shader_atomic_int64 : enable
+#extension GL_NV_shader_atomic_float : enable
+#extension GL_KHR_shader_subgroup_ballot : enable
+#extension GL_KHR_shader_subgroup_vote : enable
+#extension GL_NV_shader_subgroup_partitioned : enable
+
+layout(local_size_x = 128) in;
+
+layout(rgba8ui, binding = 0) uniform readonly coherent uimage3D src_tex;
+
+layout(std430, binding = 6) readonly buffer index_buffer {
+	int volume_indices[];
+};
+
+struct data_type {
+	uint64_t rg;
+	uint64_t ba;
+};
+
+layout(std430, binding = 0) buffer plots_buffer {
+	uvec4 plots[];
+};
+
+//#define DEF_SP_BUF(I) layout(std430, binding = I) buffer plot##I##_buffer { data_type rgba[]; } plot##I;
+//
+//DEF_SP_BUF(0)
+//DEF_SP_BUF(1)
+//DEF_SP_BUF(2)
+//DEF_SP_BUF(3)
+//DEF_SP_BUF(4)
+//DEF_SP_BUF(5)
+
+uniform int num_data_values;
+uniform ivec2 resolution;
+uniform float threshold;
+uniform	ivec2 indices[6];
+
+struct tf_primitive {
+	int type;
+	vec4 cntrd;
+	vec4 color;
+	vec4 width;
+};
+
+uniform tf_primitive mdtf[8];
+uniform int num_mdtf_primitives;
+
+// return an alpha value equivalent to the value of a gaussian function at the given centroid position with the specified with
+float evaluate_gauss_primitive(vec4 density, vec4 gaussian_centroid, vec4 gaussian_width) {
+
+	// construct a matrix with diagonal components set to the given value
+	mat4 K;
+	K[0] = vec4(2.0 / gaussian_width[0], 0.0, 0.0, 0.0);
+	K[1] = vec4(0.0, 2.0 / gaussian_width[1], 0.0, 0.0);
+	K[2] = vec4(0.0, 0.0, 2.0 / gaussian_width[2], 0.0);
+	K[3] = vec4(0.0, 0.0, 0.0, 2.0 / gaussian_width[3]);
+	
+	vec4 diff = density - gaussian_centroid;
+	mat4 K2 = K*K;
+
+	// calculate exponent; use dot product to multiply two vectors with the intention of receiving a single floating point result
+	float exponent = dot(diff, K2*diff);
+
+	return exp(-exponent);
+}
+
+// return an alpha value of 1 or 0 based on if the input values are inside a hyperbox
+float evaluate_box_primitive(vec4 density, vec4 centroid_positions, vec4 width) {
+	vec4 a_delta = abs(density - centroid_positions);
+	bvec4 inside = lessThanEqual(a_delta, 0.5*width);
+	return all(inside) ? 1.0 : 0.0;
+}
+
+// return an alpha value of 1 or 0 based on if the input values are inside a hyperellipsoid
+float evaluate_sphere_primitive(vec4 density, vec4 centroid_positions, vec4 width) {
+	const vec4 delta = density - centroid_positions;
+
+	const float max_width = max(max(max(width[0], width[1]), width[2]), width[3]);
+	const vec4 lambda = 2.0 * vec4(max_width) / width;
+
+	vec4 scaled_diff = delta * lambda;
+	scaled_diff *= scaled_diff;
+
+	const float dist = sqrt(scaled_diff[0] + scaled_diff[1] + scaled_diff[2] + scaled_diff[3]) - max_width;
+
+	return dist > 0.0 ? 0.0 : 1.0;
+}
+
+// evaluate the multi dimensional transfer function for a given n-dimensional input vector
+vec4 evaluate_transfer_function(vec4 density, float alpha_scale) {
+	
+	vec3 color_sum = vec3(0.0);
+	float alpha_sum = 0.0;
+	
+	for (int i = 0; i < num_mdtf_primitives; i++) {
+		tf_primitive tfp = mdtf[i];
+		float alpha = 0.0;
+
+		// Calculate the alpha value based on the primitive type
+		switch(tfp.type) {
+		case 0:
+			alpha = evaluate_gauss_primitive(density, tfp.cntrd, tfp.width);
+			break;
+		case 1:
+			alpha = evaluate_box_primitive(density, tfp.cntrd, tfp.width);
+			break;
+		case 2:
+			alpha = evaluate_sphere_primitive(density, tfp.cntrd, tfp.width);
+			break;
+		}
+
+		// Apply global opacity and primitive color alpha
+		alpha *= tfp.color.a * alpha_scale;
+
+		// Add for every primitive
+		color_sum += alpha * tfp.color.rgb;
+		alpha_sum += alpha;
+	}
+
+	color_sum = clamp(color_sum, 0.0, 1.0);
+	return vec4(color_sum, 1.0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// VERSION 1 : - | - ms --- !!! resolution.x must be >= resolution.y !!!
+shared uint temp[4*128];
+
+#define WRITE_SHARED(ADDR, COLOR) \
+	atomicAdd(temp[ADDR + 0*128], COLOR[0]); \
+	atomicAdd(temp[ADDR + 1*128], COLOR[1]); \
+	atomicAdd(temp[ADDR + 2*128], COLOR[2]); \
+	atomicAdd(temp[ADDR + 3*128], COLOR[3]);
+
+#define SHARED_TO_GLOBAL(BUF, GADDR, SADDR) \
+	BUF[GADDR + wid*plot_size].r += temp[SADDR + 0*128]; \
+	BUF[GADDR + wid*plot_size].g += temp[SADDR + 1*128]; \
+	BUF[GADDR + wid*plot_size].b += temp[SADDR + 2*128]; \
+	BUF[GADDR + wid*plot_size].a += temp[SADDR + 3*128];
+
+//#define SHARED_TO_GLOBAL(BUF, GADDR, SADDR) \
+//	atomicAdd(BUF[GADDR].r, temp[SADDR + 0*128]); \
+//	atomicAdd(BUF[GADDR].g, temp[SADDR + 1*128]); \
+//	atomicAdd(BUF[GADDR].b, temp[SADDR + 2*128]); \
+//	atomicAdd(BUF[GADDR].a, temp[SADDR + 3*128]);
+
+	//atomicAdd(BUF[GADDR].rg, packUint2x32(uvec2(temp[SADDR + 0*128], temp[SADDR + 1*128]))); \
+	//atomicAdd(BUF[GADDR].ba, packUint2x32(uvec2(temp[SADDR + 2*128], temp[SADDR + 3*128]))); \
+
+void main() {
+	//int idx = int(gl_GlobalInvocationID.x);
+	int lidx = int(gl_LocalInvocationID.x);
+	int wid = int(gl_WorkGroupID.x);
+
+	int plot_size = resolution.x * resolution.y;
+
+	ivec3 src_size = imageSize(src_tex);
+	ivec3 src_coord;
+
+	const int num_work_groups_per_plot = 4;
+	//for(uint idx = wid*gl_WorkGroupSize.x + tid; idx < n; idx += gl_WorkGroupSize.x*gl_NumWorkGroups.x) {
+	for(uint idx = wid*gl_WorkGroupSize.x*lidx; idx < num_data_values; idx += gl_WorkGroupSize.x*num_work_groups_per_plot) {
+		int volume_idx = volume_indices[idx];
+
+		src_coord.x = volume_idx % src_size.x;
+		src_coord.y = (volume_idx / src_size.x) % src_size.y;
+		src_coord.z = volume_idx / (src_size.x * src_size.y);
+
+		vec4 p = vec4(imageLoad(src_tex, src_coord)) / 255.0;
+
+		vec4 color = evaluate_transfer_function(p, 1.0);
+
+		uvec4 c8 = uvec4(color * 128);
+
+		int y0 = int(p[indices[0].x] * (resolution.y - 1));
+		int y1 = int(p[indices[0].y] * (resolution.y - 1));
+		int x1 = resolution.x - 1;;
+		int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+		int err = x1 + dy, e2;
+
+		int plot_idx;
+		for(int x = 0; x < 128;) {
+			/*
+			uvec4 sg = subgroupPartitionNV(y0);
+
+			uvec4 acc_sg_color = subgroupPartitionedAddNV(c8, sg);
+			bool is_first_unique = gl_SubgroupInvocationID == subgroupBallotFindLSB(sg);
+
+			if(is_first_unique)
+				WRITE_SHARED(y0, acc_sg_color);
+			*/
+
+			WRITE_SHARED(y0, c8);
+
+			e2 = 2 * err;
+			err += dy;
+			if(e2 < x1) { err += x1; y0 += sy; }
+
+			barrier();
+
+			if(temp[lidx + 3*128] > 0) {
+				plot_idx = x + resolution.x * lidx;
+				SHARED_TO_GLOBAL(plots, plot_idx, lidx);
+				temp[lidx + 0*128] = 0;
+				temp[lidx + 1*128] = 0;
+				temp[lidx + 2*128] = 0;
+				temp[lidx + 3*128] = 0;
+			}
+			++x;
+	
+			barrier();
+		}
+	}
+}
