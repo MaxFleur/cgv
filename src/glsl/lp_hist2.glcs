@@ -161,6 +161,7 @@ shared uint temp[4*128];
 	\
 	for(int x = 0; x < 128;) { \
 		WRITE_SHARED(y0, color8); \
+		\
 		e2 = 2 * err; \
 		err += dy; \
 		if(e2 < mx) { err += mx; y0 += sy; } \
@@ -173,21 +174,25 @@ shared uint temp[4*128];
 		e2 = 2 * err; \
 		err += dy; \
 		if(e2 < mx) { err += mx; y0 += sy; } \
+		\
 		barrier(); \
+		\
 		if(temp[lidx + 3*128] > 0) { \
-			plot_idx = (x/4) + resolution.x * lidx; \
+			plot_idx = lidx + (x/4) * resolution.x; \
 			SHARED_TO_GLOBAL(plot##I, plot_idx, lidx); \
 			temp[lidx + 0*128] = 0; \
 			temp[lidx + 1*128] = 0; \
 			temp[lidx + 2*128] = 0; \
 			temp[lidx + 3*128] = 0; \
 		} \
-		++x; \
-		++x; \
-		++x; \
-		++x; \
+		\
+		x += 4; \
+		\
 		barrier(); \
 	}
+
+	//plot_idx = lidx + (x/4) * resolution.x; \
+	//plot_idx = (x/4) + resolution.x * lidx; \
 
 void main() {
 	int idx = int(gl_GlobalInvocationID.x);

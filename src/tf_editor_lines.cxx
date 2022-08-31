@@ -163,6 +163,8 @@ void tf_editor_lines::on_set(void* member_ptr) {
 
 				glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			}
+
+			std::cout << "                   update_threshold()" << std::endl;
 		}
 
 		update_content();
@@ -1438,7 +1440,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	tone_mapping_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
 
 	if(m_mode == M_COMPUTE_2)
-		m_style_plot.texcoord_scaling = vec2(0.25f, 1.0f);
+		m_style_plot.texcoord_scaling = vec2(1.0f, 0.25f);
 	else
 		m_style_plot.texcoord_scaling = vec2(1.0f);
 
@@ -1462,14 +1464,14 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 			vec2 delta = l0.b - l0.a;
 
 			vec2 scale(
-				length(l1.a - l0.a),
-				0.8f*l0.get_length()
+				0.8f*l0.get_length(),
+				-length(l1.a - l0.a)
 			);
 
 			vec2 offset = l1.a + 0.1f*delta;
 
 			vec2 dir = normalize(delta);
-			float angle = atan2(-dir.x(), dir.y());
+			float angle = atan2(dir.y(), dir.x());
 
 			// 0 myo
 			// 1 act
@@ -1502,7 +1504,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	}
 	content_canvas.disable_current_shader(ctx);
 
-
+	std::cout << "                                            drawing()" << std::endl;
 
 
 
@@ -1536,7 +1538,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	
 	// draw widget lines first
 	auto& line_prog = m_renderer_lines.ref_prog();
-	/*line_prog.enable(ctx);
+	line_prog.enable(ctx);
 	content_canvas.set_view(ctx, line_prog);
 	m_style_widgets.apply(ctx, line_prog);
 	line_prog.disable(ctx);
@@ -1555,7 +1557,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 			content_canvas.draw_shape2(ctx, a, b);
 		}
 	}
-	content_canvas.disable_current_shader(ctx);*/
+	content_canvas.disable_current_shader(ctx);
 	
 	// Do not draw quadstrips and the border lines for peak mode
 	if (!is_peak_mode) {
@@ -1708,6 +1710,7 @@ void tf_editor_lines::set_point_positions() {
 		}
 	}
 
+	std::cout << "set_point_positions()" << std::endl;
 	if(vis_mode == VM_GTF)
 		update_content();
 
