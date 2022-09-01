@@ -81,6 +81,8 @@ private:
 
 	void update_content() override;
 
+	void filter_content();
+
 	void create_labels() override;
 
 	void create_widget_lines();
@@ -183,6 +185,9 @@ private:
 
 
 	GLuint plots_buffer = 0;
+
+	bool do_filter_content = true;
+	bool do_update_content = true;
 
 };
 

@@ -126,48 +126,10 @@ void tf_editor_lines::on_set(void* member_ptr) {
 	}
 	// Update if the vis mode is changed
 	if(member_ptr == &vis_mode || member_ptr == &m_threshold) {
+		if(member_ptr == &m_threshold)
+			do_filter_content = true;
 
-		if(member_ptr == &m_threshold) {
-			auto ctx_ptr = get_context();
-			if(ctx_ptr && m_data_set_ptr) {
-				auto& ctx = *ctx_ptr;
-
-				// bind the source 3D texture containing the data values
-				const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
-				glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-
-				auto& vote_prog = sac.ref_vote_prog();
-				vote_prog.enable(ctx);
-				vote_prog.set_uniform(ctx, "threshold", m_threshold);
-
-				//sac.begin_time_query();
-				filtered_count = sac.execute(ctx, -1, index_buffer, true);
-				//float time = sac.end_time_query();
-
-				//std::cout << std::endl << "TIME: " << time << " ms" << std::endl;
-				std::cout << "COUNT: " << filtered_count << std::endl << std::endl;
-
-				// unbind the source data texture
-				glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-
-				unsigned max_index = m_data_set_ptr->voxel_data.size() - 1;
-				unsigned n = filtered_count;// m_data_set_ptr->voxel_data.size();
-				std::cout << "Reading " << n << " indices" << std::endl;
-				auto& test = sac.read_buffer<int>(index_buffer, n);
-
-				for(size_t i = 0; i < n; ++i)
-					if(test[i] < 0 || test[i] > max_index)
-						std::cout << "FOO at" << i << std::endl;
-
-				int ii = 0;
-
-				glMemoryBarrier(GL_ALL_BARRIER_BITS);
-			}
-
-			std::cout << "                   update_threshold()" << std::endl;
-		}
-
-		update_content();
+		do_update_content = true;
 	}
 
 	update_member(member_ptr);
@@ -404,6 +366,17 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 
 
 	}
+
+	if(do_filter_content) {
+		do_filter_content = false;
+		do_update_content = true;
+		filter_content();
+	}
+
+	if(do_update_content) {
+		do_update_content = false;
+		update_content();
+	}
 }
 
 void tf_editor_lines::create_gui() {
@@ -518,6 +491,44 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	auto& overlay_prog = viewport_canvas.enable_shader(ctx, "rectangle");
 	overlay_style.apply(ctx, overlay_prog);
 	viewport_canvas.disable_current_shader(ctx);
+}
+
+void tf_editor_lines::filter_content() {
+	auto ctx_ptr = get_context();
+	if(ctx_ptr && m_data_set_ptr) {
+		auto& ctx = *ctx_ptr;
+
+		// bind the source 3D texture containing the data values
+		const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
+		glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+		auto& vote_prog = sac.ref_vote_prog();
+		vote_prog.enable(ctx);
+		vote_prog.set_uniform(ctx, "threshold", m_threshold);
+
+		//sac.begin_time_query();
+		filtered_count = sac.execute(ctx, -1, index_buffer, true);
+		//float time = sac.end_time_query();
+
+		//std::cout << std::endl << "TIME: " << time << " ms" << std::endl;
+		std::cout << "COUNT: " << filtered_count << std::endl << std::endl;
+
+		// unbind the source data texture
+		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
+
+		unsigned max_index = m_data_set_ptr->voxel_data.size() - 1;
+		unsigned n = filtered_count;// m_data_set_ptr->voxel_data.size();
+		std::cout << "Reading " << n << " indices" << std::endl;
+		auto& test = sac.read_buffer<int>(index_buffer, n);
+
+		for(size_t i = 0; i < n; ++i)
+			if(test[i] < 0 || test[i] > max_index)
+				std::cout << "FOO at" << i << std::endl;
+
+		int ii = 0;
+
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+	}
 }
 
 void tf_editor_lines::update_content() {
@@ -1504,7 +1515,6 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	}
 	content_canvas.disable_current_shader(ctx);
 
-	std::cout << "                                            drawing()" << std::endl;
 
 
 
@@ -1710,9 +1720,8 @@ void tf_editor_lines::set_point_positions() {
 		}
 	}
 
-	std::cout << "set_point_positions()" << std::endl;
 	if(vis_mode == VM_GTF)
-		update_content();
+		do_update_content = true;
 
 	redraw();
 }
