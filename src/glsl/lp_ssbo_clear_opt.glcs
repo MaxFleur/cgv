@@ -1,0 +1,24 @@
+#version 450
+
+layout(local_size_x = 256) in;
+
+layout(std430, binding = 0) buffer plots_buffer {
+	ivec4 rgba[];
+};
+
+uniform ivec2 resolution;
+
+void main() {
+	int idx = int(gl_GlobalInvocationID.x);
+
+	int plot_size = resolution.x * resolution.y;
+
+	if(idx < plot_size) {
+		rgba[idx + 0*plot_size] = ivec4(0);
+		rgba[idx + 1*plot_size] = ivec4(0);
+		rgba[idx + 2*plot_size] = ivec4(0);
+		rgba[idx + 3*plot_size] = ivec4(0);
+		rgba[idx + 4*plot_size] = ivec4(0);
+		rgba[idx + 5*plot_size] = ivec4(0);
+	}
+}

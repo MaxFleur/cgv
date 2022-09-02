@@ -1,9 +1,9 @@
 #version 450
 
-layout(local_size_x = 128) in;
+layout(local_size_x = 256) in;
 
 layout(std430, binding = 0) buffer plots_buffer {
-	ivec4 plots[];
+	ivec4 rgba[];
 };
 
 layout(rgba32f, binding = 0) uniform writeonly image2D img0;
@@ -26,18 +26,11 @@ void main() {
 			idx / resolution.x
 		);
 	
-		ivec4 plot0_val = 
-			plots[idx + 0*plot_size] +
-			plots[idx + 1*plot_size] +
-			plots[idx + 2*plot_size] +
-			plots[idx + 3*plot_size];
-
-		//imageStore(img0, img_coord, vec4(plots[idx + 0*plot_size]) / 128.0);
-		imageStore(img0, img_coord, vec4(plot0_val) / 128.0);
-		imageStore(img1, img_coord, vec4(plots[idx + 1*plot_size]) / 128.0);
-		imageStore(img2, img_coord, vec4(plots[idx + 2*plot_size]) / 128.0);
-		imageStore(img3, img_coord, vec4(plots[idx + 3*plot_size]) / 128.0);
-		imageStore(img4, img_coord, vec4(plots[idx + 4*plot_size]) / 128.0);
-		imageStore(img5, img_coord, vec4(plots[idx + 5*plot_size]) / 128.0);
+		imageStore(img0, img_coord, vec4(rgba[idx + 0*plot_size]) / 128.0);
+		imageStore(img1, img_coord, vec4(rgba[idx + 1*plot_size]) / 128.0);
+		imageStore(img2, img_coord, vec4(rgba[idx + 2*plot_size]) / 128.0);
+		imageStore(img3, img_coord, vec4(rgba[idx + 3*plot_size]) / 128.0);
+		imageStore(img4, img_coord, vec4(rgba[idx + 4*plot_size]) / 128.0);
+		imageStore(img5, img_coord, vec4(rgba[idx + 5*plot_size]) / 128.0);
 	}
 }

@@ -175,56 +175,19 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	shaders.add("transfer", "lp_ssbo_to_tex2d");
 	shaders.add("clear", "lp_ssbo_clear");
 
-	shaders.add("hist2", "lp_hist2");
-	shaders.add("transfer2", "lp_ssbo_to_tex2d2");
-	shaders.add("clear2", "lp_ssbo_clear2");
+	shaders.add("hist_opt", "lp_hist_opt");
+	shaders.add("transfer_opt", "lp_ssbo_to_tex2d_opt");
+	shaders.add("clear_opt", "lp_ssbo_clear_opt");
 
-	shaders.add("hist3", "lp_hist3");
-	shaders.add("transfer3", "lp_ssbo_to_tex2d3");
-	shaders.add("clear3", "lp_ssbo_clear3");
-
-	shaders.add("plot_line", "plot2d_line.glpr");
-	shaders.add("plot_line2", "plot2d_line2.glpr");
 	success &= shaders.load_shaders(ctx, "tf_editor_lines::init");
 
+	glGenBuffers(1, &index_buffer);
+
+	// for COMPUTE_SHADER
 	glGenBuffers(1, &plot_buffer);
 
-	
-
-
-
-	plot_resolution = ivec2(128, 128);
-
-	/*
-	std::vector<float> data(4 * 256 * 256, 1.0f);
-
-	for(size_t i = 0; i < 256*256; ++i) {
-		float mul = static_cast<float>(i / 256) + 1.0f;
-		float val = static_cast<float>(i % 256) * 0.2f*mul;
-		data[4 * i + 0] = val;
-		data[4 * i + 1] = val;
-		data[4 * i + 2] = val;
-		data[4 * i + 3] = val;
-	}
-
-	cgv::data::data_view dv = cgv::data::data_view(new cgv::data::data_format(256, 256, TI_FLT32, cgv::data::CF_RGBA), data.data());
-	*/
-
-	glGenBuffers(6, plot_buffers2);
-
-	for(size_t i = 0; i < 6; ++i) {
-		plot_textures[i] = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_LINEAR, cgv::render::TF_LINEAR);
-		plot_textures[i].create(ctx, TT_2D, plot_resolution.x(), plot_resolution.y());
-
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, plot_buffers2[i]);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, 4 * sizeof(float) * plot_resolution.x() * plot_resolution.y(), (void*)0, GL_DYNAMIC_COPY);
-	}
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-
-
-
+	// for COMPUTE_SHADER_OPTIMIZED
+	plot_resolution = ivec2(128, 32);
 
 	glGenBuffers(1, &plots_buffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, plots_buffer);
@@ -238,6 +201,17 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 
 	glBufferData(GL_SHADER_STORAGE_BUFFER, num_bytes, (void*)0, GL_DYNAMIC_COPY);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+	for(size_t i = 0; i < 6; ++i) {
+		plot_textures[i] = cgv::render::texture("flt32[R,G,B,A]", cgv::render::TF_LINEAR, cgv::render::TF_LINEAR);
+		plot_textures[i].create(ctx, TT_2D, plot_resolution.x(), plot_resolution.y());
+	}
+
+
+
+
+
+	
 
 
 
@@ -292,7 +266,7 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 
 
 
-	glGenBuffers(1, &index_buffer);
+	
 
 
 
@@ -387,7 +361,7 @@ void tf_editor_lines::create_gui() {
 	tf_editor_basic::create_gui_coloring();
 	tf_editor_basic::create_gui_tm();
 
-	add_member_control(this, "Render Mode", m_mode, "dropdown", "enums='Compute Shader, Vertex Shader, Geometry Shader, Compute 2, Compute 3'");
+	add_member_control(this, "Render Mode", m_mode, "dropdown", "enums='Compute Shader, Optimized Compute Shader'");
 }
 
 // Called if something in the primitives has been updated
@@ -511,21 +485,10 @@ void tf_editor_lines::filter_content() {
 		//float time = sac.end_time_query();
 
 		//std::cout << std::endl << "TIME: " << time << " ms" << std::endl;
-		std::cout << "COUNT: " << filtered_count << std::endl << std::endl;
+		//std::cout << "COUNT: " << filtered_count << std::endl << std::endl;
 
 		// unbind the source data texture
 		glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-
-		unsigned max_index = m_data_set_ptr->voxel_data.size() - 1;
-		unsigned n = filtered_count;// m_data_set_ptr->voxel_data.size();
-		std::cout << "Reading " << n << " indices" << std::endl;
-		auto& test = sac.read_buffer<int>(index_buffer, n);
-
-		for(size_t i = 0; i < n; ++i)
-			if(test[i] < 0 || test[i] > max_index)
-				std::cout << "FOO at" << i << std::endl;
-
-		int ii = 0;
 
 		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	}
@@ -536,31 +499,19 @@ void tf_editor_lines::update_content() {
 	if(!m_data_set_ptr || m_data_set_ptr->voxel_data.empty())
 		return;
 
-
-
 	auto ctx_ptr = get_context();
 	if(!ctx_ptr)
 		return;
 	auto& ctx = *ctx_ptr;
 
+#define QUERY_TIME
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+#ifdef QUERY_TIME
 	GLuint time_query = 0;
 	glGenQueries(1, &time_query);
 	
 	glBeginQuery(GL_TIME_ELAPSED, time_query);
+#endif
 
 	if(m_mode == M_COMPUTE) {
 		// setup group and plot size
@@ -668,127 +619,9 @@ void tf_editor_lines::update_content() {
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
 
 		transfer_prog.disable(ctx);
-	} else if(m_mode == M_VERTEX) {
-		fbc_plot.enable(ctx);
-		glDisable(GL_DEPTH_TEST);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
-
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		const ivec2 resolution(
-			fbc_plot.ref_frame_buffer().get_width(),
-			fbc_plot.ref_frame_buffer().get_height()
-		);
-
-		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
-		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
-		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
-
-		unsigned n = width * height * depth; // number of data points
-
-		auto& plot_prog = shaders.get("plot_line");
-		plot_prog.enable(ctx);
-
-		plot_prog.set_uniform(ctx, "resolution", resolution);
-		plot_prog.set_uniform(ctx, "threshold", m_threshold);
-
-		auto set_relation_uniforms = [&](unsigned idx, unsigned li0, unsigned li1, unsigned i0, unsigned i1) {
-			const auto& l0 = m_widget_lines[li0];
-			const auto& l1 = m_widget_lines[li1];
-
-			vec4 line_a(l0.a.x(), l0.a.y(), l0.b.x(), l0.b.y());
-			vec4 line_b(l1.a.x(), l1.a.y(), l1.b.x(), l1.b.y());
-
-			std::string name = "relations[" + std::to_string(idx) + "].";
-
-			plot_prog.set_uniform(ctx, name + "indices", ivec2(i0, i1));
-			plot_prog.set_uniform(ctx, name + "line_a", line_a);
-			plot_prog.set_uniform(ctx, name + "line_b", line_b);
-		};
-
-		set_relation_uniforms(0, 0, 6, 0, 1);
-		set_relation_uniforms(1, 1, 12, 0, 3);
-		set_relation_uniforms(2, 2, 8, 0, 2);
-		set_relation_uniforms(3, 4, 10, 1, 2);
-		set_relation_uniforms(4, 5, 13, 1, 3);
-		set_relation_uniforms(5, 9, 14, 2, 3);
-
-		m_data_set_ptr->volume_tex.enable(ctx, 0);
-		glDrawArrays(GL_LINES, 0, 2 * 6 * n);
-		m_data_set_ptr->volume_tex.disable(ctx);
-
-		plot_prog.disable(ctx);
-
-		// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
-		fbc_plot.disable(ctx);
-
-		// reset blending and depth test
-		glDisable(GL_BLEND);
-		glEnable(GL_DEPTH_TEST);
-	} else if(m_mode == M_GEOM) {
-		fbc_plot.enable(ctx);
-		glDisable(GL_DEPTH_TEST);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
-
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		const ivec2 resolution(
-			fbc_plot.ref_frame_buffer().get_width(),
-			fbc_plot.ref_frame_buffer().get_height()
-		);
-
-		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
-		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
-		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
-
-		unsigned n = width * height * depth; // number of data points
-
-		auto& plot_prog = shaders.get("plot_line2");
-		plot_prog.enable(ctx);
-
-		plot_prog.set_uniform(ctx, "resolution", resolution);
-		plot_prog.set_uniform(ctx, "threshold", m_threshold);
-
-		auto set_relation_uniforms = [&](unsigned idx, unsigned li0, unsigned li1, unsigned i0, unsigned i1) {
-			const auto& l0 = m_widget_lines[li0];
-			const auto& l1 = m_widget_lines[li1];
-
-			vec4 line_a(l0.a.x(), l0.a.y(), l0.b.x(), l0.b.y());
-			vec4 line_b(l1.a.x(), l1.a.y(), l1.b.x(), l1.b.y());
-
-			std::string name = "relations[" + std::to_string(idx) + "].";
-
-			plot_prog.set_uniform(ctx, name + "indices", ivec2(i0, i1));
-			plot_prog.set_uniform(ctx, name + "line_a", line_a);
-			plot_prog.set_uniform(ctx, name + "line_b", line_b);
-		};
-
-		set_relation_uniforms(0, 0, 6, 0, 1);
-		set_relation_uniforms(1, 1, 12, 0, 3);
-		set_relation_uniforms(2, 2, 8, 0, 2);
-		set_relation_uniforms(3, 4, 10, 1, 2);
-		set_relation_uniforms(4, 5, 13, 1, 3);
-		set_relation_uniforms(5, 9, 14, 2, 3);
-
-		m_data_set_ptr->volume_tex.enable(ctx, 0);
-		glDrawArrays(GL_POINTS, 0, n);
-		m_data_set_ptr->volume_tex.disable(ctx);
-
-		plot_prog.disable(ctx);
-
-		// disable the offline frame buffer so subsequent draw calls render into the main frame buffer
-		fbc_plot.disable(ctx);
-
-		// reset blending and depth test
-		glDisable(GL_BLEND);
-		glEnable(GL_DEPTH_TEST);
-	} else if(m_mode == M_COMPUTE_2) {
+	} else if(m_mode == M_COMPUTE_OPTIMIZED) {
 		// setup group and plot size
-		const unsigned group_size = 128;
+		const unsigned group_size = 256;
 		
 		// calculate the necessary number of work groups
 		unsigned num_groups_image_order = (plot_resolution.x() * plot_resolution.y() + group_size - 1) / group_size;
@@ -800,12 +633,11 @@ void tf_editor_lines::update_content() {
 		unsigned n = filtered_count;// width * height * depth; // number of data points
 		unsigned num_groups_data_order = (n + group_size - 1) / group_size;
 
-		// bind shader storage buffers
-		for(size_t i = 0; i < 6; ++i)
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, plot_buffers2[i]);
+		// bind shader storage buffer
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, plots_buffer);
 
 		// clear the previous contents
-		auto& clear_prog = shaders.get("clear2");
+		auto& clear_prog = shaders.get("clear_opt");
 		clear_prog.enable(ctx);
 		clear_prog.set_uniform(ctx, "resolution", plot_resolution);
 
@@ -817,7 +649,7 @@ void tf_editor_lines::update_content() {
 		if(n > 0) {
 
 			// plot the data lines to the plot
-			auto& plot_prog = shaders.get("hist2");
+			auto& plot_prog = shaders.get("hist_opt");
 			plot_prog.enable(ctx);
 
 			// set general uniforms
@@ -866,7 +698,7 @@ void tf_editor_lines::update_content() {
 			plot_prog.disable(ctx);
 
 			// transfer the shader storage buffer contents to the plot texture
-			auto& transfer_prog = shaders.get("transfer2");
+			auto& transfer_prog = shaders.get("transfer_opt");
 			transfer_prog.enable(ctx);
 			transfer_prog.set_uniform(ctx, "resolution", plot_resolution);
 
@@ -885,109 +717,11 @@ void tf_editor_lines::update_content() {
 		// unbind textures and buffers
 		for(size_t i = 0; i < 6; ++i) {
 			glBindImageTexture(i, 0, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
 		}
-	} else {
-		// setup group and plot size
-		const unsigned group_size = 128;
-
-		// calculate the necessary number of work groups
-		unsigned num_groups_image_order = (plot_resolution.x() * plot_resolution.y() + group_size - 1) / group_size;
-
-		unsigned width = m_data_set_ptr->volume_tex.get_resolution(0);
-		unsigned height = m_data_set_ptr->volume_tex.get_resolution(1);
-		unsigned depth = m_data_set_ptr->volume_tex.get_resolution(2);
-
-		unsigned n = filtered_count;// width * height * depth; // number of data points
-		//unsigned num_groups_data_order = (n + group_size - 1) / group_size;
-
-		// bind shader storage buffer
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, plots_buffer);
-
-		// clear the previous contents
-		auto& clear_prog = shaders.get("clear3");
-		clear_prog.enable(ctx);
-		clear_prog.set_uniform(ctx, "resolution", plot_resolution);
-
-		glDispatchCompute(num_groups_image_order, 1, 1);
-		glMemoryBarrier(GL_ALL_BARRIER_BITS);
-
-		clear_prog.disable(ctx);
-
-		if(n > 0) {
-			// plot the data lines to the plot
-			auto& plot_prog = shaders.get("hist3");
-			plot_prog.enable(ctx);
-
-			// set general uniforms
-			plot_prog.set_uniform(ctx, "num_data_values", static_cast<int>(n));
-			plot_prog.set_uniform(ctx, "resolution", plot_resolution);
-			plot_prog.set_uniform(ctx, "threshold", m_threshold);
-
-			plot_prog.set_uniform(ctx, "indices[0]", ivec2(1, 0));
-			plot_prog.set_uniform(ctx, "indices[1]", ivec2(0, 3));
-			plot_prog.set_uniform(ctx, "indices[2]", ivec2(0, 2));
-			plot_prog.set_uniform(ctx, "indices[3]", ivec2(1, 2));
-			plot_prog.set_uniform(ctx, "indices[4]", ivec2(1, 3));
-			plot_prog.set_uniform(ctx, "indices[5]", ivec2(3, 2));
-
-			// set transfer function uniforms
-			const int mdtf_size = static_cast<int>(m_shared_data_ptr->primitives.size());
-			plot_prog.set_uniform(ctx, "num_mdtf_primitives", mdtf_size);
-
-			for(int i = 0; i < mdtf_size; i++) {
-				const auto& p = m_shared_data_ptr->primitives[i];
-
-				std::string id = "mdtf[" + std::to_string(i) + "].";
-
-				plot_prog.set_uniform(ctx, id + "type", static_cast<int>(p.type));
-				plot_prog.set_uniform(ctx, id + "cntrd", p.centr_pos);
-				plot_prog.set_uniform(ctx, id + "width", p.centr_widths);
-				plot_prog.set_uniform(ctx, id + "color", p.color);
-			}
-
-			// bind the source 3D texture containing the data values
-			const int src_texture_handle = (const int&)(m_data_set_ptr->volume_tex.handle) - 1;
-			glBindImageTexture(0, src_texture_handle, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-
-			// bind index buffer of filtered voxel values
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, index_buffer);
-
-			glDispatchCompute(4, 1, 1);
-			glMemoryBarrier(GL_ALL_BARRIER_BITS);
-
-			// unbind index buffer
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
-
-			// unbind the source data texture
-			glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8UI);
-
-			plot_prog.disable(ctx);
-			
-			// transfer the shader storage buffer contents to the plot texture
-			auto& transfer_prog = shaders.get("transfer3");
-			transfer_prog.enable(ctx);
-			transfer_prog.set_uniform(ctx, "resolution", plot_resolution);
-
-			// bind the plot textures
-			for(unsigned i = 0; i < 6; ++i) {
-				const int handle = (const int&)(plot_textures[i].handle) - 1;
-				glBindImageTexture(i, handle, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-			}
-
-			glDispatchCompute(num_groups_image_order, 1, 1);
-			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-			transfer_prog.disable(ctx);
-		}
-
-		// unbind textures and buffer
-		for(size_t i = 0; i < 6; ++i)
-			glBindImageTexture(i, 0, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-		
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
 	}
 
+#ifdef QUERY_TIME
 	glEndQuery(GL_TIME_ELAPSED);
 
 	GLint done = false;
@@ -999,6 +733,7 @@ void tf_editor_lines::update_content() {
 
 	double time = static_cast<double>(elapsed_time) / 1000000.0;
 	std::cout << "TIME: " << time << " ms" << std::endl;
+#endif
 
 
 
@@ -1450,9 +1185,9 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	tone_mapping_prog.set_uniform(ctx, "alpha", tm_alpha);
 	tone_mapping_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
 
-	if(m_mode == M_COMPUTE_2)
-		m_style_plot.texcoord_scaling = vec2(1.0f, 0.25f);
-	else
+	//if(m_mode == M_COMPUTE_OPTIMIZED)
+	//	m_style_plot.texcoord_scaling = vec2(1.0f, 0.25f);
+	//else
 		m_style_plot.texcoord_scaling = vec2(1.0f);
 
 	m_style_plot.apply(ctx, tone_mapping_prog);
@@ -1461,7 +1196,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 		plot_texture.enable(ctx, 0);
 		content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
 		plot_texture.disable(ctx);
-	} else if(m_mode == M_COMPUTE_2 || m_mode == M_COMPUTE_3) {
+	} else if(m_mode == M_COMPUTE_OPTIMIZED) {
 
 		int li0[6] = { 0, 12, 8, 10, 13, 9 };
 		int li1[6] = { 6, 1, 2, 4, 5, 14 };
