@@ -101,6 +101,35 @@ protected:
 					if (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] == 10.0f) {
 						transparency = 0.0f;
 					}
+				} else if (points[i].size() == 6) {
+					const auto is_width_max = [&](const int& index_1, const int& index_2) {
+						if (m_shared_data_ptr->primitives.at(i).centr_widths[index_1] == 10.0f && 
+							m_shared_data_ptr->primitives.at(i).centr_widths[index_2] == 10.0f) {
+							return 0.0f;
+						}
+						return 1.0f;
+					};
+					
+					switch (j) {
+					case 0:
+						transparency = is_width_max(0, 1);
+						break;
+					case 1:
+						transparency = is_width_max(0, 2);
+						break;
+					case 2:
+						transparency = is_width_max(0, 3);
+						break;
+					case 3:
+						transparency = is_width_max(3, 1);
+						break;
+					case 4:
+						transparency = is_width_max(3, 2);
+						break;
+					case 5:
+						transparency = is_width_max(2, 1);
+						break;
+					}
 				}
 
 				const auto render_pos = points[i][j].get_render_position();
@@ -157,8 +186,9 @@ protected:
 
 	// These geometries are used in both editors to drag points representing centroid positions
 	// If a centroid position is dragged, its size will increase, so we need two different geometries and styles
-	tf_editor_shared_data_types::point_geometry_draggable m_geometry_draggables;
-	tf_editor_shared_data_types::point_geometry_draggable m_geometry_draggables_interacted;
+	tf_editor_shared_data_types::point_geometry m_geometry_draggables;
+	tf_editor_shared_data_types::point_geometry m_geometry_draggables_interacted;
+
 	// Renderer for draggables
 	cgv::glutil::generic_renderer m_renderer_draggables;
 	// Style of the draggables, interacted are drawn differently

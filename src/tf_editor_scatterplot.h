@@ -62,12 +62,17 @@ private:
 
 	// renderer and geometry for the plot points
 	cgv::glutil::generic_renderer m_renderer_plot_points;
-	tf_editor_shared_data_types::point_geometry_data m_geometry_plot_points;
+	tf_editor_shared_data_types::point_geometry m_geometry_plot_points;
+	// geometry for lines replacing shapes
+	cgv::glutil::generic_renderer m_renderer_lines;
+	std::vector<tf_editor_shared_data_types::line_geometry> m_geometry_lines;
 
-	// Stles for the recangle grid, drawn centroid position shapes and the data plot points
+	// Styles for the recangle grid, drawn centroid position shapes and the data plot points
 	cgv::glutil::shape2d_style m_style_grid;
 	cgv::glutil::shape2d_style m_style_shapes;
 	cgv::glutil::shape2d_style m_style_plot_points;
+
+	cgv::glutil::line2d_style m_style_lines;
 
 	cgv::glutil::shape2d_style m_rectangle_style;
 	// Rectangles used for drawing

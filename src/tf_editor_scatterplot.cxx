@@ -22,6 +22,7 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
 	m_renderer_plot_points = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
+	m_renderer_lines = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
 
 	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_scatterplot::set_point_positions, this));
@@ -30,7 +31,11 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 
 void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 	m_renderer_plot_points.destruct(ctx);
+	m_renderer_lines.destruct(ctx);
 	m_geometry_plot_points.destruct(ctx);
+	for (auto& g : m_geometry_lines) {
+		g.destruct(ctx);
+	}
 	m_geometry_draggables.destruct(ctx);
 	m_geometry_draggables_interacted.destruct(ctx);
 
@@ -123,6 +128,7 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
 	success &= m_renderer_plot_points.init(ctx);
+	success &= m_renderer_lines.init(ctx);
 	success &= m_renderer_draggables.init(ctx);
 
 	auto& font = cgv::glutil::ref_msdf_font(ctx, 1);
@@ -223,6 +229,11 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_style_shapes.use_blending = true;
 	m_style_shapes.use_fill_color = true;
 	m_style_shapes.border_width = 1.0f;
+
+	m_style_lines.use_blending = true;
+	m_style_lines.use_fill_color = false;
+	m_style_lines.ring_width = 0.0f;
+	m_style_lines.width = 5.0f;
 
 	// draggables style
 	m_style_draggables.position_is_center = true;
@@ -384,25 +395,42 @@ void tf_editor_scatterplot::create_grid() {
 void tf_editor_scatterplot::create_primitive_shapes() {
 	m_ellipses.clear();
 	m_boxes.clear();
+	m_geometry_lines.clear();
 
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 		std::vector<tf_editor_shared_data_types::ellipse> ellipses;
 		std::vector<tf_editor_shared_data_types::rectangle> boxes;
+		tf_editor_shared_data_types::line_geometry geometry;
 
 		for (int j = 0; j < m_points.at(i).size(); j++) {
 			// Get the width for the point's protein stains
 			const auto width_stain_x = m_shared_data_ptr->primitives.at(i).centr_widths[m_points[i][j].m_stain_first];
 			const auto width_stain_y = m_shared_data_ptr->primitives.at(i).centr_widths[m_points[i][j].m_stain_second];
+
 			// Multiply with the rectangle size
 			const auto width_x = width_stain_x * m_points.at(i).at(j).parent_rectangle->size_x();
 			const auto width_y = width_stain_y * m_points.at(i).at(j).parent_rectangle->size_y();
 			// Store
 			const auto position_start = vec2(m_points.at(i).at(j).pos.x() - width_x / 2, m_points.at(i).at(j).pos.y() - width_y / 2);
 
-			m_shared_data_ptr->primitives.at(i).type == shared_data::TYPE_BOX ?
-				boxes.push_back(tf_editor_shared_data_types::rectangle(position_start, vec2(width_x, width_y))) :
-				ellipses.push_back(tf_editor_shared_data_types::ellipse(position_start, vec2(width_x, width_y)));
+			// Add lines instead of shapes if one width is set to the maximum
+			const auto primitive_color = m_shared_data_ptr->primitives.at(i).color;
+			const auto line_color = rgba(primitive_color.R(), primitive_color.G(), primitive_color.B(), 1.0f);
+
+			// Only add the shapes if the widths are no maximum
+			if (width_stain_x != 10.0f && width_stain_y != 10.0f) {
+				m_shared_data_ptr->primitives.at(i).type == shared_data::TYPE_BOX ?
+					boxes.push_back(tf_editor_shared_data_types::rectangle(position_start, vec2(width_x, width_y))) :
+					ellipses.push_back(tf_editor_shared_data_types::ellipse(position_start, vec2(width_x, width_y)));
+			} else if (width_stain_x == 10.0f && width_stain_y != 10.0f) {
+				geometry.add(vec2(m_points.at(i).at(j).pos.x(), m_points.at(i).at(j).pos.y() - width_y / 2), line_color);
+				geometry.add(vec2(m_points.at(i).at(j).pos.x(), m_points.at(i).at(j).pos.y() + width_y / 2), line_color);	
+			} else if (width_stain_x != 10.0f && width_stain_y == 10.0f) {	
+				geometry.add(vec2(m_points.at(i).at(j).pos.x() - width_x / 2, m_points.at(i).at(j).pos.y()), line_color);
+				geometry.add(vec2(m_points.at(i).at(j).pos.x() + width_x / 2, m_points.at(i).at(j).pos.y()), line_color);
+			}	
 		}
+		m_geometry_lines.push_back(geometry);
 
 		m_shared_data_ptr->primitives.at(i).type == shared_data::TYPE_BOX ? m_boxes.push_back(boxes) : m_ellipses.push_back(ellipses);
 	}
@@ -587,6 +615,7 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 
 		auto& prog = content_canvas.enable_shader(ctx, type == shared_data::TYPE_BOX ? "rectangle" : type == shared_data::TYPE_GAUSS ? "gauss_ellipse" : "ellipse");
 		auto& index = type == shared_data::TYPE_BOX ? index_boxes : index_ellipses;
+		auto index_shape = 0;
 
 		// For each primitive, we have either six boxes or six ellipses
 		for (int j = 0; j < 6; j++) {
@@ -594,10 +623,26 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 			glEnable(GL_SCISSOR_TEST);
 			glScissor(m_rectangles_calc.at(j).start.x(), m_rectangles_calc.at(j).start.y(), m_rectangles_calc.at(j).size_x(), m_rectangles_calc.at(j).size_y());
 
-			m_style_shapes.apply(ctx, prog);
-			type == shared_data::TYPE_BOX ?
-				content_canvas.draw_shape(ctx, m_boxes.at(index).at(j).start, m_boxes.at(index).at(j).end, rgba(0, 1, 1, 1)) :
-				content_canvas.draw_shape(ctx, m_ellipses.at(index).at(j).pos, m_ellipses.at(index).at(j).size, rgba(0, 1, 1, 1));
+			const auto width_x = m_shared_data_ptr->primitives.at(i).centr_widths[m_points[i][j].m_stain_first];
+			const auto width_y = m_shared_data_ptr->primitives.at(i).centr_widths[m_points[i][j].m_stain_second];
+
+			// Draw shapes for no maximum widths
+			if (width_x != 10.0f && width_y != 10.0f) {
+				m_style_shapes.apply(ctx, prog);
+				type == shared_data::TYPE_BOX ?
+					content_canvas.draw_shape(ctx, m_boxes.at(index).at(index_shape).start, m_boxes.at(index).at(index_shape).end, rgba(0, 1, 1, 1)) :
+					content_canvas.draw_shape(ctx, m_ellipses.at(index).at(index_shape).pos, m_ellipses.at(index).at(index_shape).size, rgba(0, 1, 1, 1));
+				index_shape++;
+			}
+			// Draw lines for one maximum width
+			else if ((width_x == 10.0f && width_y != 10.0f) || (width_x != 10.0f && width_y == 10.0f)) {
+				auto& line_prog = m_renderer_lines.ref_prog();
+				line_prog.enable(ctx);
+				content_canvas.set_view(ctx, line_prog);
+				m_style_lines.apply(ctx, line_prog);
+				line_prog.disable(ctx);
+				m_renderer_lines.render(ctx, PT_LINES, m_geometry_lines.at(i));
+			}
 
 			glDisable(GL_SCISSOR_TEST);
 		}

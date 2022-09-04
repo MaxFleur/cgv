@@ -18,9 +18,7 @@ namespace tf_editor_shared_data_types
 	DEFINE_GENERIC_RENDER_DATA_CLASS(line_geometry, 2, vec2, position, rgba, color);
 
 	// Geometry for draggable points
-	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry_draggable, 2, vec2, position, rgba, color);
-	// Geometry for non draggable points containing data
-	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry_data, 2, vec2, position, rgba, color);
+	DEFINE_GENERIC_RENDER_DATA_CLASS(point_geometry, 2, vec2, position, rgba, color);
 
 	// Geometry for quads
 	DEFINE_GENERIC_RENDER_DATA_CLASS(quad_geometry, 6, vec2, position0, vec2, position1, vec2, position2, vec2, position3, rgba, color, vec4, texcoords);
