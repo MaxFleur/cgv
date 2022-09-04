@@ -211,7 +211,6 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_style_plot_points.use_blending = true;
 	m_style_plot_points.use_fill_color = false;
 	m_style_plot_points.position_is_center = true;
-	m_style_plot_points.fill_color = rgba(rgb(0.0f), m_alpha);
 	m_style_plot_points.feather_width = blur;
 
 	// Style for the grid
@@ -230,10 +229,13 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_style_draggables.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
 	m_style_draggables.border_width = 1.5f;
 	m_style_draggables.use_blending = true;
+	m_style_draggables.use_fill_color = false;
+
 	m_style_draggables_interacted.position_is_center = true;
 	m_style_draggables_interacted.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
 	m_style_draggables_interacted.border_width = 1.5f;
 	m_style_draggables_interacted.use_blending = true;
+	m_style_draggables_interacted.use_fill_color = false;
 	
 	// configure style for the plot labels
 	m_style_text.fill_color = rgba(rgb(0.0f), 1.0f);
@@ -543,7 +545,6 @@ bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 		auto& point_prog = m_renderer_plot_points.ref_prog();
 		point_prog.enable(ctx);
 		content_canvas.set_view(ctx, point_prog);
-		m_style_plot_points.fill_color = rgba(rgb(0.0f), m_alpha);
 		m_style_plot_points.apply(ctx, point_prog);
 		point_prog.set_attribute(ctx, "size", vec2(radius));
 		point_prog.disable(ctx);

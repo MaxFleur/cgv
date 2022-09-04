@@ -254,11 +254,13 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_draggables.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
 	m_style_draggables.border_width = 1.5f;
 	m_style_draggables.use_blending = true;
+	m_style_draggables.use_fill_color = false;
 
 	m_style_draggables_interacted.position_is_center = true;
 	m_style_draggables_interacted.border_color = rgba(0.2f, 0.2f, 0.2f, 1.0f);
 	m_style_draggables_interacted.border_width = 1.5f;
 	m_style_draggables_interacted.use_blending = true;
+	m_style_draggables_interacted.use_fill_color = false;
 
 	m_style_arrows.head_width = 10.0f;
 	m_style_arrows.relative_head_length = 1.0f;
@@ -551,7 +553,7 @@ void tf_editor_lines::create_centroid_boundaries() {
 		m_create_all_values = false;
 	}
 	// If a centroid's position is dragged in the editor, it would make no sense to redraw everything
-	// So we redraw only for the positionss that were updated
+	// So we redraw only for the positions that were updated
 	else if(m_is_point_dragged) {
 		// Recalculate values
 		calculate_values(m_interacted_primitive_ids[0], m_interacted_primitive_ids[1] / 3);
@@ -585,14 +587,14 @@ void tf_editor_lines::create_quads() {
 		const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index) {
 			// Get position and width of the current primitive protein index
 			const auto& primitive = m_shared_data_ptr->primitives.at(primitive_index);
-			float pos = primitive.centr_pos[protein_index];
-			float half_width = primitive.centr_widths[protein_index] / 2.0f;
+			const auto pos = primitive.centr_pos[protein_index];
+			const auto half_width = primitive.centr_widths[protein_index] / 2.0f;
 
-			float lower = pos - half_width;
-			float upper = pos + half_width;
+			const auto lower = pos - half_width;
+			const auto upper = pos + half_width;
 
-			float t0 = (0.0f - lower) / (pos - lower);
-			float t1 = (1.0f - pos) / (upper - pos);
+			auto t0 = (0.0f - lower) / (pos - lower);
+			auto t1 = (1.0f - pos) / (upper - pos);
 			t0 = cgv::math::clamp(t0, 0.0f, 1.0f);
 			t1 = cgv::math::clamp(t1, 0.0f, 1.0f);
 			
@@ -606,24 +608,20 @@ void tf_editor_lines::create_quads() {
 			int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
 			int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
 
-			vec2 texture_position_01 = texture_distance(i, protein_index_left, widget_line_index_left);
-			vec2 texture_position_23 = texture_distance(i, protein_index_right, widget_line_index_right);
+			const auto& widths = m_shared_data_ptr->primitives.at(i).centr_widths;
+			// No quads for maximum widths
+			if (widths[protein_index_left] != 10.0f && widths[protein_index_right] != 10.0f) {
+				vec2 texture_position_01 = texture_distance(i, protein_index_left, widget_line_index_left);
+				vec2 texture_position_23 = texture_distance(i, protein_index_right, widget_line_index_right);
 
-			const auto& bp = m_strip_boundary_points[i];
+				const auto& bp = m_strip_boundary_points[i];
 
-			geom.add(
-				bp[strip_id_1],
-				bp[strip_id_2],
-				bp[strip_id_3],
-				bp[strip_id_4],
-				color,
-				vec4(
-					texture_position_01[0],
-					texture_position_01[1],
-					texture_position_23[0],
-					texture_position_23[1]
-				)
-			);
+				geom.add(
+					bp[strip_id_1], bp[strip_id_2], bp[strip_id_3], bp[strip_id_4],
+					color,
+					vec4(texture_position_01[0], texture_position_01[1], texture_position_23[0], texture_position_23[1])
+				);
+			}
 		};
 
 		// Now quads themselves
@@ -649,23 +647,23 @@ void tf_editor_lines::create_strip_borders(int index) {
 
 	m_geometry_strip_borders.clear();
 
-	const auto add_indices_to_strip_borders = [&](int index, int a, int b) {
-		m_geometry_strip_borders.add(m_strip_boundary_points.at(index).at(a), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
-		m_geometry_strip_borders.add(m_strip_boundary_points.at(index).at(b), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
+	const auto add_indices_to_strip_borders = [&](int index, int a, int b, int width_left, int width_right) {
+		const auto& widths = m_shared_data_ptr->primitives.at(index).centr_widths;
+		// We don't want to draw lines for a maximum value
+		if (widths[width_left] != 10.0f && widths[width_right] != 10.0f) {
+			m_geometry_strip_borders.add(m_strip_boundary_points.at(index).at(a), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
+			m_geometry_strip_borders.add(m_strip_boundary_points.at(index).at(b), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
+			m_geometry_strip_borders.add(m_strip_boundary_points.at(index).at(a + 1), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
+			m_geometry_strip_borders.add(m_strip_boundary_points.at(index).at(b + 1), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
+		}
 	};
 
-	add_indices_to_strip_borders(index, 0, 10);
-	add_indices_to_strip_borders(index, 1, 11);
-	add_indices_to_strip_borders(index, 2, 18);
-	add_indices_to_strip_borders(index, 3, 19);
-	add_indices_to_strip_borders(index, 4, 12);
-	add_indices_to_strip_borders(index, 5, 13);
-	add_indices_to_strip_borders(index, 6, 16);
-	add_indices_to_strip_borders(index, 7, 17);
-	add_indices_to_strip_borders(index, 8, 20);
-	add_indices_to_strip_borders(index, 9, 21);
-	add_indices_to_strip_borders(index, 14, 22);
-	add_indices_to_strip_borders(index, 15, 23);
+	add_indices_to_strip_borders(index, 0, 10, 0, 1);
+	add_indices_to_strip_borders(index, 2, 18, 0, 3);
+	add_indices_to_strip_borders(index, 4, 12, 0, 2);
+	add_indices_to_strip_borders(index, 6, 16, 1, 2);
+	add_indices_to_strip_borders(index, 8, 20, 1, 3);
+	add_indices_to_strip_borders(index, 14, 22, 2, 3);
 }
 
 void tf_editor_lines::add_widget_lines() {

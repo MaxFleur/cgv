@@ -91,20 +91,29 @@ protected:
 			m_geometry_draggables_interacted.clear();
 
 			const auto color = m_shared_data_ptr->primitives.at(i).color;
-			// Apply color to the draggables, always do full opacity
-			m_style_draggables.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
-			m_style_draggables_interacted.fill_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
-
+		
 			for (int j = 0; j < points[i].size(); j++) {
+				float transparency = 1.0f;
+
+				if (points[i].size() == 12) {
+					const auto protein_index = j / 3;
+					// Transparent points for maximum widths
+					if (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] == 10.0f) {
+						transparency = 0.0f;
+					}
+				}
+
 				const auto render_pos = points[i][j].get_render_position();
+				rgba col(color.R(), color.G(), color.B(), transparency);
 				// Only draw for interacted if a point has been dragged
-				i == interacted_id ? m_geometry_draggables_interacted.add(render_pos) : m_geometry_draggables.add(render_pos);
+				i == interacted_id ? m_geometry_draggables_interacted.add(render_pos, col) : m_geometry_draggables.add(render_pos, col);
 			}
 
 			// Draw 
 			shader_program& point_prog = m_renderer_draggables.ref_prog();
 			if (i == interacted_id) {
 				point_prog.enable(ctx);
+				content_canvas.set_view(ctx, point_prog);
 				m_style_draggables_interacted.apply(ctx, point_prog);
 				point_prog.set_attribute(ctx, "size", vec2(16.0f));
 				point_prog.disable(ctx);
