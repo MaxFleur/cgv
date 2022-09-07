@@ -266,7 +266,7 @@ float sphere_transfer_function(vec4 density, vec4 centroid_positions, vec4 width
 }
 
 // Calculate a color for a relations type, based on the current primitive type
-vec4 evaluate_transfer_function(vec4 density) {
+vec4 evaluate_transfer_function(vec4 density, float step_size, float scale_adjust) {
 	
 	vec3 color_sum = vec3(0.0);
 	float alpha_sum = 0.0;
@@ -292,11 +292,20 @@ vec4 evaluate_transfer_function(vec4 density) {
 		alpha *= gtf.color.a;
 
 		// Add for every primitive
+
+		if(!is_peak_mode) {
+			alpha = -exp(-step_size * size_scale * scale_adjust * alpha) + 1.0;
+		}
+
 		color_sum += alpha*gtf.color.rgb;
 		alpha_sum += alpha;
 	}
 
+#if ENABLE_NOISE_OFFSET == 0
 	return clamp(vec4(color_sum, alpha_sum), 0.0, 1.0);
+#else
+	return vec4(color_sum, alpha_sum);
+#endif
 }
 /** END - MFLEURY **/
 
@@ -531,16 +540,21 @@ void main()
 		alpha_scale *= -exp(-step_size * scale_adjust) + 1.0;
 #endif
 		/** BEGIN - MFLEURY **/
-		vec4 color_in = evaluate_transfer_function(density);
+		vec4 color_in = evaluate_transfer_function(density, step_size, scale_adjust);
+		//if(is_peak_mode) {
+		//	const float average_value = (density[0] + density[1] + density[2] + density[3]) / 4;
+		//	vec4 white = vec4(vec3(mix(0.0, 1.0, pow(average_value, gamma_value))), average_value);
+		//
+		//	white.rgb *= white.a;
+		//	color_in = mix(white, color_in, color_in.a);
+		//}
+
 		if(is_peak_mode) {
-			const float average_value = (density[0] + density[1] + density[2] + density[3]) / 4;
-			vec4 white = vec4(vec3(mix(0.0, 1.0, pow(average_value, gamma_value))), average_value);
-
-			white.rgb *= white.a;
-			color_in = mix(white, color_in, color_in.a);
+			color_in *= alpha_scale;
+		} else {
+			//color_in.a = -exp(-step_size * size_scale * scale_adjust * color_in.a) + 1.0;
+			color_in.rgb *= color_in.a;
 		}
-
-		color_in *= alpha_scale;
 		/** END - MFLEURY **/
 		
 #if ENABLE_LIGHTING == 1
@@ -550,7 +564,9 @@ void main()
 		color_in.rgb *= calculate_lighting(color_in.rgb, normal, light_dir, ray_dir, 0.3);
 #endif
 		// make sure the alpha value does not exceed 1
-		color_in.a = min(color_in.a, 1.0);
+		if(is_peak_mode) {
+			color_in.a = min(color_in.a, 1.0);
+		}
 		
 		// blend back to front
 		color = color_in + (1.0 - color_in.a)*color;
