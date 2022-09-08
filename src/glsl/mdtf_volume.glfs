@@ -459,7 +459,7 @@ void main()
 #if ENABLE_NOISE_OFFSET == 1
 	// add a small offset noise to the ray origin to prevent ring artifacts
 	ivec2 ts = textureSize(noise_tex, 0);
-	ray_org += (2.0 * ray_dir / NUM_STEPS) * texture(noise_tex, frag_tex_coords*ts).r;
+	ray_org += (2.0 * ray_dir * step_size) * texture(noise_tex, frag_tex_coords*ts).r;
 #endif
 
 #if SLICE_MODE == 1
@@ -482,13 +482,9 @@ void main()
 
 	vec3 vol_size = vec3(1.0, 1.0, 0.106705);
 
-	// this seems kinda wrong in direct comparison to second option
-	//float scale_adjust = ray_dir.x*ray_dir.x * vol_size.x + ray_dir.y*ray_dir.y * vol_size.y + ray_dir.z*ray_dir.z * vol_size.z;
-
 	vec3 rd = abs(ray_dir);
 	float scale_adjust = dot(abs(ray_dir), vol_size);
 	scale_adjust /= rd.x + rd.y + rd.z;
-
 
 	float dt = t2 - t1;
 	vec4 color = vec4(0.0);

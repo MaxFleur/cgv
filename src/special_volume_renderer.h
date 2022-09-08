@@ -130,7 +130,6 @@ namespace cgv { // @<
 
 			bool set_gradient_texture(texture* tex);
 			bool set_depth_texture(texture* tex);
-
 			///
 			bool enable(context& ctx);
 			///
