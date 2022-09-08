@@ -91,7 +91,7 @@ protected:
 			m_geometry_draggables_interacted.clear();
 
 			const auto color = m_shared_data_ptr->primitives.at(i).color;
-		
+
 			for (int j = 0; j < points[i].size(); j++) {
 				float transparency = 1.0f;
 				// 12 points means line based editor
@@ -101,13 +101,14 @@ protected:
 					if (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] == 10.0f) {
 						transparency = 0.3f;
 					}
-				// SPLOM editor
-				} else if (points[i].size() == 6) {
+					// SPLOM editor
+				}
+				else if (points[i].size() == 6) {
 					// Check for maximum widths
 					const auto is_width_max = [&](const int& index_1, const int& index_2) {
-						if (m_shared_data_ptr->primitives.at(i).centr_widths[index_1] == 10.0f && 
+						if (m_shared_data_ptr->primitives.at(i).centr_widths[index_1] == 10.0f &&
 							m_shared_data_ptr->primitives.at(i).centr_widths[index_2] == 10.0f) {
-							return 0.0f;
+							return 0.3f;
 						}
 						return 1.0f;
 					};
@@ -142,14 +143,16 @@ protected:
 			}
 
 			// Draw 
-			shader_program& point_prog = m_renderer_draggables.ref_prog();
+			auto& point_prog = m_shared_data_ptr->primitives.at(i).type == shared_data::TYPE_BOX ?
+				m_renderer_draggables_rectangle.ref_prog() : m_renderer_draggables_circle.ref_prog();
+			auto& renderer = m_shared_data_ptr->primitives.at(i).type == shared_data::TYPE_BOX ? m_renderer_draggables_rectangle : m_renderer_draggables_circle;
 			if (i == interacted_id) {
 				point_prog.enable(ctx);
 				content_canvas.set_view(ctx, point_prog);
 				m_style_draggables_interacted.apply(ctx, point_prog);
 				point_prog.set_attribute(ctx, "size", vec2(16.0f));
 				point_prog.disable(ctx);
-				m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
+				renderer.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
 				continue;
 			}
 			point_prog.enable(ctx);
@@ -157,7 +160,7 @@ protected:
 			m_style_draggables.apply(ctx, point_prog);
 			point_prog.set_attribute(ctx, "size", vec2(12.0f));
 			point_prog.disable(ctx);
-			m_renderer_draggables.render(ctx, PT_POINTS, m_geometry_draggables);
+			renderer.render(ctx, PT_POINTS, m_geometry_draggables);
 		}
 	}
 
@@ -193,7 +196,8 @@ protected:
 	tf_editor_shared_data_types::point_geometry m_geometry_draggables_interacted;
 
 	// Renderer for draggables
-	cgv::glutil::generic_renderer m_renderer_draggables;
+	cgv::glutil::generic_renderer m_renderer_draggables_circle;
+	cgv::glutil::generic_renderer m_renderer_draggables_rectangle;
 	// Style of the draggables, interacted are drawn differently
 	cgv::glutil::shape2d_style m_style_draggables;
 	cgv::glutil::shape2d_style m_style_draggables_interacted;

@@ -39,7 +39,8 @@ void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 	m_geometry_draggables.destruct(ctx);
 	m_geometry_draggables_interacted.destruct(ctx);
 
-	m_renderer_draggables.destruct(ctx);
+	m_renderer_draggables_circle.destruct(ctx);
+	m_renderer_draggables_rectangle.destruct(ctx);
 
 	cgv::glutil::ref_msdf_font(ctx, -1);
 	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, -1);
@@ -129,7 +130,8 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	success &= viewport_canvas.init(ctx);
 	success &= m_renderer_plot_points.init(ctx);
 	success &= m_renderer_lines.init(ctx);
-	success &= m_renderer_draggables.init(ctx);
+	success &= m_renderer_draggables_circle.init(ctx);
+	success &= m_renderer_draggables_rectangle.init(ctx);
 
 	auto& font = cgv::glutil::ref_msdf_font(ctx, 1);
 	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, 1);

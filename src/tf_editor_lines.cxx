@@ -40,7 +40,8 @@ void tf_editor_lines::clear(cgv::render::context& ctx) {
 	m_renderer_quads.destruct(ctx);
 	m_renderer_quads_gauss.destruct(ctx);
 
-	m_renderer_draggables.destruct(ctx);
+	m_renderer_draggables_circle.destruct(ctx);
+	m_renderer_draggables_rectangle.destruct(ctx);
 	m_geometry_draggables.destruct(ctx);
 	m_geometry_draggables_interacted.destruct(ctx);
 }
@@ -128,7 +129,8 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	success &= content_canvas.init(ctx);
 	success &= viewport_canvas.init(ctx);
 	success &= m_renderer_lines.init(ctx);
-	success &= m_renderer_draggables.init(ctx);
+	success &= m_renderer_draggables_circle.init(ctx);
+	success &= m_renderer_draggables_rectangle.init(ctx);
 	success &= m_renderer_quads.init(ctx);
 	success &= m_renderer_quads_gauss.init(ctx);
 
