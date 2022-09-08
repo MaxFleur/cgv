@@ -66,6 +66,37 @@ vec2 inv_bilinear(in vec2 p, in vec2 a, in vec2 b, in vec2 c, in vec2 d) {
     return res;
 }
 
+vec2 inv_bilinear2(in vec2 p, in vec2 a, in vec2 b, in vec2 c, in vec2 d) {
+	vec2 q = p - a;
+	vec2 b1 = b - a;
+	vec2 b2 = c - a;
+	vec2 b3 = a - b - c + d;
+
+	float A = cross_2d(b2, b3);
+	float B = cross_2d(b3, q) - cross_2d(b1, b2);
+	float C = cross_2d(b1, q);
+
+	// solve for v
+	vec2 uv;
+	if (abs(A) < 0.001) {
+		// linear form
+		uv.y = -C/B;
+	} else {
+		// quadratic form, take positive root for CCW winding with V-up
+		float discrim = B*B - 4*A*C;
+		uv.y = 0.5 * (-B + sqrt(discrim)) / A;
+	}
+
+	// Solve for u, using largest-magnitude component
+	vec2 denom = b1 + uv.y * b3;
+	if (abs(denom.x) > abs(denom.y))
+		uv.x = (q.x - b2.x * uv.y) / denom.x;
+	else
+		uv.x = (q.y - b2.y * uv.y) / denom.y;
+	
+	return uv;
+}
+
 // signed distance to a 2D quad (https://www.shadertoy.com/view/7dSGWK)
 float sd_quad(in vec2 p, in vec2 p0, in vec2 p1, in vec2 p2, in vec2 p3) {
 	vec2 e0 = p1 - p0; vec2 v0 = p - p0;
@@ -98,10 +129,18 @@ void main() {
 	
 	vec2 inv_res = 1.0 / resolution;
 
-	vec2 uv = inv_bilinear(
+	//vec2 uv = inv_bilinear(
+	//	pix_coord * inv_res,
+    //  position01_fs.xy * inv_res,
+	//	position01_fs.zw * inv_res,
+	//	position23_fs.zw * inv_res,
+	//	position23_fs.xy * inv_res
+	//);
+
+	vec2 uv = inv_bilinear2(
 		pix_coord * inv_res,
-        position01_fs.xy * inv_res,
-		position01_fs.zw * inv_res,
+        position01_fs.zw * inv_res,
+		position01_fs.xy * inv_res,
 		position23_fs.zw * inv_res,
 		position23_fs.xy * inv_res
 	);
@@ -111,6 +150,8 @@ void main() {
 
 	// first swap x <-> y because our quads are rotated
 	uv.xy = uv.yx;
+	// flip y component
+	uv.y = 1.0 - uv.y;
 
 	// define tex coords at corners
 	vec2 tc0 = vec2(0.0, tex_coords_fs[0]);
