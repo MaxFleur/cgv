@@ -586,6 +586,8 @@ void tf_editor_lines::create_quads() {
 	// Only draw quads for the shape mode
 	if(vis_mode == VM_SHAPES) {
 		m_quad_strips.clear();
+		quad_counts.clear();
+		auto quad_count = 0;
 
 		const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index) {
 			// Get position and width of the current primitive protein index
@@ -624,6 +626,8 @@ void tf_editor_lines::create_quads() {
 					color,
 					vec4(texture_position_01[0], texture_position_01[1], texture_position_23[0], texture_position_23[1])
 				);
+				// Quad is created, so increment
+				quad_count++;
 			}
 		};
 
@@ -631,13 +635,16 @@ void tf_editor_lines::create_quads() {
 		for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 			tf_editor_shared_data_types::quad_geometry quad_strips;
 			const auto color = m_shared_data_ptr->primitives.at(i).color;
+			quad_count = 0;
 
 			add_quad(m_quad_strips, 0, 1, 0, 6, 0, 1, 10, 11, i, color);
-			add_quad(m_quad_strips, 3, 0, 12, 1, 18, 19, 2, 3, i, color);
-			add_quad(m_quad_strips, 2, 0, 8, 2, 12, 13, 4, 5, i, color);
-			add_quad(m_quad_strips, 2, 1, 10, 4, 16, 17, 6, 7, i, color);
-			add_quad(m_quad_strips, 3, 1, 13, 5, 20, 21, 8, 9, i, color);
+			add_quad(m_quad_strips, 0, 3, 12, 1, 18, 19, 2, 3, i, color);
+			add_quad(m_quad_strips, 0, 2, 8, 2, 12, 13, 4, 5, i, color);
+			add_quad(m_quad_strips, 1, 2, 10, 4, 16, 17, 6, 7, i, color);
+			add_quad(m_quad_strips, 1, 3, 13, 5, 20, 21, 8, 9, i, color);
 			add_quad(m_quad_strips, 2, 3, 9, 14, 14, 15, 22, 23, i, color);
+			// Store the number of created quads
+			quad_counts.push_back(quad_count);
 		}
 	}
 }
@@ -762,12 +769,15 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 		create_quads();
 
 		if (vis_mode == VM_SHAPES) {
+			auto quad_index_start = 0;
 			for (int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
 				const auto& type = m_shared_data_ptr->primitives.at(i).type;
 				auto& quad_renderer = type == shared_data::TYPE_GAUSS ? m_renderer_quads_gauss : m_renderer_quads;
 
 				content_canvas.set_view(ctx, quad_renderer.enable_prog(ctx));
-				quad_renderer.render(ctx, PT_POINTS, m_quad_strips, 6 * i, 6);
+				// Render the number of quads stored for each primitive
+				quad_renderer.render(ctx, PT_POINTS, m_quad_strips, quad_index_start, quad_counts.at(i));
+				quad_index_start += quad_counts.at(i);
 			}
 		}
 

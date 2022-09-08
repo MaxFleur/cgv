@@ -98,6 +98,9 @@ private:
 	// Boundaries of the centroid points
 	std::vector<std::vector<vec2>> m_strip_boundary_points;
 
+	// Count the quads drawn for each primitive
+	std::vector<int> quad_counts;
+
 	std::vector<std::vector<tf_editor_shared_data_types::point_line>> m_points;
 	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_line*> m_point_handles;
 
