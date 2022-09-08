@@ -94,14 +94,16 @@ protected:
 		
 			for (int j = 0; j < points[i].size(); j++) {
 				float transparency = 1.0f;
-
+				// 12 points means line based editor
 				if (points[i].size() == 12) {
 					const auto protein_index = j / 3;
-					// Transparent points for maximum widths 
+					// More transparent points for maximum widths
 					if (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] == 10.0f) {
-						transparency = 0.0f;
+						transparency = 0.3f;
 					}
+				// SPLOM editor
 				} else if (points[i].size() == 6) {
+					// Check for maximum widths
 					const auto is_width_max = [&](const int& index_1, const int& index_2) {
 						if (m_shared_data_ptr->primitives.at(i).centr_widths[index_1] == 10.0f && 
 							m_shared_data_ptr->primitives.at(i).centr_widths[index_2] == 10.0f) {
@@ -109,7 +111,8 @@ protected:
 						}
 						return 1.0f;
 					};
-					
+					// Each SPLOM editor draggable encodes two protein indices, based on the current point 
+					// in the vector we adress the right indices and check for maximum widths
 					switch (j) {
 					case 0:
 						transparency = is_width_max(0, 1);

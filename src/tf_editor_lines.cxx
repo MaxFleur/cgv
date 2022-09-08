@@ -13,7 +13,7 @@ tf_editor_lines::tf_editor_lines() {
 	set_name("TF Editor Lines Overlay");
 	// set the size with an aspect ratio that makes lets the editor nicely fit inside
 	// aspect ratio is w:h = 1:0.875
-	set_overlay_size(ivec2(600, 525));
+	set_overlay_size(ivec2(700, 612));
 	// Register an additional arrow shader
 	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
 	content_canvas.register_shader("quad", cgv::glutil::canvas::shaders_2d::quad);
