@@ -223,6 +223,7 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 
 	// configure style for rendering the plot framebuffer texture
 	m_style_plot.use_texture = true;
+	m_style_plot.use_blending = true;
 	m_style_plot.feather_width = 0.0f;
 
 	m_style_relations.use_blending = true;
@@ -325,7 +326,7 @@ void tf_editor_lines::update_content() {
 				color_rgb = tf_editor_shared_functions::get_color(v, m_shared_data_ptr->primitives);
 			}
 			// Use full alpha for enabled tone mapping
-			rgba col(color_rgb, use_tone_mapping ? 1.0f : m_alpha);
+			rgba col(color_rgb, 1.0f);
 
 			// Left to right
 			m_geometry_relations.add(m_widget_lines.at(0).interpolate(v[0]), col);
@@ -719,16 +720,11 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	// draw the plot content from its own framebuffer texture
 	fbc_plot.enable_attachment(ctx, "color", 0);
 
-	auto& rectangle_prog = content_canvas.enable_shader(ctx, use_tone_mapping ? "plot_tone_mapping" : "rectangle");
+	auto& rectangle_prog = content_canvas.enable_shader(ctx, "plot_tone_mapping");
 	// Apply tone mapping via the tone mapping shader
-	if(use_tone_mapping) {
-		rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
-		rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
-		rectangle_prog.set_uniform(ctx, "gamma", tm_gamma);
-		rectangle_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
-	}
-
-	m_style_plot.use_blending = use_tone_mapping;
+	rectangle_prog.set_uniform(ctx, "normalization_factor", 1.0f / static_cast<float>(std::max(tm_normalization_count, 1u)));
+	rectangle_prog.set_uniform(ctx, "alpha", tm_alpha);
+	rectangle_prog.set_uniform(ctx, "use_color", vis_mode == VM_GTF);
 	m_style_plot.apply(ctx, rectangle_prog);
 
 	content_canvas.draw_shape(ctx, ivec2(0), get_overlay_size());
@@ -807,13 +803,11 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 	// enable the offline plot frame buffer, so all things are drawn into its attached textures
 	fbc_plot.enable(ctx);
 
-	if(use_tone_mapping) {
-		glBlendFunc(GL_ONE, GL_ONE);
-	}
+	glBlendFunc(GL_ONE, GL_ONE);
 
 	// make sure to reset the color buffer if we update the content from scratch
 	if(m_total_count == 0 || m_reset_plot) {
-		use_tone_mapping ? glClearColor(0.0f, 0.0f, 0.0f, 0.0f) : glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		m_reset_plot = false;
 	}
@@ -841,9 +835,7 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 	fbc_plot.disable(ctx);
 
 	// reset the blend function
-	if(use_tone_mapping) {
-		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	}
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	// Stop the process if we have drawn all available lines,
 	// otherwise request drawing of another frame.

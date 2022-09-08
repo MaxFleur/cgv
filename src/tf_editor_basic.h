@@ -97,7 +97,7 @@ protected:
 
 				if (points[i].size() == 12) {
 					const auto protein_index = j / 3;
-					// Transparent points for maximum widths
+					// Transparent points for maximum widths 
 					if (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] == 10.0f) {
 						transparency = 0.0f;
 					}
@@ -206,7 +206,7 @@ protected:
 	// keeps track of the amount of data objects (lines/points) that have been rendered so-far
 	int m_total_count = 0;
 	// threshold that is applied to protein density samples before plotting
-	float m_threshold = 0.3f;
+	float m_threshold = 0.2f;
 	// alpha value of individual data values in the plot
 	float m_alpha = 0.0001f;
 
@@ -214,10 +214,8 @@ protected:
 	double m_click_time;
 
 	// tone mapping parameters
-	bool use_tone_mapping = false;
 	unsigned tm_normalization_count = 1000;
 	float tm_alpha = 1.0f;
-	float tm_gamma = 1.0f;
 
 	// point parameters
 	// Is an interaction going on?

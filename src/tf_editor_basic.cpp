@@ -105,10 +105,8 @@ void tf_editor_basic::create_gui_tm() {
 	if (begin_tree_node("Tone Mapping", this, true)) {
 		align("\a");
 
-		add_member_control(this, "Use Tone Mapping", use_tone_mapping, "check");
 		add_member_control(this, "TM Norm Count", tm_normalization_count, "value_slider", "min=1;max=1000000;step=0.0001;log=true;ticks=true");
 		add_member_control(this, "TM Alpha", tm_alpha, "value_slider", "min=0;max=50;step=0.0001;log=true;ticks=true");
-		add_member_control(this, "TM Gamma", tm_gamma, "value_slider", "min=0;max=10;step=0.0001;log=true;ticks=true");
 
 		align("\b");
 		end_tree_node(this);
