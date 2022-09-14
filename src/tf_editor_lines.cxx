@@ -215,6 +215,8 @@ void tf_editor_lines::resynchronize() {
 
 void tf_editor_lines::primitive_added() {
 	add_draggables(m_shared_data_ptr->primitives.size() - 1);
+
+	m_interacted_primitive_ids[0] = m_shared_data_ptr->selected_primitive_id;
 	// A new primitive was added, so we need to redraw completely
 	m_create_all_values = true;
 

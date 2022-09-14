@@ -799,6 +799,9 @@ void viewer::add_primitive() {
 	shared_data::primitive centr;
 	m_shared_data_ptr->primitives.push_back(centr);
 
+	m_shared_data_ptr->is_primitive_selected = true;
+	m_shared_data_ptr->selected_primitive_id = m_shared_data_ptr->primitives.size() - 1;
+
 	if (m_editor_lines_ptr) {
 		m_editor_lines_ptr->primitive_added();
 	}

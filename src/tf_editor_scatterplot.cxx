@@ -206,6 +206,8 @@ void tf_editor_scatterplot::resynchronize() {
 
 void tf_editor_scatterplot::primitive_added() {
 	add_draggables(m_shared_data_ptr->primitives.size() - 1);
+	m_interacted_point_id = m_shared_data_ptr->selected_primitive_id;
+
 	redraw();
 }
 
