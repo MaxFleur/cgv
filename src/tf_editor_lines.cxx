@@ -371,8 +371,10 @@ void tf_editor_lines::create_labels() {
 			m_labels.add_text("2", ivec2(centers[2]), cgv::render::TA_NONE, 0.0);
 			m_labels.add_text("3", ivec2(centers[3]), cgv::render::TA_NONE, 0.0f);
 
-			for(int i = 0; i < 4; i++) {
-				m_labels.set_text(i, m_data_set_ptr->stain_names[i]);
+			if(m_data_set_ptr && m_data_set_ptr->stain_names.size() > 3) {
+				for(int i = 0; i < 4; i++) {
+					m_labels.set_text(i, m_data_set_ptr->stain_names[i]);
+				}
 			}
 		}
 	}
