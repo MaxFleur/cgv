@@ -1320,10 +1320,146 @@ bool viewer::prepare_dataset() {
 	// TODO: maybe convert to float values before putting in to the texture
 	dataset.raw_data = tex_data;
 
+
+
+
+
+
+
+	std::vector<float> voxel_values(4*1024*1024*15, 0.5f);
+
+
+	const auto clamp_remap = [](float v, float a0, float a1, float b0, float b1) {
+		float t = 0.0;
+		v = cgv::math::clamp(v, a0, a1);
+		if(abs(a0 - a1) > 0.00001)
+			t = (v - a0) / (a1 - a0);
+		return cgv::math::lerp(b0, b1, t);
+	};
+
+	for(size_t slice_idx = 0; slice_idx < dataset.num_slices; ++slice_idx) {
+		int slice_offset = slice_idx * 1024 * 1024;
+
+		int ws = 128; // window size
+		
+		// assume data set x and y dims of 1024
+		int nx = 1024 / ws; // window count in x
+		int ny = 1024 / ws; // window count in y
+		
+		for(size_t wx = 0; wx < nx; ++wx) {
+			for(size_t wy = 0; wy < ny; ++wy) {
+				ivec2 wo(ws * wx, ws * wy);
+
+				std::vector<float> values0, values1, values2, values3;
+				values0.reserve(ws*ws);
+				values1.reserve(ws*ws);
+				values2.reserve(ws*ws);
+				values3.reserve(ws*ws);
+
+				for(size_t i = wo.x(); i < wo.x() + ws; ++i) {
+					for(size_t j = wo.y(); j < wo.y() + ws; ++j) {
+						values0.push_back(static_cast<float>(dataset.raw_data.get<unsigned char>(0, slice_idx, j, i)) / 255.0f);
+						values1.push_back(static_cast<float>(dataset.raw_data.get<unsigned char>(1, slice_idx, j, i)) / 255.0f);
+						values2.push_back(static_cast<float>(dataset.raw_data.get<unsigned char>(2, slice_idx, j, i)) / 255.0f);
+						values3.push_back(static_cast<float>(dataset.raw_data.get<unsigned char>(3, slice_idx, j, i)) / 255.0f);
+					}
+				}
+
+				std::sort(values0.begin(), values0.end());
+				std::sort(values1.begin(), values1.end());
+				std::sort(values2.begin(), values2.end());
+				std::sort(values3.begin(), values3.end());
+
+				vec4 percentiles_05, percentiles_95;
+
+				int idx_05 = static_cast<int>(round(static_cast<float>(values0.size()) * 0.05f));
+				int idx_95 = static_cast<int>(round(static_cast<float>(values0.size()) * 0.95f));
+				idx_05 = cgv::math::clamp(idx_05, 0, static_cast<int>(values0.size() - 1));
+				idx_95 = cgv::math::clamp(idx_95, 0, static_cast<int>(values0.size() - 1));
+
+				percentiles_05[0] = values0[idx_05];
+				percentiles_05[1] = values1[idx_05];
+				percentiles_05[2] = values2[idx_05];
+				percentiles_05[3] = values3[idx_05];
+
+				percentiles_95[0] = values0[idx_95];
+				percentiles_95[1] = values1[idx_95];
+				percentiles_95[2] = values2[idx_95];
+				percentiles_95[3] = values3[idx_95];
+
+				for(size_t i = wo.x(); i < wo.x() + ws; ++i) {
+					for(size_t j = wo.y(); j < wo.y() + ws; ++j) {
+						vec4 v;
+						v[0] = static_cast<float>(dataset.raw_data.get<unsigned char>(0, slice_idx, j, i)) / 255.0f;
+						v[1] = static_cast<float>(dataset.raw_data.get<unsigned char>(1, slice_idx, j, i)) / 255.0f;
+						v[2] = static_cast<float>(dataset.raw_data.get<unsigned char>(2, slice_idx, j, i)) / 255.0f;
+						v[3] = static_cast<float>(dataset.raw_data.get<unsigned char>(3, slice_idx, j, i)) / 255.0f;
+
+						v[0] = clamp_remap(v[0], percentiles_05[0], percentiles_95[0], 0.0f, 1.0f);
+						v[1] = clamp_remap(v[1], percentiles_05[1], percentiles_95[1], 0.0f, 1.0f);
+						v[2] = clamp_remap(v[2], percentiles_05[2], percentiles_95[2], 0.0f, 1.0f);
+						v[3] = clamp_remap(v[3], percentiles_05[3], percentiles_95[3], 0.0f, 1.0f);
+
+						int base_idx = i + j * 1024 + slice_offset;
+						base_idx *= 4;
+						voxel_values[base_idx + 0] = v[0];
+						voxel_values[base_idx + 1] = v[1];
+						voxel_values[base_idx + 2] = v[2];
+						voxel_values[base_idx + 3] = v[3];
+					}
+				}
+			}
+		}
+	}
+
+	cgv::data::data_view vol_dv(new cgv::data::data_format(1024, 1024, 15, cgv::type::info::TypeId::TI_FLT32, cgv::data::ComponentFormat::CF_RGBA), voxel_values.data());
+	//dataset.raw_data = vol_dv;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	std::cout << "Creating volume texture... ";
 	s1.restart();
 	auto& volume_tex = dataset.volume_tex;
-	volume_tex.create(*ctx_ptr, tex_data, 0);
+	//volume_tex.create(*ctx_ptr, tex_data, 0);
+	volume_tex.create(*ctx_ptr, vol_dv, 0);
 	volume_tex.set_min_filter(cgv::render::TF_LINEAR);
 	volume_tex.set_mag_filter(cgv::render::TF_LINEAR);
 	volume_tex.set_wrap_s(cgv::render::TW_CLAMP_TO_EDGE);
