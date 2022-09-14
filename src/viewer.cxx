@@ -1337,17 +1337,20 @@ bool viewer::prepare_dataset() {
 		return cgv::math::lerp(b0, b1, t);
 	};
 
-	for(size_t slice_idx = 0; slice_idx < dataset.num_slices; ++slice_idx) {
-		int slice_offset = slice_idx * 1024 * 1024;
+	struct window {
+		vec4 min, max;
+		vec4 p05, p95;
+	};
+	std::vector<window> windows;
 
-		int ws = 128; // window size
-		
-		// assume data set x and y dims of 1024
-		int nx = 1024 / ws; // window count in x
-		int ny = 1024 / ws; // window count in y
-		
-		for(size_t wx = 0; wx < nx; ++wx) {
-			for(size_t wy = 0; wy < ny; ++wy) {
+	int ws = 128; // window size
+	// assume data set x and y dims of 1024
+	int nx = 1024 / ws; // window count in x
+	int ny = 1024 / ws; // window count in y
+
+	for(size_t slice_idx = 0; slice_idx < dataset.num_slices; ++slice_idx) {
+		for(size_t wy = 0; wy < ny; ++wy) {
+			for(size_t wx = 0; wx < nx; ++wx) {
 				ivec2 wo(ws * wx, ws * wy);
 
 				std::vector<float> values0, values1, values2, values3;
@@ -1356,8 +1359,8 @@ bool viewer::prepare_dataset() {
 				values2.reserve(ws*ws);
 				values3.reserve(ws*ws);
 
-				for(size_t i = wo.x(); i < wo.x() + ws; ++i) {
-					for(size_t j = wo.y(); j < wo.y() + ws; ++j) {
+				for(size_t j = wo.y(); j < wo.y() + ws; ++j) {
+					for(size_t i = wo.x(); i < wo.x() + ws; ++i) {
 						values0.push_back(static_cast<float>(dataset.raw_data.get<unsigned char>(0, slice_idx, j, i)) / 255.0f);
 						values1.push_back(static_cast<float>(dataset.raw_data.get<unsigned char>(1, slice_idx, j, i)) / 255.0f);
 						values2.push_back(static_cast<float>(dataset.raw_data.get<unsigned char>(2, slice_idx, j, i)) / 255.0f);
@@ -1370,8 +1373,19 @@ bool viewer::prepare_dataset() {
 				std::sort(values2.begin(), values2.end());
 				std::sort(values3.begin(), values3.end());
 
-				vec4 percentiles_05, percentiles_95;
+				vec4 min, max;
+				min[0] = values0[0];
+				min[1] = values1[1];
+				min[2] = values2[2];
+				min[3] = values3[3];
 
+				max[0] = values0.back();
+				max[1] = values1.back();
+				max[2] = values2.back();
+				max[3] = values3.back();
+
+				vec4 percentiles_05, percentiles_95;
+				
 				int idx_05 = static_cast<int>(round(static_cast<float>(values0.size()) * 0.05f));
 				int idx_95 = static_cast<int>(round(static_cast<float>(values0.size()) * 0.95f));
 				idx_05 = cgv::math::clamp(idx_05, 0, static_cast<int>(values0.size() - 1));
@@ -1387,21 +1401,123 @@ bool viewer::prepare_dataset() {
 				percentiles_95[2] = values2[idx_95];
 				percentiles_95[3] = values3[idx_95];
 
-				for(size_t i = wo.x(); i < wo.x() + ws; ++i) {
-					for(size_t j = wo.y(); j < wo.y() + ws; ++j) {
+				windows.push_back({ min, max, percentiles_05, percentiles_95 });
+			}
+		}
+	}
+
+	int wi = 0;
+	for(size_t slice_idx = 0; slice_idx < dataset.num_slices; ++slice_idx) {
+		int slice_offset = slice_idx * 1024 * 1024;
+		int window_slice_offset = (1024/ws);
+		window_slice_offset *= window_slice_offset;
+
+		for(int wy = 0; wy < ny; ++wy) {
+			for(int wx = 0; wx < nx; ++wx) {
+				ivec2 wo(ws * wx, ws * wy);
+				
+				const auto& w = windows[wi];
+				++wi;
+
+				for(int j = 0; j < ws; ++j) {
+					for(int i = 0; i < ws; ++i) {
+						int x = i + wo.x();
+						int y = j + wo.y();
+
+						int wh = ws / 2;
+						int wxi0, wxi1;
+						int wyi0, wyi1;
+
+						float tx = 0.0f;
+						float ty = 0.0f;
+
+						if(i < wh) {
+							wxi0 = std::max(wx - 1, 0);
+							wxi1 = wx;
+							tx = 1.0f - (wh - i) / static_cast<float>(wh);
+							tx = std::min(tx + 0.5f, 1.0f);
+							//tx = 0.5f*tx + 0.5f;
+						} else {
+							wxi0 = wx;
+							wxi1 = std::min(wx + 1, nx - 1);
+							tx = (i - wh) / static_cast<float>(wh);
+							tx = std::max(tx - 0.5f, 0.0f);
+							//tx *= 0.5f;
+						}
+
+						if(j < wh) {
+							wyi0 = std::max(wy - 1, 0);
+							wyi1 = wy;
+							ty = 1.0f - (wh - j) / static_cast<float>(wh);
+							ty = std::min(ty + 0.5f, 1.0f);
+							//ty = 0.5f*ty + 0.5f;
+						} else {
+							wyi0 = wy;
+							wyi1 = std::min(wy + 1, ny - 1);
+							ty = (j - wh) / static_cast<float>(wh);
+							ty = std::max(ty - 0.5f, 0.0f);
+							//ty *= 0.5f;
+						}
+
+						if(tx < 0.5f) tx = 0.0f;
+						if(tx >= 0.5f) tx = 1.0f;
+						if(ty < 0.5f) ty = 0.0f;
+						if(ty >= 0.5f) ty = 1.0f;
+
+						const auto& w0 = windows[wxi0 + nx*wyi0];
+						const auto& w1 = windows[wxi1 + nx*wyi0];
+						const auto& w2 = windows[wxi0 + nx*wyi1];
+						const auto& w3 = windows[wxi1 + nx*wyi1];
+
+						vec4 a = cgv::math::lerp(w0.min, w1.min, tx);
+						vec4 b = cgv::math::lerp(w2.min, w3.min, tx);
+						vec4 min = cgv::math::lerp(a, b, ty);
+
+						a = cgv::math::lerp(w0.max, w1.max, tx);
+						b = cgv::math::lerp(w2.max, w3.max, tx);
+						vec4 max = cgv::math::lerp(a, b, ty);
+
+						a = cgv::math::lerp(w0.p05, w1.p05, tx);
+						b = cgv::math::lerp(w2.p05, w3.p05, tx);
+						vec4 p05 = cgv::math::lerp(a, b, ty);
+
+						a = cgv::math::lerp(w0.p95, w1.p95, tx);
+						b = cgv::math::lerp(w2.p95, w3.p95, tx);
+						vec4 p95 = cgv::math::lerp(a, b, ty);
+
+						min = w.min;
+						max = w.max;
+						p05 = w.p05;
+						p95 = w.p95;
+
 						vec4 v;
-						v[0] = static_cast<float>(dataset.raw_data.get<unsigned char>(0, slice_idx, j, i)) / 255.0f;
-						v[1] = static_cast<float>(dataset.raw_data.get<unsigned char>(1, slice_idx, j, i)) / 255.0f;
-						v[2] = static_cast<float>(dataset.raw_data.get<unsigned char>(2, slice_idx, j, i)) / 255.0f;
-						v[3] = static_cast<float>(dataset.raw_data.get<unsigned char>(3, slice_idx, j, i)) / 255.0f;
+						v[0] = static_cast<float>(dataset.raw_data.get<unsigned char>(0, slice_idx, y, x)) / 255.0f;
+						v[1] = static_cast<float>(dataset.raw_data.get<unsigned char>(1, slice_idx, y, x)) / 255.0f;
+						v[2] = static_cast<float>(dataset.raw_data.get<unsigned char>(2, slice_idx, y, x)) / 255.0f;
+						v[3] = static_cast<float>(dataset.raw_data.get<unsigned char>(3, slice_idx, y, x)) / 255.0f;
 
-						v[0] = clamp_remap(v[0], percentiles_05[0], percentiles_95[0], 0.0f, 1.0f);
-						v[1] = clamp_remap(v[1], percentiles_05[1], percentiles_95[1], 0.0f, 1.0f);
-						v[2] = clamp_remap(v[2], percentiles_05[2], percentiles_95[2], 0.0f, 1.0f);
-						v[3] = clamp_remap(v[3], percentiles_05[3], percentiles_95[3], 0.0f, 1.0f);
+						//v[0] = clamp_remap(v[0], w.p05[0], w.p95[0], 0.0f, 1.0f);
+						//v[1] = clamp_remap(v[1], w.p05[1], w.p95[1], 0.0f, 1.0f);
+						//v[2] = clamp_remap(v[2], w.p05[2], w.p95[2], 0.0f, 1.0f);
+						//v[3] = clamp_remap(v[3], w.p05[3], w.p95[3], 0.0f, 1.0f);
 
-						int base_idx = i + j * 1024 + slice_offset;
+						//v[0] = clamp_remap(v[0], w.p05[0], w.p95[0], w.min[0], w.max[0]);
+						//v[1] = clamp_remap(v[1], w.p05[1], w.p95[1], w.min[1], w.max[1]);
+						//v[2] = clamp_remap(v[2], w.p05[2], w.p95[2], w.min[2], w.max[2]);
+						//v[3] = clamp_remap(v[3], w.p05[3], w.p95[3], w.min[3], w.max[3]);
+
+						v[0] = clamp_remap(v[0], p05[0], p95[0], min[0], max[0]);
+						v[1] = clamp_remap(v[1], p05[1], p95[1], min[1], max[1]);
+						v[2] = clamp_remap(v[2], p05[2], p95[2], min[2], max[2]);
+						v[3] = clamp_remap(v[3], p05[3], p95[3], min[3], max[3]);
+
+						int base_idx = x + y * 1024 + slice_offset;
 						base_idx *= 4;
+						voxel_values[base_idx + 0] = tx*ty;
+						voxel_values[base_idx + 1] = tx*ty;
+						voxel_values[base_idx + 2] = tx*ty;
+						voxel_values[base_idx + 3] = tx*ty;
+
 						voxel_values[base_idx + 0] = v[0];
 						voxel_values[base_idx + 1] = v[1];
 						voxel_values[base_idx + 2] = v[2];
