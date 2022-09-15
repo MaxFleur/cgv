@@ -932,7 +932,8 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 		std::cout << "Error: Could not read sarcomeres from " << sarcomeres_fn << std::endl;
 
 	create_segment_render_data();
-
+	
+	/*
 #ifndef _DEBUG
 	std::cout << "Building gridtree... ";
 	cgv::utils::stopwatch s0(true);
@@ -945,6 +946,8 @@ bool viewer::read_data_set(context& ctx, const std::string& filename) {
 
 	generate_tree_boxes();
 #endif
+	*/
+
 	std::cout << "Extracting voxel values ...";
 	cgv::utils::stopwatch s(true);
 
