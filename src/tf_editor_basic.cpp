@@ -123,9 +123,11 @@ void tf_editor_basic::handle_mouse_click_end(bool found, bool double_clicked, in
 	if (found) {
 		if (double_clicked) {
 			// Set width for a double click
-			auto& current_width = m_shared_data_ptr->primitives.at(i).centr_widths[j];
+			auto& current_width = m_shared_data_ptr->primitives.at(i).widths[j];
 			current_width = current_width < 2.0f ? 10.0f : 0.5f;
-
+			if (current_width == 10.0f) {
+				m_shared_data_ptr->primitives.at(i).last_masked_id = j;
+			}
 			m_is_point_dragged = true;
 		}
 	}

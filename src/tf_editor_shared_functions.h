@@ -76,13 +76,13 @@ namespace tf_editor_shared_functions
 			switch (primitive.type) {
 			// Calculate the alpha value based on the primitive tyoe
 			case shared_data::TYPE_GAUSS:
-				alpha = tf_editor_shared_functions::gaussian_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
+				alpha = tf_editor_shared_functions::gaussian_transfer_function(v, primitive.centroid, primitive.widths);
 				break;
 			case shared_data::TYPE_BOX:
-				alpha = tf_editor_shared_functions::box_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
+				alpha = tf_editor_shared_functions::box_transfer_function(v, primitive.centroid, primitive.widths);
 				break;
 			case shared_data::TYPE_SPHERE:
-				alpha = tf_editor_shared_functions::sphere_transfer_function(v, primitive.centr_pos, primitive.centr_widths);
+				alpha = tf_editor_shared_functions::sphere_transfer_function(v, primitive.centroid, primitive.widths);
 				break;
 			}
 			alpha *= primitive.color.alpha();
@@ -95,6 +95,15 @@ namespace tf_editor_shared_functions
 		color.B() = cgv::math::clamp(color.B(), 0.0f, 1.0f);
 
 		return color;
+	}
+
+	static int maximum_width_count(const vec4& widths) {
+		auto maximum_width_count = 0;
+		for (int i = 0; i < 4; i++) {
+			maximum_width_count += widths[i] == 10.0f;
+		}
+
+		return maximum_width_count;
 	}
 }
 

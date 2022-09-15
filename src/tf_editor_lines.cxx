@@ -514,9 +514,9 @@ void tf_editor_lines::create_centroid_boundaries() {
 
 	const auto calculate_values = [&](int i, int protein_index) {
 		// Get the relative position of the centroid and its left and right boundary
-		const auto relative_position = m_shared_data_ptr->primitives.at(i).centr_pos[protein_index];
-		boundary_left = relative_position - (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] / 2.0f);
-		boundary_right = relative_position + (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] / 2.0f);
+		const auto relative_position = m_shared_data_ptr->primitives.at(i).centroid[protein_index];
+		boundary_left = relative_position - (m_shared_data_ptr->primitives.at(i).widths[protein_index] / 2.0f);
+		boundary_right = relative_position + (m_shared_data_ptr->primitives.at(i).widths[protein_index] / 2.0f);
 	};
 
 	// The case where all values have to be drawn
@@ -596,8 +596,8 @@ void tf_editor_lines::create_quads() {
 		const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index) {
 			// Get position and width of the current primitive protein index
 			const auto& primitive = m_shared_data_ptr->primitives.at(primitive_index);
-			const auto pos = primitive.centr_pos[protein_index];
-			const auto half_width = primitive.centr_widths[protein_index] / 2.0f;
+			const auto pos = primitive.centroid[protein_index];
+			const auto half_width = primitive.widths[protein_index] / 2.0f;
 
 			const auto lower = pos - half_width;
 			const auto upper = pos + half_width;
@@ -617,7 +617,7 @@ void tf_editor_lines::create_quads() {
 			int protein_index_left, int protein_index_right, int widget_line_index_left, int widget_line_index_right,
 			int strip_id_1, int strip_id_2, int strip_id_3, int strip_id_4, int i, rgba color) {
 
-			const auto& widths = m_shared_data_ptr->primitives.at(i).centr_widths;
+			const auto& widths = m_shared_data_ptr->primitives.at(i).widths;
 			// No quads for maximum widths
 			if (widths[protein_index_left] != 10.0f && widths[protein_index_right] != 10.0f) {
 				vec2 texture_position_01 = texture_distance(i, protein_index_left, widget_line_index_left);
@@ -662,7 +662,7 @@ void tf_editor_lines::create_strip_borders(int index) {
 	m_geometry_strip_borders.clear();
 
 	const auto add_indices_to_strip_borders = [&](int index, int a, int b, int width_left, int width_right) {
-		const auto& widths = m_shared_data_ptr->primitives.at(index).centr_widths;
+		const auto& widths = m_shared_data_ptr->primitives.at(index).widths;
 		// We don't want to draw lines for a maximum value
 		if (widths[width_left] != 10.0f && widths[width_right] != 10.0f) {
 			m_geometry_strip_borders.add(m_strip_boundary_points.at(index).at(a), rgba{ m_shared_data_ptr->primitives.at(index).color, 1.0f });
@@ -706,7 +706,7 @@ void tf_editor_lines::add_draggables(int primitive_index) {
 				index = 3;
 			}
 
-			const auto value = m_shared_data_ptr->primitives.at(primitive_index).centr_pos[index];
+			const auto value = m_shared_data_ptr->primitives.at(primitive_index).centroid[index];
 			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(value)), &m_widget_lines.at(i)));
 		}
 	}
@@ -879,8 +879,8 @@ void tf_editor_lines::set_point_positions() {
 				int protein_index = j / 3;
 				// Remap to correct GUI vals
 				const auto GUI_value = (m_points[i][j].get_relative_line_position() - 0.1f) / 0.8f;
-				m_shared_data_ptr->primitives.at(i).centr_pos[protein_index] = GUI_value;
-				update_member(&m_shared_data_ptr->primitives.at(i).centr_pos[protein_index]);
+				m_shared_data_ptr->primitives.at(i).centroid[protein_index] = GUI_value;
+				update_member(&m_shared_data_ptr->primitives.at(i).centroid[protein_index]);
 
 				m_shared_data_ptr->set_synchronized();
 			}
@@ -902,7 +902,7 @@ void tf_editor_lines::update_point_positions() {
 				for(int j = 0; j < 15; j++) {
 					// ignore the "back" lines of the widgets
 					if((j + 1) % 4 != 0) {
-						float c = centroid.centr_pos[j / 4];
+						float c = centroid.centroid[j / 4];
 
 						points[idx].pos = m_widget_lines.at(j).interpolate(c);
 						++idx;
@@ -943,10 +943,13 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 			if(negative_change) {
 				change *= -1.0f;
 			}
-			auto& width = m_shared_data_ptr->primitives[m_interacted_primitive_ids[0]].centr_widths[i];
+			auto& width = m_shared_data_ptr->primitives[m_interacted_primitive_ids[0]].widths[i];
 			width += change;
 			width = cgv::math::clamp(width, 0.0f, 10.0f);
-
+			
+			if (width == 10.0f) {
+				m_shared_data_ptr->primitives[m_interacted_primitive_ids[0]].last_masked_id = i;
+			}
 			found = true;
 			found_index = i;
 			break;
