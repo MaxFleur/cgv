@@ -343,7 +343,7 @@ bool viewer::init(cgv::render::context& ctx) {
 	ref_box_wire_renderer(ctx, 1);
 
 	bool success = true;
-	success &= shaders.load_shaders(ctx);
+	success &= shaders.load_all(ctx);
 
 	success &= sallimus_dots_rd.init(ctx);
 	success &= sarcomeres_rd.init(ctx);
