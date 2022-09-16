@@ -409,8 +409,8 @@ void tf_editor_scatterplot::create_primitive_shapes() {
 
 		for (int j = 0; j < m_points.at(i).size(); j++) {
 			// Get the width for the point's protein stains
-			const auto width_stain_x = m_shared_data_ptr->primitives.at(i).centr_widths[m_points[i][j].m_stain_first];
-			const auto width_stain_y = m_shared_data_ptr->primitives.at(i).centr_widths[m_points[i][j].m_stain_second];
+			const auto width_stain_x = m_shared_data_ptr->primitives.at(i).widths[m_points[i][j].m_stain_first];
+			const auto width_stain_y = m_shared_data_ptr->primitives.at(i).widths[m_points[i][j].m_stain_second];
 
 			// Multiply with the rectangle size
 			const auto width_x = width_stain_x * m_points.at(i).at(j).parent_rectangle->size_x();
@@ -447,7 +447,7 @@ void tf_editor_scatterplot::add_draggables(int primitive_index) {
 	const auto size = domain.size();
 
 	// Add the new draggables to the scatter plot
-	const auto& centroid_positions = m_shared_data_ptr->primitives.at(primitive_index).centr_pos;
+	const auto& centroid_positions = m_shared_data_ptr->primitives.at(primitive_index).centroid;
 	auto pos = m_rectangles_calc.at(0).point_in_rect(vec2(centroid_positions[0], centroid_positions[1]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 1, &m_rectangles_calc.at(0)));
 
@@ -619,8 +619,8 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 			glEnable(GL_SCISSOR_TEST);
 			glScissor(m_rectangles_calc.at(j).start.x(), m_rectangles_calc.at(j).start.y(), m_rectangles_calc.at(j).size_x(), m_rectangles_calc.at(j).size_y());
 
-			const auto width_x = m_shared_data_ptr->primitives.at(i).centr_widths[m_points[i][j].m_stain_first];
-			const auto width_y = m_shared_data_ptr->primitives.at(i).centr_widths[m_points[i][j].m_stain_second];
+			const auto width_x = m_shared_data_ptr->primitives.at(i).widths[m_points[i][j].m_stain_first];
+			const auto width_y = m_shared_data_ptr->primitives.at(i).widths[m_points[i][j].m_stain_second];
 
 			// Draw shapes for no maximum widths
 			if (width_x != 10.0f && width_y != 10.0f) {
@@ -708,12 +708,12 @@ void tf_editor_scatterplot::set_point_positions() {
 				}
 				// Remap the gui values
 				const auto gui_value_first = m_points[i][j].get_relative_position(m_points[i][j].pos.x(), true);
-				m_shared_data_ptr->primitives.at(i).centr_pos[m_points[i][j].m_stain_first] = gui_value_first;
-				update_member(&m_shared_data_ptr->primitives.at(i).centr_pos[m_points[i][j].m_stain_first]);
+				m_shared_data_ptr->primitives.at(i).centroid[m_points[i][j].m_stain_first] = gui_value_first;
+				update_member(&m_shared_data_ptr->primitives.at(i).centroid[m_points[i][j].m_stain_first]);
 
 				const auto gui_value_second = m_points[i][j].get_relative_position(m_points[i][j].pos.y(), false);
-				m_shared_data_ptr->primitives.at(i).centr_pos[m_points[i][j].m_stain_second] = gui_value_second;
-				update_member(&m_shared_data_ptr->primitives.at(i).centr_pos[m_points[i][j].m_stain_second]);
+				m_shared_data_ptr->primitives.at(i).centroid[m_points[i][j].m_stain_second] = gui_value_second;
+				update_member(&m_shared_data_ptr->primitives.at(i).centroid[m_points[i][j].m_stain_second]);
 
 				m_is_point_dragged = true;
 				is_interacting = true;
@@ -761,10 +761,14 @@ void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_ch
 				change *= 2.0f;
 			}
 
-			auto& width = primitives.centr_widths[ctrl_pressed ? m_points[m_interacted_point_id][i].m_stain_first : m_points[m_interacted_point_id][i].m_stain_second];
+			auto& width = primitives.widths[ctrl_pressed ? m_points[m_interacted_point_id][i].m_stain_first : m_points[m_interacted_point_id][i].m_stain_second];
 			width += change;
 			width = cgv::math::clamp(width, 0.0f, 10.0f);
 
+			if (width == 10.0f) {
+				primitives.last_masked_id =
+					ctrl_pressed ? m_points[m_interacted_point_id][i].m_stain_first : m_points[m_interacted_point_id][i].m_stain_second;
+			}
 			found = true;
 			found_index = i;
 			break;

@@ -98,17 +98,28 @@ protected:
 				if (points[i].size() == 12) {
 					const auto protein_index = j / 3;
 					// More transparent points for maximum widths
-					if (m_shared_data_ptr->primitives.at(i).centr_widths[protein_index] == 10.0f) {
-						transparency = 0.3f;
+					if (m_shared_data_ptr->primitives.at(i).widths[protein_index] == 10.0f) {
+						const auto maximum_width_count = tf_editor_shared_functions::maximum_width_count(m_shared_data_ptr->primitives.at(i).widths);
+
+						// At least one width should be encoded normally, so don't mask if the other three widths are already masked
+						if (maximum_width_count < 4 || protein_index != m_shared_data_ptr->primitives.at(i).last_masked_id) {
+							transparency = 0.3f;
+						}
 					}
-					// SPLOM editor
 				}
+				// SPLOM editor
 				else if (points[i].size() == 6) {
 					// Check for maximum widths
 					const auto is_width_max = [&](const int& index_1, const int& index_2) {
-						if (m_shared_data_ptr->primitives.at(i).centr_widths[index_1] == 10.0f &&
-							m_shared_data_ptr->primitives.at(i).centr_widths[index_2] == 10.0f) {
-							return 0.3f;
+						if (m_shared_data_ptr->primitives.at(i).widths[index_1] == 10.0f &&
+							m_shared_data_ptr->primitives.at(i).widths[index_2] == 10.0f) {
+
+							const auto maximum_width_count = tf_editor_shared_functions::maximum_width_count(m_shared_data_ptr->primitives.at(i).widths);
+							// At least one width should be encoded normally, so don't mask if the other three widths are already masked
+							if (maximum_width_count < 4 || 
+								(index_1 != m_shared_data_ptr->primitives.at(i).last_masked_id && index_2 != m_shared_data_ptr->primitives.at(i).last_masked_id)) {
+								return 0.3f;
+							}
 						}
 						return 1.0f;
 					};

@@ -297,9 +297,9 @@ void viewer::on_set(void* member_ptr) {
 
 		for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
 			if (member_ptr == &m_shared_data_ptr->primitives.at(i).type ||
-				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_pos[c_protein_i] ||
+				member_ptr == &m_shared_data_ptr->primitives.at(i).centroid[c_protein_i] ||
 				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
-				member_ptr == &m_shared_data_ptr->primitives.at(i).centr_widths[c_protein_i]) {
+				member_ptr == &m_shared_data_ptr->primitives.at(i).widths[c_protein_i]) {
 
 				if (member_ptr == &m_shared_data_ptr->primitives.at(i).color && 
 					m_shared_data_ptr->selected_primitive_id == i &&
@@ -606,8 +606,8 @@ void viewer::draw(cgv::render::context& ctx) {
 
 					const auto idx = std::to_string(i);
 					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].type", static_cast<int>(m_shared_data_ptr->primitives.at(i).type));
-					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->primitives.at(i).centr_pos);
-					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->primitives.at(i).centr_widths);
+					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->primitives.at(i).centroid);
+					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->primitives.at(i).widths);
 					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
 				}
 
@@ -720,20 +720,20 @@ void viewer::create_gui() {
 					// Color widget
 					add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
 					// Centroid parameters themselves
-					add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centr_pos[0], "value_slider",
+					add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centroid[0], "value_slider",
 						"min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centr_pos[1], "value_slider",
+					add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centroid[1], "value_slider",
 						"min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centr_pos[2], "value_slider",
+					add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centroid[2], "value_slider",
 						"min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centr_pos[3], "value_slider",
+					add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centroid[3], "value_slider",
 						"min=0.0;max=1.0;step=0.0001;ticks=true");
 
 					// Gaussian width
-					add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).centr_widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).centr_widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).centr_widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).centr_widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Myosin", m_shared_data_ptr->primitives.at(i).widths[0], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Actin", m_shared_data_ptr->primitives.at(i).widths[1], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Obscurin", m_shared_data_ptr->primitives.at(i).widths[2], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
+					add_member_control(this, "Width Salimus", m_shared_data_ptr->primitives.at(i).widths[3], "value_slider", "min=0.0;max=1.0;step=0.0001;ticks=true");
 
 					align("\b");
 					end_tree_node(m_shared_data_ptr->primitives.at(i));
