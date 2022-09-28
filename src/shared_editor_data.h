@@ -14,15 +14,15 @@ public:
 		TYPE_SPHERE = 2
 	};
 
-	// Main primitive, containing a type, a color and the centroid widths and positions
+	// Main primitive, containing a type, a color, the widths and a focus point
 	struct primitive
 	{
 		Type type{ TYPE_GAUSS };
 
-		// Default color: blue to see the new centroid better
+		// Default color: blue to see the new focus point better
 		rgba color{ 0.0f, 0.0f, 1.0f, 0.5f };
 
-		vec4 centroid{ 0.5f, 0.5f, 0.5f, 0.5f };
+		vec4 focus_point{ 0.5f, 0.5f, 0.5f, 0.5f };
 
 		vec4 widths{ 0.5f, 0.5f, 0.5f, 0.5f };
 

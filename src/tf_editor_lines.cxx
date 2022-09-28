@@ -89,7 +89,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 			const auto negative_change = me.get_dy() > 0 ? true : false;
 			const auto shift_pressed = e.get_modifiers() & cgv::gui::EM_SHIFT ? true : false;
 
-			scroll_centroid_width(mouse_pos.x(), mouse_pos.y(), negative_change, shift_pressed);
+			scroll_primitive_width(mouse_pos.x(), mouse_pos.y(), negative_change, shift_pressed);
 		}
 
 		auto handled = false;
@@ -508,13 +508,13 @@ void tf_editor_lines::create_widget_lines() {
 	}
 }
 
-void tf_editor_lines::create_centroid_boundaries() {
+void tf_editor_lines::create_focus_point_boundaries() {
 	float boundary_left;
 	float boundary_right;
 
 	const auto calculate_values = [&](int i, int protein_index) {
-		// Get the relative position of the centroid and its left and right boundary
-		const auto relative_position = m_shared_data_ptr->primitives.at(i).centroid[protein_index];
+		// Get the relative position of the focus point and its left and right boundary
+		const auto relative_position = m_shared_data_ptr->primitives.at(i).focus_point[protein_index];
 		boundary_left = relative_position - (m_shared_data_ptr->primitives.at(i).widths[protein_index] / 2.0f);
 		boundary_right = relative_position + (m_shared_data_ptr->primitives.at(i).widths[protein_index] / 2.0f);
 	};
@@ -524,8 +524,8 @@ void tf_editor_lines::create_centroid_boundaries() {
 		m_strip_boundary_points.clear();
 
 		for(int i = 0; i < m_shared_data_ptr->primitives.size(); i++) {
-			// For each centroid, we want to create the lines of the boundaries
-			std::vector<float> centroid_boundary_values;
+			// For each focus point, we want to create the lines of the boundaries
+			std::vector<float> boundary_values;
 
 			// Each widget has three points which will always generate the same values, 
 			// so do less calculations by doing only every 4th point
@@ -534,8 +534,8 @@ void tf_editor_lines::create_centroid_boundaries() {
 				calculate_values(i, j / 3);
 
 				// Store the values
-				centroid_boundary_values.push_back(boundary_left);
-				centroid_boundary_values.push_back(boundary_right);
+				boundary_values.push_back(boundary_left);
+				boundary_values.push_back(boundary_right);
 			}
 
 			// Now the strips
@@ -545,8 +545,8 @@ void tf_editor_lines::create_centroid_boundaries() {
 			// Iterate over widgets, ignore the back widget as usual
 			for(int i = 0; i < 15; i += 4) {
 				for(int j = 0; j < 3; j++) {
-					const auto vec_left = m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index));
-					const auto vec_right = m_widget_lines.at(i + j).interpolate(centroid_boundary_values.at(boundary_index + 1));
+					const auto vec_left = m_widget_lines.at(i + j).interpolate(boundary_values.at(boundary_index));
+					const auto vec_right = m_widget_lines.at(i + j).interpolate(boundary_values.at(boundary_index + 1));
 
 					// Push back two vectors for the corresponding widget line
 					strip_coordinates.push_back(vec_left);
@@ -559,7 +559,7 @@ void tf_editor_lines::create_centroid_boundaries() {
 		}
 		m_create_all_values = false;
 	}
-	// If a centroid's position is dragged in the editor, it would make no sense to redraw everything
+	// If a fous point's position is dragged in the editor, it would make no sense to redraw everything
 	// So we redraw only for the positions that were updated
 	else if(m_is_point_dragged) {
 		// Recalculate values
@@ -573,7 +573,7 @@ void tf_editor_lines::create_centroid_boundaries() {
 
 			const auto id_left = m_interacted_primitive_ids[i] * 2;
 			const auto id_right = m_interacted_primitive_ids[i] * 2 + 1;
-			// Update the other centroids belonging to the widget as well
+			// Update the other focus points belonging to the widget as well
 			m_strip_boundary_points[primitive_layer][id_left] = line->interpolate(boundary_left);
 			m_strip_boundary_points[primitive_layer][id_right] = line->interpolate(boundary_right);
 		}
@@ -585,7 +585,7 @@ void tf_editor_lines::create_quads() {
 	if(m_points.empty()) {
 		return;
 	}
-	create_centroid_boundaries();
+	create_focus_point_boundaries();
 
 	// Only draw quads for the shape mode
 	if(vis_mode == VM_SHAPES) {
@@ -596,7 +596,7 @@ void tf_editor_lines::create_quads() {
 		const auto texture_distance = [&](int primitive_index, int protein_index, int widget_line_index) {
 			// Get position and width of the current primitive protein index
 			const auto& primitive = m_shared_data_ptr->primitives.at(primitive_index);
-			const auto pos = primitive.centroid[protein_index];
+			const auto pos = primitive.focus_point[protein_index];
 			const auto half_width = primitive.widths[protein_index] / 2.0f;
 
 			const auto lower = pos - half_width;
@@ -706,7 +706,7 @@ void tf_editor_lines::add_draggables(int primitive_index) {
 				index = 3;
 			}
 
-			const auto value = m_shared_data_ptr->primitives.at(primitive_index).centroid[index];
+			const auto value = m_shared_data_ptr->primitives.at(primitive_index).focus_point[index];
 			points.push_back(tf_editor_shared_data_types::point_line(vec2(m_widget_lines.at(i).interpolate(value)), &m_widget_lines.at(i)));
 		}
 	}
@@ -769,7 +769,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 
 	// Do not draw quads and the border lines for peak mode
 	if (!is_peak_mode) {
-		// Now create the centroid boundaries and strips
+		// Now create the focus point boundaries and strips
 		create_quads();
 
 		if (vis_mode == VM_SHAPES) {
@@ -879,8 +879,8 @@ void tf_editor_lines::set_point_positions() {
 				int protein_index = j / 3;
 				// Remap to correct GUI vals
 				const auto GUI_value = (m_points[i][j].get_relative_line_position() - 0.1f) / 0.8f;
-				m_shared_data_ptr->primitives.at(i).centroid[protein_index] = GUI_value;
-				update_member(&m_shared_data_ptr->primitives.at(i).centroid[protein_index]);
+				m_shared_data_ptr->primitives.at(i).focus_point[protein_index] = GUI_value;
+				update_member(&m_shared_data_ptr->primitives.at(i).focus_point[protein_index]);
 
 				m_shared_data_ptr->set_synchronized();
 			}
@@ -895,14 +895,14 @@ void tf_editor_lines::update_point_positions() {
 	if(m_shared_data_ptr && m_points.size() == m_shared_data_ptr->primitives.size()) {
 		for(size_t i = 0; i < m_points.size(); ++i) {
 			auto& points = m_points[i];
-			auto& centroid = m_shared_data_ptr->primitives[i];
+			auto& primitive = m_shared_data_ptr->primitives[i];
 
 			size_t idx = 0;
 			if(points.size() >= 4 * 3) {
 				for(int j = 0; j < 15; j++) {
 					// ignore the "back" lines of the widgets
 					if((j + 1) % 4 != 0) {
-						float c = centroid.centroid[j / 4];
+						float c = primitive.focus_point[j / 4];
 
 						points[idx].pos = m_widget_lines.at(j).interpolate(c);
 						++idx;
@@ -931,7 +931,7 @@ void tf_editor_lines::point_clicked(const vec2& mouse_pos, bool double_clicked) 
 											m_interacted_primitive_ids[1] / 3, m_interacted_primitive_ids[0], true);
 }
 
-void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed) {
+void tf_editor_lines::scroll_primitive_width(int x, int y, bool negative_change, bool shift_pressed) {
 	auto found = false;
 	int found_index;
 	// Search through all polygons
@@ -958,7 +958,7 @@ void tf_editor_lines::scroll_centroid_width(int x, int y, bool negative_change, 
 	// If we found something, we have to set the corresponding point ids and redraw
 	if(found) {
 		m_is_point_dragged = true;
-		tf_editor_shared_functions::set_interacted_centroid_ids(m_interacted_primitive_ids, found_index);
+		tf_editor_shared_functions::set_interacted_primitive_ids(m_interacted_primitive_ids, found_index);
 
 		m_shared_data_ptr->set_synchronized();
 		redraw();

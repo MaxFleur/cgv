@@ -73,7 +73,7 @@ struct gtf_data {
 
 uniform gtf_data gtfs[5];
 
-uniform int centroid_values_size;
+uniform int focus_point_values_size;
 uniform bool is_peak_mode;
 
 uniform float gamma_value;
@@ -217,16 +217,16 @@ vec3 safe_normalize(vec3 v) {
 }
 
 /** BEGIN - MFLEURY **/
-float gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, vec4 gaussian_width) {
+float gaussian_transfer_function(vec4 density, vec4 focus_point, vec4 width) {
 
 	// construct a matrix with diagonal components set to the given value
 	mat4 K;
-	K[0] = vec4(2.0 / gaussian_width[0], 0.0, 0.0, 0.0);
-	K[1] = vec4(0.0, 2.0 / gaussian_width[1], 0.0, 0.0);
-	K[2] = vec4(0.0, 0.0, 2.0 / gaussian_width[2], 0.0);
-	K[3] = vec4(0.0, 0.0, 0.0, 2.0 / gaussian_width[3]);
+	K[0] = vec4(2.0 / width[0], 0.0, 0.0, 0.0);
+	K[1] = vec4(0.0, 2.0 / width[1], 0.0, 0.0);
+	K[2] = vec4(0.0, 0.0, 2.0 / width[2], 0.0);
+	K[3] = vec4(0.0, 0.0, 0.0, 2.0 / width[3]);
 	
-	vec4 diff = density - gaussian_centroid;
+	vec4 diff = density - focus_point;
 	mat4 K2 = K*K;
 
 	// calculate exponent; use dot product to multiply two vectors with the intention of receiving a single floating point result
@@ -236,9 +236,9 @@ float gaussian_transfer_function(vec4 density, vec4 gaussian_centroid, vec4 gaus
 }
 
 // Apply an alpha value of 1 or 0 based on if the input values are inside the hyperbox
-float box_transfer_function(vec4 density, vec4 centroid_positions, vec4 width) {
+float box_transfer_function(vec4 density, vec4 positions, vec4 width) {
 	for (int i = 0; i < 4; i++) {
-		if (density[i] < centroid_positions[i] - (width[i] / 2) || density[i] > centroid_positions[i] + (width[i] / 2)) {
+		if (density[i] < positions[i] - (width[i] / 2) || density[i] > positions[i] + (width[i] / 2)) {
 			return 0.0f;
 		}
 	}
@@ -246,10 +246,10 @@ float box_transfer_function(vec4 density, vec4 centroid_positions, vec4 width) {
 }
 
 // Apply an alpha value of 1 or 0 based on if the input values are inside the hyperellipsoid
-float sphere_transfer_function(vec4 density, vec4 centroid_positions, vec4 width) {
+float sphere_transfer_function(vec4 density, vec4 positions, vec4 width) {
 	float ret = 1.0f;
 
-	const vec4 delta = density - centroid_positions;
+	const vec4 delta = density - positions;
 
 	const float max_width = max(max(max(width[0], width[1]), width[2]), width[3]);
 	const vec4 lambda = 2.0f * vec4(max_width) / width;
@@ -266,12 +266,12 @@ float sphere_transfer_function(vec4 density, vec4 centroid_positions, vec4 width
 }
 
 // Calculate a color for a relations type, based on the current primitive type
-vec4 evaluate_transfer_function(vec4 density, float step_size, float scale_adjust) {
+vec4 evaluate_transfer_function(vec4 density) {
 	
 	vec3 color_sum = vec3(0.0);
 	float alpha_sum = 0.0;
 	
-	for (int i = 0; i < centroid_values_size; i++) {
+	for (int i = 0; i < focus_point_values_size; i++) {
 		gtf_data gtf = gtfs[i];
 
 		float alpha;
@@ -339,7 +339,7 @@ vec4 get_slice_color(vec3 uvw, float alpha) {
 
 	vec4 density = sample_volume(uvw);
 
-	vec4 color_in = evaluate_transfer_function(density, 1.0);
+	vec4 color_in = evaluate_transfer_function(density);
 
 #if ENABLE_LIGHTING == 1
 	// get the normal from a precomputed texture as the average gradient over all 4 channels
@@ -531,7 +531,7 @@ void main()
 		alpha_scale *= -exp(-step_size * scale_adjust) + 1.0;
 #endif
 		/** BEGIN - MFLEURY **/
-		vec4 color_in = evaluate_transfer_function(density, step_size, scale_adjust);
+		vec4 color_in = evaluate_transfer_function(density);
 		if(is_peak_mode) {
 			const float average_value = (density[0] + density[1] + density[2] + density[3]) / 4;
 			vec4 white = vec4(vec3(mix(0.0, 1.0, pow(average_value, gamma_value))), average_value);

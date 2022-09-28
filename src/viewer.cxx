@@ -291,13 +291,13 @@ void viewer::on_set(void* member_ptr) {
 		post_recreate_gui();
 	}
 	/** BEGIN - MFLEURY **/
-	// look for updated centroid data
+	// look for updated focus point data
 	for (int i = 0; i < m_shared_data_ptr->primitives.size(); ++i) {
 		auto value = 0.0f;
 
 		for (int c_protein_i = 0; c_protein_i < 4; c_protein_i++) {
 			if (member_ptr == &m_shared_data_ptr->primitives.at(i).type ||
-				member_ptr == &m_shared_data_ptr->primitives.at(i).centroid[c_protein_i] ||
+				member_ptr == &m_shared_data_ptr->primitives.at(i).focus_point[c_protein_i] ||
 				member_ptr == &m_shared_data_ptr->primitives.at(i).color ||
 				member_ptr == &m_shared_data_ptr->primitives.at(i).widths[c_protein_i]) {
 
@@ -595,7 +595,7 @@ void viewer::draw(cgv::render::context& ctx) {
 				auto& vol_prog = vr.ref_prog();
 
 				const int size = m_shared_data_ptr->primitives.size();
-				vol_prog.set_uniform(ctx, "centroid_values_size", size);
+				vol_prog.set_uniform(ctx, "focus_point_values_size", size);
 				vol_prog.set_uniform(ctx, "is_peak_mode", is_peak_mode);
 				vol_prog.set_uniform(ctx, "gamma_value", mdtf_vstyle.gamma_value);
 
@@ -606,7 +606,7 @@ void viewer::draw(cgv::render::context& ctx) {
 
 					const auto idx = std::to_string(i);
 					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].type", static_cast<int>(m_shared_data_ptr->primitives.at(i).type));
-					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->primitives.at(i).centroid);
+					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].c", m_shared_data_ptr->primitives.at(i).focus_point);
 					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].width", m_shared_data_ptr->primitives.at(i).widths);
 					vol_prog.set_uniform(ctx, "gtfs[" + idx + "].color", color_vec);
 				}
@@ -719,14 +719,14 @@ void viewer::create_gui() {
 
 					// Color widget
 					add_member_control(this, "Color", m_shared_data_ptr->primitives.at(i).color, "", "");
-					// Centroid parameters themselves
-					add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).centroid[0], "value_slider",
+					// Focus points themselves
+					add_member_control(this, "Pos Myosin", m_shared_data_ptr->primitives.at(i).focus_point[0], "value_slider",
 						"min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).centroid[1], "value_slider",
+					add_member_control(this, "Pos Actin", m_shared_data_ptr->primitives.at(i).focus_point[1], "value_slider",
 						"min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).centroid[2], "value_slider",
+					add_member_control(this, "Pos Obscurin", m_shared_data_ptr->primitives.at(i).focus_point[2], "value_slider",
 						"min=0.0;max=1.0;step=0.0001;ticks=true");
-					add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).centroid[3], "value_slider",
+					add_member_control(this, "Pos Sallimus", m_shared_data_ptr->primitives.at(i).focus_point[3], "value_slider",
 						"min=0.0;max=1.0;step=0.0001;ticks=true");
 
 					// Gaussian width
@@ -795,7 +795,7 @@ void viewer::add_primitive() {
 		return;
 	}
 
-	// Create a new centroid and store it
+	// Create a new focus point and store it
 	shared_data::primitive centr;
 	m_shared_data_ptr->primitives.push_back(centr);
 

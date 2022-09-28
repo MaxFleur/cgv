@@ -88,7 +88,7 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 			const auto ctrl_pressed = modifiers & cgv::gui::EM_CTRL ? true : false;
 			const auto shift_pressed = modifiers & cgv::gui::EM_SHIFT ? true : false;
 
-			scroll_centroid_width(mouse_pos.x(), mouse_pos.y(), negative_change, ctrl_pressed, shift_pressed);
+			scroll_primitive_width(mouse_pos.x(), mouse_pos.y(), negative_change, ctrl_pressed, shift_pressed);
 		}
 
 		bool handled = false;
@@ -447,23 +447,23 @@ void tf_editor_scatterplot::add_draggables(int primitive_index) {
 	const auto size = domain.size();
 
 	// Add the new draggables to the scatter plot
-	const auto& centroid_positions = m_shared_data_ptr->primitives.at(primitive_index).centroid;
-	auto pos = m_rectangles_calc.at(0).point_in_rect(vec2(centroid_positions[0], centroid_positions[1]));
+	const auto& positions = m_shared_data_ptr->primitives.at(primitive_index).focus_point;
+	auto pos = m_rectangles_calc.at(0).point_in_rect(vec2(positions[0], positions[1]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 1, &m_rectangles_calc.at(0)));
 
-	pos = m_rectangles_calc.at(1).point_in_rect(vec2(centroid_positions[0], centroid_positions[2]));
+	pos = m_rectangles_calc.at(1).point_in_rect(vec2(positions[0], positions[2]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 2, &m_rectangles_calc.at(1)));
 
-	pos = m_rectangles_calc.at(2).point_in_rect(vec2(centroid_positions[0], centroid_positions[3]));
+	pos = m_rectangles_calc.at(2).point_in_rect(vec2(positions[0], positions[3]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 0, 3, &m_rectangles_calc.at(2)));
 
-	pos = m_rectangles_calc.at(3).point_in_rect(vec2(centroid_positions[3], centroid_positions[1]));
+	pos = m_rectangles_calc.at(3).point_in_rect(vec2(positions[3], positions[1]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 3, 1, &m_rectangles_calc.at(3)));
 
-	pos = m_rectangles_calc.at(4).point_in_rect(vec2(centroid_positions[3], centroid_positions[2]));
+	pos = m_rectangles_calc.at(4).point_in_rect(vec2(positions[3], positions[2]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 3, 2, &m_rectangles_calc.at(4)));
 
-	pos = m_rectangles_calc.at(5).point_in_rect(vec2(centroid_positions[2], centroid_positions[1]));
+	pos = m_rectangles_calc.at(5).point_in_rect(vec2(positions[2], positions[1]));
 	points.push_back(tf_editor_shared_data_types::point_scatterplot(pos, 2, 1, &m_rectangles_calc.at(5)));
 
 	m_points.push_back(points);
@@ -708,12 +708,12 @@ void tf_editor_scatterplot::set_point_positions() {
 				}
 				// Remap the gui values
 				const auto gui_value_first = m_points[i][j].get_relative_position(m_points[i][j].pos.x(), true);
-				m_shared_data_ptr->primitives.at(i).centroid[m_points[i][j].m_stain_first] = gui_value_first;
-				update_member(&m_shared_data_ptr->primitives.at(i).centroid[m_points[i][j].m_stain_first]);
+				m_shared_data_ptr->primitives.at(i).focus_point[m_points[i][j].m_stain_first] = gui_value_first;
+				update_member(&m_shared_data_ptr->primitives.at(i).focus_point[m_points[i][j].m_stain_first]);
 
 				const auto gui_value_second = m_points[i][j].get_relative_position(m_points[i][j].pos.y(), false);
-				m_shared_data_ptr->primitives.at(i).centroid[m_points[i][j].m_stain_second] = gui_value_second;
-				update_member(&m_shared_data_ptr->primitives.at(i).centroid[m_points[i][j].m_stain_second]);
+				m_shared_data_ptr->primitives.at(i).focus_point[m_points[i][j].m_stain_second] = gui_value_second;
+				update_member(&m_shared_data_ptr->primitives.at(i).focus_point[m_points[i][j].m_stain_second]);
 
 				m_is_point_dragged = true;
 				is_interacting = true;
@@ -748,7 +748,7 @@ void tf_editor_scatterplot::point_clicked(const vec2& mouse_pos, bool double_cli
 											stain_index, m_interacted_point_id, false);
 }
 
-void tf_editor_scatterplot::scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed, bool shift_pressed) {
+void tf_editor_scatterplot::scroll_primitive_width(int x, int y, bool negative_change, bool ctrl_pressed, bool shift_pressed) {
 	auto found = false;
 	int found_index;
 	// Search through the rectangles

@@ -44,7 +44,7 @@ private:
 
 	void create_primitive_shapes();
 
-	void add_draggables(int centroid_index);
+	void add_draggables(int index);
 
 	void draw_content(cgv::render::context& ctx) override;
 
@@ -56,7 +56,7 @@ private:
 
 	void point_clicked(const vec2& mouse_pos, bool double_clicked, bool ctrl_pressed = false);
 
-	void scroll_centroid_width(int x, int y, bool negative_change, bool ctrl_pressed, bool shift_pressed);
+	void scroll_primitive_width(int x, int y, bool negative_change, bool ctrl_pressed, bool shift_pressed);
 
 private:
 
@@ -67,7 +67,7 @@ private:
 	cgv::glutil::generic_renderer m_renderer_lines;
 	std::vector<tf_editor_shared_data_types::line_geometry> m_geometry_lines;
 
-	// Styles for the recangle grid, drawn centroid position shapes and the data plot points
+	// Styles for the recangle grid, drawn focus point position shapes and the data plot points
 	cgv::glutil::shape2d_style m_style_grid;
 	cgv::glutil::shape2d_style m_style_shapes;
 	cgv::glutil::shape2d_style m_style_plot_points;
@@ -80,17 +80,17 @@ private:
 	// Rectangles used for calculations
 	std::vector<tf_editor_shared_data_types::rectangle> m_rectangles_calc;
 
-	// Store ellipses and boxes for the centroid positioning shapes
+	// Store ellipses and boxes for the focus point positioning shapes
 	std::vector<std::vector<tf_editor_shared_data_types::ellipse>> m_ellipses;
 	std::vector<std::vector<tf_editor_shared_data_types::rectangle>> m_boxes;
 
 	std::vector<std::vector<tf_editor_shared_data_types::point_scatterplot>> m_points;
 	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
 
-	// Store the indices of to be updated centroid poition if a draggable has been interacted with
+	// Store the indices of to be updated focus point if a draggable has been interacted with
 	int m_interacted_point_id = INT_MAX;
 
-	// plot point radius and blir
+	// plot point radius and blur
 	float radius = 2.0f;
 	float blur = 0.5f;
 

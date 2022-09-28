@@ -44,7 +44,7 @@ private:
 
 	void create_widget_lines();
 
-	void create_centroid_boundaries();
+	void create_focus_point_boundaries();
 
 	void create_quads();
 
@@ -52,7 +52,7 @@ private:
 
 	void add_widget_lines();
 
-	void add_draggables(int centroid_index);
+	void add_draggables(int index);
 
 	void draw_content(cgv::render::context& ctx) override;
 
@@ -64,7 +64,7 @@ private:
 
 	void point_clicked(const vec2& mouse_pos, bool double_clicked);
 
-	void scroll_centroid_width(int x, int y, bool negative_change, bool shift_pressed);
+	void scroll_primitive_width(int x, int y, bool negative_change, bool shift_pressed);
 
 	void handle_interacted_primitive_ids(int i, int j, bool set_corresponding_points = false);
 
@@ -95,7 +95,7 @@ private:
 	std::vector<tf_editor_shared_data_types::line> m_widget_lines;
 	std::vector<tf_editor_shared_data_types::polygon> m_widget_polygons;
 
-	// Boundaries of the centroid points
+	// Boundaries of the focus point points
 	std::vector<std::vector<vec2>> m_strip_boundary_points;
 
 	// Count the quads drawn for each primitive
@@ -107,7 +107,7 @@ private:
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.4f, 0.4f, 0.4f, 1.0f };
 
-	// Store the indices of to be updated centroids if a point has been interacted with
+	// Store the indices of to be updated focus points if a point has been interacted with
 	int m_interacted_primitive_ids[4] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX };
 	// Do we need to update all values?
 	bool m_create_all_values = true;

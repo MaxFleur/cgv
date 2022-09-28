@@ -201,8 +201,8 @@ protected:
 	// rectangle defining the draw area of the actual plot
 	cgv::glutil::rect domain;
 
-	// These geometries are used in both editors to drag points representing centroid positions
-	// If a centroid position is dragged, its size will increase, so we need two different geometries and styles
+	// These geometries are used in both editors to drag points representing focus points
+	// If a draggable dragged, its size will increase, so we need two different geometries and styles
 	tf_editor_shared_data_types::point_geometry m_geometry_draggables;
 	tf_editor_shared_data_types::point_geometry m_geometry_draggables_interacted;
 
