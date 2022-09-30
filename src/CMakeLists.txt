@@ -17,7 +17,8 @@ target_link_libraries(mdtf_myofibrils
 	cgv_gui
 	cgv_data
 	cgv_utils
-	cgv_glutil
+	cgv_g2d
+	cgv_app
 	cgv_render
 	cgv_media
 	plot)
@@ -38,7 +39,7 @@ add_dependencies(mdtf_myofibrils
 
 set_plugin_execution_params(mdtf_myofibrils
 "plugin:cg_fltk \
-\"type(shader_config):shader_path='${CMAKE_SOURCE_DIR}/glsl;${CGV_DIR}/libs/plot/glsl;${CGV_DIR}/libs/cgv_gl/glsl;${CGV_DIR}/libs/cgv_glutil/glsl'\" \
+\"type(shader_config):shader_path='${CMAKE_SOURCE_DIR}/glsl;${CGV_DIR}/libs/plot/glsl;${CGV_DIR}/libs/cgv_gl/glsl;${CGV_DIR}/libs/cgv_g2d/glsl;${CGV_DIR}/libs/cgv_app/glsl'\" \
 plugin:cg_ext \
 plugin:crg_stereo_view \
 plugin:cg_meta \
