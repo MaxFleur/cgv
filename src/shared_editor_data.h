@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include <cgv/render/render_types.h>
+
 /* This class contains the main primitive data which is used by both editors and the viewer. */
-class shared_data {
+class shared_data : public cgv::render::render_types {
 
 public:
 

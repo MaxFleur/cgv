@@ -15,13 +15,13 @@ tf_editor_lines::tf_editor_lines() {
 	// aspect ratio is w:h = 1:0.875
 	set_overlay_size(ivec2(700, 612));
 	// Register an additional arrow shader
-	content_canvas.register_shader("arrow", cgv::glutil::canvas::shaders_2d::arrow);
-	content_canvas.register_shader("quad", cgv::glutil::canvas::shaders_2d::quad);
+	content_canvas.register_shader("arrow", cgv::g2d::canvas::shaders_2d::arrow);
+	content_canvas.register_shader("quad", cgv::g2d::canvas::shaders_2d::quad);
 
 	// initialize the renderers
-	m_renderer_lines = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
-	m_renderer_quads = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::quad);
-	m_renderer_quads_gauss = cgv::glutil::generic_renderer("gauss_quad2d.glpr");
+	m_renderer_lines = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::line);
+	m_renderer_quads = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::quad);
+	m_renderer_quads_gauss = cgv::render::generic_renderer("gauss_quad2d.glpr");
 
 	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_lines::set_point_positions, this));
@@ -34,8 +34,8 @@ void tf_editor_lines::clear(cgv::render::context& ctx) {
 	m_geometry_widgets.destruct(ctx);
 	m_geometry_strip_borders.destruct(ctx);
 
-	cgv::glutil::ref_msdf_font(ctx, -1);
-	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, -1);
+	cgv::g2d::ref_msdf_font(ctx, -1);
+	cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx, -1);
 
 	m_renderer_quads.destruct(ctx);
 	m_renderer_quads_gauss.destruct(ctx);
@@ -134,8 +134,8 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	success &= m_renderer_quads.init(ctx);
 	success &= m_renderer_quads_gauss.init(ctx);
 
-	auto& font = cgv::glutil::ref_msdf_font(ctx, 1);
-	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, 1);
+	auto& font = cgv::g2d::ref_msdf_font(ctx, 1);
+	cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx, 1);
 
 	// when successful, initialize the styles used for the individual shapes
 	if(success)
@@ -277,7 +277,7 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_arrows.use_fill_color = true;
 	m_style_arrows.use_blending = true;
 
-	cgv::glutil::shape2d_style plot_rect_style;
+	cgv::g2d::shape2d_style plot_rect_style;
 	plot_rect_style.use_texture = true;
 	auto& rectangle_prog = content_canvas.enable_shader(ctx, "rectangle");
 	plot_rect_style.apply(ctx, rectangle_prog);
@@ -362,7 +362,7 @@ void tf_editor_lines::create_labels() {
 
 	// Set the font texts
 	if(auto ctx_ptr = get_context()) {
-		auto& font = cgv::glutil::ref_msdf_font(*ctx_ptr);
+		auto& font = cgv::g2d::ref_msdf_font(*ctx_ptr);
 		if(font.is_initialized() && m_widget_polygons.size() > 3) {
 			vec2 centers[4];
 			for(int i = 0; i < 4; i++)
@@ -750,7 +750,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 	content_canvas.set_view(ctx, line_prog);
 	m_style_widgets.apply(ctx, line_prog);
 	line_prog.disable(ctx);
-	m_renderer_lines.render(ctx, PT_LINES, m_geometry_widgets);
+	m_renderer_lines.render(ctx, cgv::render::PT_LINES, m_geometry_widgets);
 
 	// then arrows on top
 	auto& arrow_prog = content_canvas.enable_shader(ctx, "arrow");
@@ -780,7 +780,7 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 
 				content_canvas.set_view(ctx, quad_renderer.enable_prog(ctx));
 				// Render the number of quads stored for each primitive
-				quad_renderer.render(ctx, PT_POINTS, m_quad_strips, quad_index_start, quad_counts.at(i));
+				quad_renderer.render(ctx, cgv::render::PT_POINTS, m_quad_strips, quad_index_start, quad_counts.at(i));
 				quad_index_start += quad_counts.at(i);
 			}
 		}
@@ -795,12 +795,12 @@ void tf_editor_lines::draw_content(cgv::render::context& ctx) {
 			m_style_strip_borders.border_color = rgba{ color.R(), color.G(), color.B(), 1.0f };
 			m_style_strip_borders.apply(ctx, line_prog);
 			line_prog.disable(ctx);
-			m_renderer_lines.render(ctx, PT_LINES, m_geometry_strip_borders);
+			m_renderer_lines.render(ctx, cgv::render::PT_LINES, m_geometry_strip_borders);
 		}
 	}
 
 	// then labels
-	auto& font_renderer = cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx);
+	auto& font_renderer = cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx);
 	font_renderer.render(ctx, content_canvas, m_labels, m_style_text);
 
 	// draggables are the last thing to be drawn so they are above everything else
@@ -841,7 +841,7 @@ bool tf_editor_lines::draw_plot(cgv::render::context& ctx) {
 		content_canvas.set_view(ctx, line_prog);
 		m_style_relations.apply(ctx, line_prog);
 		line_prog.disable(ctx);
-		m_renderer_lines.render(ctx, PT_LINES, m_geometry_relations, m_total_count, count);
+		m_renderer_lines.render(ctx, cgv::render::PT_LINES, m_geometry_relations, m_total_count, count);
 	}
 
 	// accumulate the total amount of so-far drawn lines

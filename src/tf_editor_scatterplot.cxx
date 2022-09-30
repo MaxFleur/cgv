@@ -17,12 +17,12 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	m_alpha = 0.1f;
 
 	// Register additional ellipses
-	content_canvas.register_shader("ellipse", cgv::glutil::canvas::shaders_2d::ellipse);
+	content_canvas.register_shader("ellipse", cgv::g2d::canvas::shaders_2d::ellipse);
 	content_canvas.register_shader("gauss_ellipse", "gauss_ellipse2d.glpr");
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
-	m_renderer_plot_points = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::circle);
-	m_renderer_lines = cgv::glutil::generic_renderer(cgv::glutil::canvas::shaders_2d::line);
+	m_renderer_plot_points = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::circle);
+	m_renderer_lines = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::line);
 
 	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_scatterplot::set_point_positions, this));
@@ -42,8 +42,8 @@ void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 	m_renderer_draggables_circle.destruct(ctx);
 	m_renderer_draggables_rectangle.destruct(ctx);
 
-	cgv::glutil::ref_msdf_font(ctx, -1);
-	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, -1);
+	cgv::g2d::ref_msdf_font(ctx, -1);
+	cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx, -1);
 }
 
 bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
@@ -133,8 +133,8 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	success &= m_renderer_draggables_circle.init(ctx);
 	success &= m_renderer_draggables_rectangle.init(ctx);
 
-	auto& font = cgv::glutil::ref_msdf_font(ctx, 1);
-	cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx, 1);
+	auto& font = cgv::g2d::ref_msdf_font(ctx, 1);
+	cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx, 1);
 
 	// when successful, initialize the styles used for the individual shapes
 	if(success)
@@ -355,7 +355,7 @@ void tf_editor_scatterplot::create_labels() {
 	}
 
 	if(auto ctx_ptr = get_context()) {
-		auto& font = cgv::glutil::ref_msdf_font(*ctx_ptr);
+		auto& font = cgv::g2d::ref_msdf_font(*ctx_ptr);
 		if(font.is_initialized()) {
 			const auto x = domain.pos().x() + 100;
 			const auto y = domain.pos().y() - label_space / 2;
@@ -502,7 +502,7 @@ void tf_editor_scatterplot::draw_content(cgv::render::context& ctx) {
 	fbc_plot.disable_attachment(ctx, "color");
 
 	// ...and axis labels
-	auto& font_renderer = cgv::glutil::ref_msdf_gl_canvas_font_renderer(ctx);
+	auto& font_renderer = cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx);
 	if(font_renderer.enable(ctx, content_canvas, m_labels, m_style_text)) {
 		// draw the first labels only
 		font_renderer.draw(ctx, m_labels, 0, 3);
@@ -574,7 +574,7 @@ bool tf_editor_scatterplot::draw_scatterplot(cgv::render::context& ctx) {
 		m_style_plot_points.apply(ctx, point_prog);
 		point_prog.set_attribute(ctx, "size", vec2(radius));
 		point_prog.disable(ctx);
-		m_renderer_plot_points.render(ctx, PT_POINTS, m_geometry_plot_points, m_total_count, count);
+		m_renderer_plot_points.render(ctx, cgv::render::PT_POINTS, m_geometry_plot_points, m_total_count, count);
 	}
 
 	// accumulate the total amount of so-far drawn points
@@ -637,7 +637,7 @@ void tf_editor_scatterplot::draw_primitive_shapes(cgv::render::context& ctx) {
 				content_canvas.set_view(ctx, line_prog);
 				m_style_lines.apply(ctx, line_prog);
 				line_prog.disable(ctx);
-				m_renderer_lines.render(ctx, PT_LINES, m_geometry_lines.at(i));
+				m_renderer_lines.render(ctx, cgv::render::PT_LINES, m_geometry_lines.at(i));
 			}
 
 			glDisable(GL_SCISSOR_TEST);

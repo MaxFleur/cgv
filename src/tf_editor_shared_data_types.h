@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include <cgv_glutil/generic_renderer.h>
-#include <cgv_glutil/overlay.h>
-#include <cgv_glutil/2d/draggable.h>
-#include <cgv_glutil/2d/draggables_collection.h>
+#include <cgv_app/overlay.h>
+#include <cgv_gl/generic_renderer.h>
+#include <cgv_g2d/draggable.h>
+#include <cgv_g2d/draggables_collection.h>
 
-typedef cgv::glutil::overlay::vec2 vec2;
-typedef cgv::glutil::overlay::vec4 vec4;
+typedef cgv::app::overlay::vec2 vec2;
+typedef cgv::app::overlay::vec4 vec4;
 typedef cgv::render::render_types::rgba rgba;
 
 /* Contains different data types used by the editors */
@@ -98,7 +98,7 @@ namespace tf_editor_shared_data_types
 		}
 	};
 
-	struct point : public cgv::glutil::draggable
+	struct point : public cgv::g2d::draggable
 	{
 		point(const ivec2& pos)
 		{

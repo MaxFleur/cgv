@@ -18,10 +18,10 @@ plot_overlay::plot_overlay() : plot("") {
 	set_overlay_margin(ivec2(0));
 	set_overlay_size(ivec2(300));
 	
-	fbc.add_attachment("color", "flt32[R,G,B]", TF_LINEAR);
+	fbc.add_attachment("color", "flt32[R,G,B]", cgv::render::TF_LINEAR);
 	fbc.set_size(2*get_overlay_size());
 
-	blit_canvas.register_shader("rectangle", cgv::glutil::canvas::shaders_2d::rectangle);
+	blit_canvas.register_shader("rectangle", cgv::g2d::canvas::shaders_2d::rectangle);
 }
 
 void plot_overlay::clear(cgv::render::context& ctx) {

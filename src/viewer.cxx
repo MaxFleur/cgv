@@ -16,8 +16,8 @@
 #include <cgv/utils/advanced_scan.h>
 #include <cgv/utils/file.h>
 #include <cgv/utils/stopwatch.h>
-#include <cgv_glutil/color_map_reader.h>
-#include <cgv_glutil/color_map_writer.h>
+#include <cgv_app/color_map_reader.h>
+#include <cgv_app/color_map_writer.h>
 #include <cgv/gui/theme_info.h>
 
 #include "tf_editor_shared_data_types.h"
@@ -52,11 +52,11 @@ viewer::viewer() : application_plugin("Viewer") {
 	// default filter and clamp parameters are ok
 	dataset.gradient_tex = texture("flt32[R,G,B,A]");
 
-	tf_editor_ptr = register_overlay<cgv::glutil::color_map_editor>("TF Editor");
+	tf_editor_ptr = register_overlay<cgv::app::color_map_editor>("TF Editor");
 	tf_editor_ptr->set_opacity_support(true);
 	tf_editor_ptr->set_visibility(false);
 
-	cs_ptr = register_overlay<cgv::glutil::color_selector>("Color Selector");
+	cs_ptr = register_overlay<cgv::app::color_selector>("Color Selector");
 	cs_ptr->set_visibility(false);
 
 	/** BEGIN - MFLEURY **/
@@ -68,7 +68,7 @@ viewer::viewer() : application_plugin("Viewer") {
 
 	m_editor_scatterplot_ptr = register_overlay<tf_editor_scatterplot>("TF Scatterplot Overlay");
 	m_editor_scatterplot_ptr->set_shared_data(m_shared_data_ptr);
-	m_editor_scatterplot_ptr->set_overlay_alignment(cgv::glutil::overlay::AO_START, cgv::glutil::overlay::AO_START);
+	m_editor_scatterplot_ptr->set_overlay_alignment(cgv::app::overlay::AO_START, cgv::app::overlay::AO_START);
 	m_editor_scatterplot_ptr->set_visibility(false);
 
 	/** END - MFLEURY **/
@@ -1209,7 +1209,7 @@ bool viewer::read_transfer_functions(context& ctx, const std::string& filename) 
 	tfs.clear();
 
 	for (size_t i = 0; i < 4; ++i) {
-		cgv::glutil::color_map tf;
+		cgv::render::color_map tf;
 		tf.add_color_point(0.0f, rgb(1.0f));
 		tf.add_opacity_point(0.0f, 0.0f);
 		tf.add_opacity_point(1.0f, 1.0f);
@@ -1244,7 +1244,7 @@ bool viewer::read_transfer_functions(context& ctx, const std::string& filename) 
 bool viewer::save_transfer_functions(const std::string& filename) {
 
 	if (dataset.stain_names.size() == 4 && tfs.size() == 4)
-		return cgv::glutil::color_map_writer::write_to_xml(filename, dataset.stain_names, tfs);
+		return cgv::app::color_map_writer::write_to_xml(filename, dataset.stain_names, tfs);
 	return false;
 }
 

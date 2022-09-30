@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include <cgv_glutil/frame_buffer_container.h>
-#include <cgv_glutil/msdf_gl_canvas_font_renderer.h>
-#include <cgv_glutil/2d/canvas.h>
-#include <cgv_glutil/2d/shape2d_styles.h>
+#include <cgv/render/managed_frame_buffer.h>
+#include <cgv_g2d/msdf_gl_canvas_font_renderer.h>
+#include <cgv_g2d/canvas.h>
+#include <cgv_g2d/shape2d_styles.h>
 #include <plot/plot2d.h>
 
 #include "sliced_volume_data_set.h"
@@ -14,7 +14,7 @@
 
 /* This class provides the basic class used for designing the transfer functions. It contains all
 data types which are used by both editors as well as some functions. */
-class tf_editor_basic : public cgv::glutil::overlay {
+class tf_editor_basic : public cgv::app::overlay {
 
 public:
 	tf_editor_basic();
@@ -74,7 +74,7 @@ protected:
 	}
 
 	template<typename T>
-	void set_point_handles(std::vector<std::vector<T>>& points, cgv::glutil::draggables_collection<T*>& point_handles) {
+	void set_point_handles(std::vector<std::vector<T>>& points, cgv::g2d::draggables_collection<T*>& point_handles) {
 		point_handles.clear();
 		for (unsigned i = 0; i < points.size(); ++i) {
 			for (int j = 0; j < points[i].size(); j++) {
@@ -163,7 +163,7 @@ protected:
 				m_style_draggables_interacted.apply(ctx, point_prog);
 				point_prog.set_attribute(ctx, "size", vec2(16.0f));
 				point_prog.disable(ctx);
-				renderer.render(ctx, PT_POINTS, m_geometry_draggables_interacted);
+				renderer.render(ctx, cgv::render::PT_POINTS, m_geometry_draggables_interacted);
 				continue;
 			}
 			point_prog.enable(ctx);
@@ -171,7 +171,7 @@ protected:
 			m_style_draggables.apply(ctx, point_prog);
 			point_prog.set_attribute(ctx, "size", vec2(12.0f));
 			point_prog.disable(ctx);
-			renderer.render(ctx, PT_POINTS, m_geometry_draggables);
+			renderer.render(ctx, cgv::render::PT_POINTS, m_geometry_draggables);
 		}
 	}
 
@@ -187,19 +187,19 @@ protected:
 	bool has_damage = true;
 
 	// a frame buffer container, storing the offline frame buffer of this overlay content
-	cgv::glutil::frame_buffer_container fbc;
+	cgv::render::managed_frame_buffer fbc;
 	// a frame buffer container, storing the offline frame buffer of the plot data
-	cgv::glutil::frame_buffer_container fbc_plot;
+	cgv::render::managed_frame_buffer fbc_plot;
 
 	// canvas to draw content into (same size as overlay)
-	cgv::glutil::canvas content_canvas;
+	cgv::g2d::canvas content_canvas;
 	// canvas to draw overlay into (same size as viewport/main framebuffer)
-	cgv::glutil::canvas viewport_canvas;
+	cgv::g2d::canvas viewport_canvas;
 	// final style for the overlay when rendering into main framebuffer
-	cgv::glutil::shape2d_style overlay_style;
+	cgv::g2d::shape2d_style overlay_style;
 
 	// rectangle defining the draw area of the actual plot
-	cgv::glutil::rect domain;
+	cgv::g2d::rect domain;
 
 	// These geometries are used in both editors to drag points representing focus points
 	// If a draggable dragged, its size will increase, so we need two different geometries and styles
@@ -207,16 +207,16 @@ protected:
 	tf_editor_shared_data_types::point_geometry m_geometry_draggables_interacted;
 
 	// Renderer for draggables
-	cgv::glutil::generic_renderer m_renderer_draggables_circle;
-	cgv::glutil::generic_renderer m_renderer_draggables_rectangle;
+	cgv::render::generic_renderer m_renderer_draggables_circle;
+	cgv::render::generic_renderer m_renderer_draggables_rectangle;
 	// Style of the draggables, interacted are drawn differently
-	cgv::glutil::shape2d_style m_style_draggables;
-	cgv::glutil::shape2d_style m_style_draggables_interacted;
+	cgv::g2d::shape2d_style m_style_draggables;
+	cgv::g2d::shape2d_style m_style_draggables_interacted;
 
 	// Text geometry, storing individual labels
-	cgv::glutil::msdf_text_geometry m_labels;
+	cgv::g2d::msdf_text_geometry m_labels;
 	const float m_font_size = 18.0f;
-	cgv::glutil::shape2d_style m_style_text;
+	cgv::g2d::shape2d_style m_style_text;
 
 	// whether the plot shall be reset and its framebuffer cleared
 	bool m_reset_plot = true;

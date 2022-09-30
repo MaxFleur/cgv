@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <cgv_glutil/generic_renderer.h>
+#include <cgv_gl/generic_renderer.h>
 
 #include "tf_editor_basic.h"
 
@@ -71,9 +71,9 @@ private:
 private:
 
 	// renderer for the 2d plot lines and quadstrips
-	cgv::glutil::generic_renderer m_renderer_lines;
-	cgv::glutil::generic_renderer m_renderer_quads;
-	cgv::glutil::generic_renderer m_renderer_quads_gauss;
+	cgv::render::generic_renderer m_renderer_lines;
+	cgv::render::generic_renderer m_renderer_quads;
+	cgv::render::generic_renderer m_renderer_quads_gauss;
 
 	// Geometry for the quadstrips and line relations
 	tf_editor_shared_data_types::quad_geometry m_quad_strips;
@@ -83,14 +83,14 @@ private:
 	tf_editor_shared_data_types::line_geometry m_geometry_widgets;
 	tf_editor_shared_data_types::line_geometry m_geometry_strip_borders;
 
-	cgv::glutil::line2d_style m_style_relations;
-	cgv::glutil::line2d_style m_style_widgets;
-	cgv::glutil::line2d_style m_style_strip_borders;
-	cgv::glutil::shape2d_style m_style_quads;
+	cgv::g2d::line2d_style m_style_relations;
+	cgv::g2d::line2d_style m_style_widgets;
+	cgv::g2d::line2d_style m_style_strip_borders;
+	cgv::g2d::shape2d_style m_style_quads;
 
-	cgv::glutil::shape2d_style m_style_plot;
+	cgv::g2d::shape2d_style m_style_plot;
 
-	cgv::glutil::arrow2d_style m_style_arrows;
+	cgv::g2d::arrow2d_style m_style_arrows;
 
 	std::vector<tf_editor_shared_data_types::line> m_widget_lines;
 	std::vector<tf_editor_shared_data_types::polygon> m_widget_polygons;
@@ -102,7 +102,7 @@ private:
 	std::vector<int> quad_counts;
 
 	std::vector<std::vector<tf_editor_shared_data_types::point_line>> m_points;
-	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_line*> m_point_handles;
+	cgv::g2d::draggables_collection<tf_editor_shared_data_types::point_line*> m_point_handles;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.4f, 0.4f, 0.4f, 1.0f };

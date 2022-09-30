@@ -1,21 +1,21 @@
 #pragma once
 
-#include <cgv_glutil/frame_buffer_container.h>
-#include <cgv_glutil/overlay.h>
-#include <cgv_glutil/2d/canvas.h>
-#include <cgv_glutil/2d/shape2d_styles.h>
+#include <cgv/render/managed_frame_buffer.h>
+#include <cgv_app/overlay.h>
+#include <cgv_g2d/canvas.h>
+#include <cgv_g2d/shape2d_styles.h>
 #include <plot/plot2d.h>
 
-class plot_overlay : public cgv::glutil::overlay {
+class plot_overlay : public cgv::app::overlay {
 protected:
-	view* view_ptr = nullptr;
+	cgv::render::view* view_ptr = nullptr;
 
 	double check_for_click;
 
-	cgv::glutil::frame_buffer_container fbc;
+	cgv::render::managed_frame_buffer fbc;
 
-	cgv::glutil::canvas blit_canvas;
-	cgv::glutil::shape2d_style blit_style;
+	cgv::g2d::canvas blit_canvas;
+	cgv::g2d::shape2d_style blit_style;
 
 	cgv::plot::plot2d plot;
 	std::vector<vec2> plot_data;

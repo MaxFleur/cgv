@@ -20,7 +20,7 @@ namespace tf_editor_shared_functions
 	static float gaussian_transfer_function(const vec4& data_values, const vec4& focus_point, const vec4& width) {
 
 		// construct a matrix with diagonal components set to the given value
-		cgv::glutil::overlay::mat4 mat;
+		cgv::app::overlay::mat4 mat;
 
 		mat.set_row(0, vec4(2.0 / width[0], 0.0, 0.0, 0.0));
 		mat.set_row(1, vec4(0.0, 2.0 / width[1], 0.0, 0.0));
@@ -65,8 +65,8 @@ namespace tf_editor_shared_functions
 	}
 
 	// Calculate a color for a relations type, based on the current primitive type
-	static rgb get_color(const vec4& v, const std::vector<shared_data::primitive>& primitives) {
-		rgb color(0.0f);
+	static cgv::app::overlay::rgb get_color(const vec4& v, const std::vector<shared_data::primitive>& primitives) {
+		cgv::app::overlay::rgb color(0.0f);
 
 		for (int i = 0; i < primitives.size(); i++) {
 			// Get the primitive
@@ -87,7 +87,7 @@ namespace tf_editor_shared_functions
 			}
 			alpha *= primitive.color.alpha();
 			// Color is added for each primitive
-			color += alpha * rgb{ primitive.color.R(), primitive.color.G(), primitive.color.B() };
+			color += alpha * cgv::app::overlay::rgb{ primitive.color.R(), primitive.color.G(), primitive.color.B() };
 		}
 		// Clamp between range
 		color.R() = cgv::math::clamp(color.R(), 0.0f, 1.0f);

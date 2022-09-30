@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <cgv_glutil/generic_renderer.h>
+#include <cgv_gl/generic_renderer.h>
 
 #include "tf_editor_basic.h"
 
@@ -61,20 +61,20 @@ private:
 private:
 
 	// renderer and geometry for the plot points
-	cgv::glutil::generic_renderer m_renderer_plot_points;
+	cgv::render::generic_renderer m_renderer_plot_points;
 	tf_editor_shared_data_types::point_geometry m_geometry_plot_points;
 	// geometry for lines replacing shapes
-	cgv::glutil::generic_renderer m_renderer_lines;
+	cgv::render::generic_renderer m_renderer_lines;
 	std::vector<tf_editor_shared_data_types::line_geometry> m_geometry_lines;
 
 	// Styles for the recangle grid, drawn focus point position shapes and the data plot points
-	cgv::glutil::shape2d_style m_style_grid;
-	cgv::glutil::shape2d_style m_style_shapes;
-	cgv::glutil::shape2d_style m_style_plot_points;
+	cgv::g2d::shape2d_style m_style_grid;
+	cgv::g2d::shape2d_style m_style_shapes;
+	cgv::g2d::shape2d_style m_style_plot_points;
 
-	cgv::glutil::line2d_style m_style_lines;
+	cgv::g2d::line2d_style m_style_lines;
 
-	cgv::glutil::shape2d_style m_rectangle_style;
+	cgv::g2d::shape2d_style m_rectangle_style;
 	// Rectangles used for drawing
 	std::vector<tf_editor_shared_data_types::rectangle> m_rectangles_draw;
 	// Rectangles used for calculations
@@ -85,7 +85,7 @@ private:
 	std::vector<std::vector<tf_editor_shared_data_types::rectangle>> m_boxes;
 
 	std::vector<std::vector<tf_editor_shared_data_types::point_scatterplot>> m_points;
-	cgv::glutil::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
+	cgv::g2d::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
 
 	// Store the indices of to be updated focus point if a draggable has been interacted with
 	int m_interacted_point_id = INT_MAX;

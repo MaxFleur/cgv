@@ -6,15 +6,15 @@
 #include <cgv/render/drawable.h>
 #include <cgv/render/texture.h>
 #include <cgv_gl/sphere_renderer.h>
-#include <cgv_glutil/application_plugin.h>
-#include <cgv_glutil/color_map.h>
-#include <cgv_glutil/color_map_editor.h>
-#include <cgv_glutil/color_selector.h>
-#include <cgv_glutil/frame_buffer_container.h>
-#include <cgv_glutil/shader_library.h>
-#include <cgv_glutil/box_wire_render_data.h>
-#include <cgv_glutil/cone_render_data.h>
-#include <cgv_glutil/sphere_render_data.h>
+#include <cgv_app/application_plugin.h>
+#include <cgv/render/color_map.h>
+#include <cgv_app/color_map_editor.h>
+#include <cgv_app/color_selector.h>
+#include <cgv/render/managed_frame_buffer.h>
+#include <cgv/render/shader_library.h>
+#include <cgv_gl/box_wire_render_data.h>
+#include <cgv_gl/cone_render_data.h>
+#include <cgv_gl/sphere_render_data.h>
 #include <plot/plot2d.h>
 
 #include "sliced_volume_data_set.h"
@@ -31,7 +31,7 @@
 
 using namespace cgv::render;
 
-class viewer : public cgv::glutil::application_plugin {
+class viewer : public cgv::app::application_plugin {
 protected:
 	enum VolumeMode {
 		VM_4_CHANNEL = 0, // 4-channel transfer function
@@ -47,8 +47,8 @@ protected:
 	/// store a pointer to the view
 	view* view_ptr = nullptr;
 	/// store a pointer to the transfer function editor
-	cgv::glutil::color_map_editor_ptr tf_editor_ptr = nullptr;
-	cgv::glutil::color_selector_ptr cs_ptr = nullptr;
+	cgv::app::color_map_editor_ptr tf_editor_ptr = nullptr;
+	cgv::app::color_selector_ptr cs_ptr = nullptr;
 	
 	std::string input_path;
 
@@ -77,19 +77,19 @@ protected:
 	unsigned blur_radius;
 	cgv::gui::button_ptr prepare_btn = nullptr;
 	
-	cgv::glutil::frame_buffer_container fbc;
-	cgv::glutil::shader_library shaders;
+	cgv::render::managed_frame_buffer fbc;
+	cgv::render::shader_library shaders;
 
-	cgv::glutil::box_wire_render_data<> bounding_box_rd;
+	cgv::render::box_wire_render_data<> bounding_box_rd;
 	box_wire_render_style bwstyle;
 
 	std::vector<vec3> sallimus_dots;
 	sphere_render_style sallimus_dots_style;
-	cgv::glutil::sphere_render_data<> sallimus_dots_rd;
+	cgv::render::sphere_render_data<> sallimus_dots_rd;
 
 	std::vector<vec3> sarcomeres;
 	cone_render_style sarcomere_style;
-	cgv::glutil::cone_render_data<> sarcomeres_rd;
+	cgv::render::cone_render_data<> sarcomeres_rd;
 
 	gridtree gtree;
 	float gridtree_error_threshold = 0.08f;
@@ -179,7 +179,7 @@ protected:
 		bool has_unsaved_changes = false;
 	} fh;
 
-	std::vector<cgv::glutil::color_map> tfs;
+	std::vector<cgv::render::color_map> tfs;
 	texture tf_tex;
 
 	bool init_tf_texture(cgv::render::context& ctx) {
