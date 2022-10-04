@@ -237,32 +237,23 @@ float gaussian_transfer_function(vec4 density, vec4 focus_point, vec4 width) {
 
 // Apply an alpha value of 1 or 0 based on if the input values are inside the hyperbox
 float box_transfer_function(vec4 density, vec4 positions, vec4 width) {
-	for (int i = 0; i < 4; i++) {
-		if (density[i] < positions[i] - (width[i] / 2) || density[i] > positions[i] + (width[i] / 2)) {
-			return 0.0f;
-		}
-	}
-	return 1.0f;
+	vec4 dists = abs(density - positions) - 0.5 * width;
+	dists = max(dists, 0.0f);
+
+	const float d = length(dists);
+
+	return d <= 0.0 ? 1.0 : 0.0;
 }
 
 // Apply an alpha value of 1 or 0 based on if the input values are inside the hyperellipsoid
 float sphere_transfer_function(vec4 density, vec4 positions, vec4 width) {
-	float ret = 1.0f;
+	const vec4 diff = density - positions;
+	const vec4 lambda = 1.0 / (0.5 * width);
 
-	const vec4 delta = density - positions;
+	const vec4 dists = diff * lambda;
 
-	const float max_width = max(max(max(width[0], width[1]), width[2]), width[3]);
-	const vec4 lambda = 2.0f * vec4(max_width) / width;
-
-	vec4 scaled_diff = delta * lambda;
-	scaled_diff *= scaled_diff;
-
-	const float dist = sqrt(scaled_diff[0] + scaled_diff[1] + scaled_diff[2] + scaled_diff[3]) - max_width;
-
-	if(dist > 0.0f)
-		ret = 0.0f;
-
-	return ret;
+	float d = length(dists) - 1.0;
+	return d <= 0.0 ? 1.0 : 0.0;
 }
 
 // Calculate a color for a relations type, based on the current primitive type
