@@ -21,13 +21,13 @@ plot_overlay::plot_overlay() : plot("") {
 	fbc.add_attachment("color", "flt32[R,G,B]", cgv::render::TF_LINEAR);
 	fbc.set_size(2*get_overlay_size());
 
-	blit_canvas.register_shader("rectangle", cgv::g2d::canvas::shaders_2d::rectangle);
+	blit_canvas.register_shader("rectangle", cgv::g2d::shaders::rectangle);
 }
 
 void plot_overlay::clear(cgv::render::context& ctx) {
 
 	blit_canvas.destruct(ctx);
-	fbc.clear(ctx);
+	fbc.destruct(ctx);
 	plot.clear(ctx);
 }
 
@@ -178,7 +178,7 @@ void plot_overlay::draw(cgv::render::context& ctx) {
 
 void plot_overlay::create_gui() {
 
-	create_overlay_gui();
+	create_layout_gui();
 
 	plot.create_gui(this, *this);
 }

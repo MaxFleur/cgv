@@ -1,17 +1,13 @@
 #pragma once
 
-#include <cgv/base/node.h>
-#include <cgv/gui/event_handler.h>
-#include <cgv/gui/provider.h>
-#include <cgv/render/drawable.h>
-#include <cgv/render/texture.h>
-#include <cgv_gl/sphere_renderer.h>
-#include <cgv_app/application_plugin.h>
 #include <cgv/render/color_map.h>
-#include <cgv_app/color_map_editor.h>
-#include <cgv_app/color_selector.h>
 #include <cgv/render/managed_frame_buffer.h>
 #include <cgv/render/shader_library.h>
+#include <cgv/render/texture.h>
+#include <cgv_app/application_plugin.h>
+#include <cgv_app/color_map_editor.h>
+#include <cgv_app/color_map_reader.h>
+#include <cgv_app/color_selector.h>
 #include <cgv_gl/box_wire_render_data.h>
 #include <cgv_gl/cone_render_data.h>
 #include <cgv_gl/sphere_render_data.h>

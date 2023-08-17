@@ -17,12 +17,12 @@ tf_editor_scatterplot::tf_editor_scatterplot() {
 	m_alpha = 0.1f;
 
 	// Register additional ellipses
-	content_canvas.register_shader("ellipse", cgv::g2d::canvas::shaders_2d::ellipse);
+	content_canvas.register_shader("ellipse", cgv::g2d::shaders::ellipse);
 	content_canvas.register_shader("gauss_ellipse", "gauss_ellipse2d.glpr");
 
 	// initialize the point renderer with a shader program capable of drawing 2d circles
-	m_renderer_plot_points = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::circle);
-	m_renderer_lines = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::line);
+	m_renderer_plot_points = cgv::render::generic_renderer(cgv::g2d::shaders::circle);
+	m_renderer_lines = cgv::render::generic_renderer(cgv::g2d::shaders::line);
 
 	// callbacks for the moving of draggables
 	m_point_handles.set_drag_callback(std::bind(&tf_editor_scatterplot::set_point_positions, this));
@@ -42,7 +42,7 @@ void tf_editor_scatterplot::clear(cgv::render::context& ctx) {
 	m_renderer_draggables_circle.destruct(ctx);
 	m_renderer_draggables_rectangle.destruct(ctx);
 
-	cgv::g2d::ref_msdf_font(ctx, -1);
+	cgv::g2d::ref_msdf_font_regular(ctx, -1);
 	cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx, -1);
 }
 
@@ -92,7 +92,7 @@ bool tf_editor_scatterplot::handle_event(cgv::gui::event& e) {
 		}
 
 		bool handled = false;
-		handled |= m_point_handles.handle(e, last_viewport_size, container);
+		handled |= m_point_handles.handle(e, get_viewport_size(), get_overlay_rectangle());
 
 		if (handled)
 			post_redraw();
@@ -133,7 +133,7 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	success &= m_renderer_draggables_circle.init(ctx);
 	success &= m_renderer_draggables_rectangle.init(ctx);
 
-	auto& font = cgv::g2d::ref_msdf_font(ctx, 1);
+	auto& font = cgv::g2d::ref_msdf_font_regular(ctx, 1);
 	cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx, 1);
 
 	// when successful, initialize the styles used for the individual shapes
@@ -143,7 +143,6 @@ bool tf_editor_scatterplot::init(cgv::render::context& ctx) {
 	// setup the font type and size to use for the label geometry
 	if(font.is_initialized()) {
 		m_labels.set_msdf_font(&font);
-		m_labels.set_font_size(m_font_size);
 	}
 
 	return success;
@@ -156,8 +155,8 @@ void tf_editor_scatterplot::init_frame(cgv::render::context& ctx) {
 		ivec2 overlay_size = get_overlay_size();
 		
 		// calculate the new domain size
-		domain.set_pos(ivec2(13) + label_space); // 13 pixel padding (inner space from border) + 20 pixel space for labels
-		domain.set_size(overlay_size - 2 * ivec2(13) - label_space); // scale size to fit in leftover inner space
+		domain.position = ivec2(13) + label_space; // 13 pixel padding (inner space from border) + 20 pixel space for labels
+		domain.size = overlay_size - 2 * ivec2(13) - label_space; // scale size to fit in leftover inner space
 
 		// update the offline frame buffer to the new size
 		fbc.set_size(overlay_size);
@@ -181,7 +180,7 @@ void tf_editor_scatterplot::init_frame(cgv::render::context& ctx) {
 
 void tf_editor_scatterplot::create_gui() {
 
-	create_overlay_gui();
+	create_layout_gui();
 
 	tf_editor_basic::create_gui_basic();
 	add_member_control(this, "Blur", blur, "value_slider", "min=0;max=20;step=0.0001;ticks=true");
@@ -258,6 +257,7 @@ void tf_editor_scatterplot::init_styles(cgv::render::context& ctx) {
 	m_style_text.border_color.alpha() = 0.0f;
 	m_style_text.border_width = 0.333f;
 	m_style_text.use_blending = true;
+	m_style_text.font_size = m_font_size;
 
 	// configure style for final blending of whole overlay
 	overlay_style.fill_color = rgba(1.0f);
@@ -285,8 +285,8 @@ void tf_editor_scatterplot::update_content() {
 	m_geometry_plot_points.clear();
 
 	// setup plot origin and sizes
-	const auto org = static_cast<vec2>(domain.pos());
-	const auto size = domain.size();
+	const auto org = static_cast<vec2>(domain.position);
+	const auto size = domain.size;
 
 	// Construct to add the points
 	const auto add_point = [&](const vec4& v, const float& x, const float& y) {
@@ -355,18 +355,19 @@ void tf_editor_scatterplot::create_labels() {
 	}
 
 	if(auto ctx_ptr = get_context()) {
-		auto& font = cgv::g2d::ref_msdf_font(*ctx_ptr);
+		auto& font = cgv::g2d::ref_msdf_font_regular(*ctx_ptr);
 		if(font.is_initialized()) {
-			const auto x = domain.pos().x() + 100;
-			const auto y = domain.pos().y() - label_space / 2;
+			const auto x = domain.x() + 100;
+			const auto y = domain.y() - label_space / 2;
+			const auto x_mid = domain.center().x();
 
-			m_labels.add_text(texts[0], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-			m_labels.add_text(texts[3], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-			m_labels.add_text(texts[2], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[0], ivec2(x_mid * 0.35f, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[3], ivec2(x_mid, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[2], ivec2(x_mid * 1.60f, y), cgv::render::TA_NONE);
 
-			m_labels.add_text(texts[1], ivec2(domain.box.get_center().x() * 0.35f, y), cgv::render::TA_NONE);
-			m_labels.add_text(texts[2], ivec2(domain.box.get_center().x(), y), cgv::render::TA_NONE);
-			m_labels.add_text(texts[3], ivec2(domain.box.get_center().x() * 1.60f, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[1], ivec2(x_mid * 0.35f, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[2], ivec2(x_mid, y), cgv::render::TA_NONE);
+			m_labels.add_text(texts[3], ivec2(x_mid * 1.60f, y), cgv::render::TA_NONE);
 		}
 	}
 }
@@ -375,8 +376,8 @@ void tf_editor_scatterplot::create_grid() {
 	m_rectangles_draw.clear();
 	m_rectangles_calc.clear();
 
-	const auto size_x = domain.size().x();
-	const auto size_y = domain.size().y();
+	const auto size_x = domain.w();
+	const auto size_y = domain.h();
 
 	m_rectangles_calc.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.05f, size_y * 0.05f), vec2(size_x * 0.38f, size_y * 0.38f)));
 	m_rectangles_draw.push_back(tf_editor_shared_data_types::rectangle(vec2(size_x * 0.05f, size_y * 0.05f), vec2(size_x * 0.33f, size_y * 0.33f)));
@@ -416,7 +417,7 @@ void tf_editor_scatterplot::create_primitive_shapes() {
 			const auto width_x = width_stain_x * m_points.at(i).at(j).parent_rectangle->size_x();
 			const auto width_y = width_stain_y * m_points.at(i).at(j).parent_rectangle->size_y();
 			// Store
-			const auto position_start = vec2(m_points.at(i).at(j).pos.x() - width_x / 2, m_points.at(i).at(j).pos.y() - width_y / 2);
+			const auto position_start = vec2(m_points.at(i).at(j).position.x() - width_x / 2, m_points.at(i).at(j).position.y() - width_y / 2);
 
 			// Add lines instead of shapes if one width is set to the maximum
 			const auto primitive_color = m_shared_data_ptr->primitives.at(i).color;
@@ -428,11 +429,11 @@ void tf_editor_scatterplot::create_primitive_shapes() {
 					boxes.push_back(tf_editor_shared_data_types::rectangle(position_start, vec2(width_x, width_y))) :
 					ellipses.push_back(tf_editor_shared_data_types::ellipse(position_start, vec2(width_x, width_y)));
 			} else if (width_stain_x == 10.0f && width_stain_y != 10.0f) {
-				geometry.add(vec2(m_points.at(i).at(j).pos.x(), m_points.at(i).at(j).pos.y() - width_y / 2), line_color);
-				geometry.add(vec2(m_points.at(i).at(j).pos.x(), m_points.at(i).at(j).pos.y() + width_y / 2), line_color);	
+				geometry.add(vec2(m_points.at(i).at(j).position.x(), m_points.at(i).at(j).position.y() - width_y / 2), line_color);
+				geometry.add(vec2(m_points.at(i).at(j).position.x(), m_points.at(i).at(j).position.y() + width_y / 2), line_color);
 			} else if (width_stain_x != 10.0f && width_stain_y == 10.0f) {	
-				geometry.add(vec2(m_points.at(i).at(j).pos.x() - width_x / 2, m_points.at(i).at(j).pos.y()), line_color);
-				geometry.add(vec2(m_points.at(i).at(j).pos.x() + width_x / 2, m_points.at(i).at(j).pos.y()), line_color);
+				geometry.add(vec2(m_points.at(i).at(j).position.x() - width_x / 2, m_points.at(i).at(j).position.y()), line_color);
+				geometry.add(vec2(m_points.at(i).at(j).position.x() + width_x / 2, m_points.at(i).at(j).position.y()), line_color);
 			}	
 		}
 		m_geometry_lines.push_back(geometry);
@@ -443,8 +444,8 @@ void tf_editor_scatterplot::create_primitive_shapes() {
 
 void tf_editor_scatterplot::add_draggables(int primitive_index) {
 	std::vector<tf_editor_shared_data_types::point_scatterplot> points;
-	const auto org = static_cast<vec2>(domain.pos());
-	const auto size = domain.size();
+	const auto org = static_cast<vec2>(domain.position);
+	const auto size = domain.size;
 
 	// Add the new draggables to the scatter plot
 	const auto& positions = m_shared_data_ptr->primitives.at(primitive_index).focus_point;
@@ -653,8 +654,8 @@ void tf_editor_scatterplot::set_point_positions() {
 	m_point_handles.get_dragged()->update_val();
 	m_currently_dragging = true;
 
-	const auto org = static_cast<vec2>(domain.pos());
-	const auto size = domain.size();
+	const auto org = static_cast<vec2>(domain.position);
+	const auto size = domain.size;
 
 	for (unsigned i = 0; i < m_points.size(); ++i) {
 		for (int j = 0; j < m_points[i].size(); j++) {
@@ -665,53 +666,53 @@ void tf_editor_scatterplot::set_point_positions() {
 				m_interacted_point_id = i;
 				// Update all other points with values belonging to this certain point
 				if (found_point.m_stain_first == 0 && found_point.m_stain_second == 1) {
-					m_points[i][1].pos = vec2(found_point.pos.x(), m_points[i][1].pos.y());
-					m_points[i][2].pos = vec2(found_point.pos.x(), m_points[i][2].pos.y());
+					m_points[i][1].position = vec2(found_point.position.x(), m_points[i][1].position.y());
+					m_points[i][2].position = vec2(found_point.position.x(), m_points[i][2].position.y());
 
-					m_points[i][3].pos = vec2(m_points[i][3].pos.x(), found_point.pos.y());
-					m_points[i][5].pos = vec2(m_points[i][5].pos.x(), found_point.pos.y());
+					m_points[i][3].position = vec2(m_points[i][3].position.x(), found_point.position.y());
+					m_points[i][5].position = vec2(m_points[i][5].position.x(), found_point.position.y());
 				}
 				else if (found_point.m_stain_first == 0 && found_point.m_stain_second == 2) {
-					m_points[i][0].pos = vec2(found_point.pos.x(), m_points[i][0].pos.y());
-					m_points[i][2].pos = vec2(found_point.pos.x(), m_points[i][2].pos.y());
+					m_points[i][0].position = vec2(found_point.position.x(), m_points[i][0].position.y());
+					m_points[i][2].position = vec2(found_point.position.x(), m_points[i][2].position.y());
 
-					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.y());
-					m_points[i][5].pos = vec2(found_point.pos.y() + found_point.parent_rectangle->size_x(), m_points[i][5].pos.y());
+					m_points[i][4].position = vec2(m_points[i][4].position.x(), found_point.position.y());
+					m_points[i][5].position = vec2(found_point.position.y() + found_point.parent_rectangle->size_x(), m_points[i][5].position.y());
 				}
 				else if (found_point.m_stain_first == 0 && found_point.m_stain_second == 3) {
-					m_points[i][0].pos = vec2(found_point.pos.x(), m_points[i][0].pos.y());
-					m_points[i][1].pos = vec2(found_point.pos.x(), m_points[i][1].pos.y());
+					m_points[i][0].position = vec2(found_point.position.x(), m_points[i][0].position.y());
+					m_points[i][1].position = vec2(found_point.position.x(), m_points[i][1].position.y());
 
-					m_points[i][3].pos = vec2(found_point.pos.y() - found_point.parent_rectangle->size_x(), m_points[i][3].pos.y());
-					m_points[i][4].pos = vec2(found_point.pos.y() - found_point.parent_rectangle->size_x(), m_points[i][4].pos.y());
+					m_points[i][3].position = vec2(found_point.position.y() - found_point.parent_rectangle->size_x(), m_points[i][3].position.y());
+					m_points[i][4].position = vec2(found_point.position.y() - found_point.parent_rectangle->size_x(), m_points[i][4].position.y());
 				}
 				else if (found_point.m_stain_first == 3 && found_point.m_stain_second == 1) {
-					m_points[i][0].pos = vec2(m_points[i][0].pos.x(), found_point.pos.y());
-					m_points[i][5].pos = vec2(m_points[i][5].pos.x(), found_point.pos.y());
+					m_points[i][0].position = vec2(m_points[i][0].position.x(), found_point.position.y());
+					m_points[i][5].position = vec2(m_points[i][5].position.x(), found_point.position.y());
 
-					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + found_point.parent_rectangle->size_y());
-					m_points[i][4].pos = vec2(found_point.pos.x(), m_points[i][4].pos.y());
+					m_points[i][2].position = vec2(m_points[i][2].position.x(), found_point.position.x() + found_point.parent_rectangle->size_y());
+					m_points[i][4].position = vec2(found_point.position.x(), m_points[i][4].position.y());
 				}
 				else if (found_point.m_stain_first == 3 && found_point.m_stain_second == 2) {
-					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.y());
-					m_points[i][5].pos = vec2(found_point.pos.y() + found_point.parent_rectangle->size_x(), m_points[i][5].pos.y());
+					m_points[i][1].position = vec2(m_points[i][1].position.x(), found_point.position.y());
+					m_points[i][5].position = vec2(found_point.position.y() + found_point.parent_rectangle->size_x(), m_points[i][5].position.y());
 
-					m_points[i][2].pos = vec2(m_points[i][2].pos.x(), found_point.pos.x() + found_point.parent_rectangle->size_y());
-					m_points[i][3].pos = vec2(found_point.pos.x(), m_points[i][3].pos.y());
+					m_points[i][2].position = vec2(m_points[i][2].position.x(), found_point.position.x() + found_point.parent_rectangle->size_y());
+					m_points[i][3].position = vec2(found_point.position.x(), m_points[i][3].position.y());
 				}
 				else if (found_point.m_stain_first == 2 && found_point.m_stain_second == 1) {
-					m_points[i][0].pos = vec2(m_points[i][0].pos.x(), found_point.pos.y());
-					m_points[i][3].pos = vec2(m_points[i][3].pos.x(), found_point.pos.y());
+					m_points[i][0].position = vec2(m_points[i][0].position.x(), found_point.position.y());
+					m_points[i][3].position = vec2(m_points[i][3].position.x(), found_point.position.y());
 
-					m_points[i][1].pos = vec2(m_points[i][1].pos.x(), found_point.pos.x() - found_point.parent_rectangle->size_y());
-					m_points[i][4].pos = vec2(m_points[i][4].pos.x(), found_point.pos.x() - found_point.parent_rectangle->size_y());
+					m_points[i][1].position = vec2(m_points[i][1].position.x(), found_point.position.x() - found_point.parent_rectangle->size_y());
+					m_points[i][4].position = vec2(m_points[i][4].position.x(), found_point.position.x() - found_point.parent_rectangle->size_y());
 				}
 				// Remap the gui values
-				const auto gui_value_first = m_points[i][j].get_relative_position(m_points[i][j].pos.x(), true);
+				const auto gui_value_first = m_points[i][j].get_relative_position(m_points[i][j].position.x(), true);
 				m_shared_data_ptr->primitives.at(i).focus_point[m_points[i][j].m_stain_first] = gui_value_first;
 				update_member(&m_shared_data_ptr->primitives.at(i).focus_point[m_points[i][j].m_stain_first]);
 
-				const auto gui_value_second = m_points[i][j].get_relative_position(m_points[i][j].pos.y(), false);
+				const auto gui_value_second = m_points[i][j].get_relative_position(m_points[i][j].position.y(), false);
 				m_shared_data_ptr->primitives.at(i).focus_point[m_points[i][j].m_stain_second] = gui_value_second;
 				update_member(&m_shared_data_ptr->primitives.at(i).focus_point[m_points[i][j].m_stain_second]);
 

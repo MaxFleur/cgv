@@ -11,12 +11,12 @@ addProjectDeps=[
 
 addSharedDefines=["MYOFIBRILS_EXPORTS"];
 
+cppLanguageStandard="stdcpp17";
+useOpenMP=1;
+
 addShaderPaths=[INPUT_DIR];
 
 addCommandLineArguments=[
 	'config:"'.INPUT_DIR.'/config.def"',
 	after("SHADER_PATHS", "cg_fltk")
 ];
-
-cppLanguageStandard="stdcpp17";
-useOpenMP=1;

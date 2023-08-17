@@ -102,7 +102,7 @@ private:
 	std::vector<int> quad_counts;
 
 	std::vector<std::vector<tf_editor_shared_data_types::point_line>> m_points;
-	cgv::g2d::draggables_collection<tf_editor_shared_data_types::point_line*> m_point_handles;
+	cgv::g2d::draggable_collection<tf_editor_shared_data_types::point_line*> m_point_handles;
 
 	rgba m_gray_widgets{ 0.4f, 0.4f, 0.4f, 1.0f };
 	rgba m_gray_arrows{ 0.4f, 0.4f, 0.4f, 1.0f };

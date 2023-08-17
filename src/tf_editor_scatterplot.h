@@ -85,7 +85,7 @@ private:
 	std::vector<std::vector<tf_editor_shared_data_types::rectangle>> m_boxes;
 
 	std::vector<std::vector<tf_editor_shared_data_types::point_scatterplot>> m_points;
-	cgv::g2d::draggables_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
+	cgv::g2d::draggable_collection<tf_editor_shared_data_types::point_scatterplot*> m_point_handles;
 
 	// Store the indices of to be updated focus point if a draggable has been interacted with
 	int m_interacted_point_id = INT_MAX;

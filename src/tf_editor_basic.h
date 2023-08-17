@@ -74,7 +74,7 @@ protected:
 	}
 
 	template<typename T>
-	void set_point_handles(std::vector<std::vector<T>>& points, cgv::g2d::draggables_collection<T*>& point_handles) {
+	void set_point_handles(std::vector<std::vector<T>>& points, cgv::g2d::draggable_collection<T*>& point_handles) {
 		point_handles.clear();
 		for (unsigned i = 0; i < points.size(); ++i) {
 			for (int j = 0; j < points[i].size(); j++) {
@@ -199,7 +199,7 @@ protected:
 	cgv::g2d::shape2d_style overlay_style;
 
 	// rectangle defining the draw area of the actual plot
-	cgv::g2d::rect domain;
+	cgv::g2d::irect domain;
 
 	// These geometries are used in both editors to drag points representing focus points
 	// If a draggable dragged, its size will increase, so we need two different geometries and styles
@@ -216,7 +216,7 @@ protected:
 	// Text geometry, storing individual labels
 	cgv::g2d::msdf_text_geometry m_labels;
 	const float m_font_size = 18.0f;
-	cgv::g2d::shape2d_style m_style_text;
+	cgv::g2d::text2d_style m_style_text;
 
 	// whether the plot shall be reset and its framebuffer cleared
 	bool m_reset_plot = true;

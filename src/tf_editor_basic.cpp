@@ -21,16 +21,16 @@ tf_editor_basic::tf_editor_basic()
 	fbc_plot.set_size(get_overlay_size());
 
 	// register a rectangle shader for the content canvas, to draw a frame around the plot
-	content_canvas.register_shader("rectangle", cgv::g2d::canvas::shaders_2d::rectangle);
+	content_canvas.register_shader("rectangle", cgv::g2d::shaders::rectangle);
 	content_canvas.register_shader("plot_tone_mapping", "plot_tone_mapping.glpr");
 	content_canvas.set_apply_gamma(false);
 
 	// register a rectangle shader for the viewport canvas, so that we can draw our content frame buffer to the main
 	// frame buffer
-	viewport_canvas.register_shader("rectangle", cgv::g2d::canvas::shaders_2d::rectangle);
+	viewport_canvas.register_shader("rectangle", cgv::g2d::shaders::rectangle);
 
-	m_renderer_draggables_circle = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::circle);
-	m_renderer_draggables_rectangle = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::rectangle);
+	m_renderer_draggables_circle = cgv::render::generic_renderer(cgv::g2d::shaders::circle);
+	m_renderer_draggables_rectangle = cgv::render::generic_renderer(cgv::g2d::shaders::rectangle);
 
 	vis_mode = VM_SHAPES;
 }
@@ -66,8 +66,8 @@ void tf_editor_basic::draw(cgv::render::context& ctx) {
 void tf_editor_basic::clear(cgv::render::context& ctx) {
 	content_canvas.destruct(ctx);
 	viewport_canvas.destruct(ctx);
-	fbc.clear(ctx);
-	fbc_plot.clear(ctx);
+	fbc.destruct(ctx);
+	fbc_plot.destruct(ctx);
 }
 
 bool tf_editor_basic::handle_key_input(const char& key, const int& index) {

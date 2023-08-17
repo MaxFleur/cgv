@@ -82,7 +82,7 @@ void viewer::clear(cgv::render::context& ctx) {
 	ref_cone_renderer(ctx, -1);
 	ref_box_wire_renderer(ctx, -1);
 
-	fbc.clear(ctx);
+	fbc.destruct(ctx);
 	shaders.clear(ctx);
 
 	sallimus_dots_rd.destruct(ctx);
@@ -392,11 +392,11 @@ void viewer::init_frame(cgv::render::context& ctx) {
 	}
 
 	/** BEGIN - MFLEURY **/
-	if (tf_editor_ptr && tf_editor_ptr->was_updated()) {
+	/*if (tf_editor_ptr && tf_editor_ptr->was_updated()) {
 		update_tf_texture(ctx);
 		fh.has_unsaved_changes = true;
 		on_set(&fh.has_unsaved_changes);
-	}
+	}*/
 
 	// resynchronize if any primitive updates occured
 	if (m_editor_lines_ptr && m_editor_scatterplot_ptr && !m_shared_data_ptr->is_synchronized) {
@@ -427,7 +427,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 					m_selected_primitve_id = m_shared_data_ptr->selected_primitive_id;
 					cs_ptr->set_rgba_color(m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color);
 				}
-				if (cs_ptr->was_updated()) {
+				/*if (cs_ptr->was_updated()) {
 					// If the selector was updated, set the colors to the selected primitive
 					m_shared_data_ptr->primitives[m_shared_data_ptr->selected_primitive_id].color = cs_ptr->get_rgba_color();
 					if (m_editor_lines_ptr && m_editor_lines_ptr->is_visible()) {
@@ -438,7 +438,7 @@ void viewer::init_frame(cgv::render::context& ctx) {
 					}
 					// Also update the gui to show the new color
 					post_recreate_gui();
-				}
+				}*/
 			}
 		}
 	}
@@ -1205,7 +1205,7 @@ bool viewer::read_sarcomeres(const std::string& filename) {
 }
 
 bool viewer::read_transfer_functions(context& ctx, const std::string& filename) {
-	cgv::glutil::color_map_reader::result color_maps;
+	cgv::app::color_map_reader::result color_maps;
 	tfs.clear();
 
 	for (size_t i = 0; i < 4; ++i) {
@@ -1216,7 +1216,7 @@ bool viewer::read_transfer_functions(context& ctx, const std::string& filename) 
 		tfs.push_back(tf);
 	}
 
-	if (cgv::glutil::color_map_reader::read_from_xml(filename, color_maps)) {
+	if (cgv::app::color_map_reader::read_from_xml(filename, color_maps)) {
 		if (color_maps.size() > 0) {
 			for (const auto& stain : dataset.stain_names) {
 				int idx = -1;

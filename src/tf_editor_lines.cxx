@@ -15,12 +15,12 @@ tf_editor_lines::tf_editor_lines() {
 	// aspect ratio is w:h = 1:0.875
 	set_overlay_size(ivec2(700, 612));
 	// Register an additional arrow shader
-	content_canvas.register_shader("arrow", cgv::g2d::canvas::shaders_2d::arrow);
-	content_canvas.register_shader("quad", cgv::g2d::canvas::shaders_2d::quad);
+	content_canvas.register_shader("arrow", cgv::g2d::shaders::arrow);
+	content_canvas.register_shader("quad", cgv::g2d::shaders::quad);
 
 	// initialize the renderers
-	m_renderer_lines = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::line);
-	m_renderer_quads = cgv::render::generic_renderer(cgv::g2d::canvas::shaders_2d::quad);
+	m_renderer_lines = cgv::render::generic_renderer(cgv::g2d::shaders::line);
+	m_renderer_quads = cgv::render::generic_renderer(cgv::g2d::shaders::quad);
 	m_renderer_quads_gauss = cgv::render::generic_renderer("gauss_quad2d.glpr");
 
 	// callbacks for the moving of draggables
@@ -34,7 +34,7 @@ void tf_editor_lines::clear(cgv::render::context& ctx) {
 	m_geometry_widgets.destruct(ctx);
 	m_geometry_strip_borders.destruct(ctx);
 
-	cgv::g2d::ref_msdf_font(ctx, -1);
+	cgv::g2d::ref_msdf_font_regular(ctx, -1);
 	cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx, -1);
 
 	m_renderer_quads.destruct(ctx);
@@ -93,7 +93,7 @@ bool tf_editor_lines::handle_event(cgv::gui::event& e) {
 		}
 
 		auto handled = false;
-		handled |= m_point_handles.handle(e, last_viewport_size, container);
+		handled |= m_point_handles.handle(e, get_viewport_size(), get_overlay_rectangle());
 
 		if(handled)
 			post_redraw();
@@ -134,7 +134,7 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	success &= m_renderer_quads.init(ctx);
 	success &= m_renderer_quads_gauss.init(ctx);
 
-	auto& font = cgv::g2d::ref_msdf_font(ctx, 1);
+	auto& font = cgv::g2d::ref_msdf_font_regular(ctx, 1);
 	cgv::g2d::ref_msdf_gl_canvas_font_renderer(ctx, 1);
 
 	// when successful, initialize the styles used for the individual shapes
@@ -144,7 +144,6 @@ bool tf_editor_lines::init(cgv::render::context& ctx) {
 	// setup the font type and size to use for the label geometry
 	if(font.is_initialized()) {
 		m_labels.set_msdf_font(&font);
-		m_labels.set_font_size(m_font_size);
 	}
 
 	return success;
@@ -157,8 +156,8 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 		ivec2 overlay_size = get_overlay_size();
 
 		// calculate the new domain size
-		domain.set_pos(ivec2(13)); // 13 pixel padding (inner space from border)
-		domain.set_size(overlay_size - 2 * ivec2(13)); // scale size to fit in inner space left over by padding
+		domain.position = ivec2(13); // 13 pixel padding (inner space from border)
+		domain.size = overlay_size - 2 * ivec2(13); // scale size to fit in inner space left over by padding
 
 		// udpate the offline frame buffer to the new size
 		fbc.set_size(overlay_size);
@@ -191,7 +190,7 @@ void tf_editor_lines::init_frame(cgv::render::context& ctx) {
 
 void tf_editor_lines::create_gui() {
 
-	create_overlay_gui();
+	create_layout_gui();
 
 	tf_editor_basic::create_gui_basic();
 	tf_editor_basic::create_gui_coloring();
@@ -288,6 +287,7 @@ void tf_editor_lines::init_styles(cgv::render::context& ctx) {
 	m_style_text.border_color.alpha() = 0.0f;
 	m_style_text.border_width = 0.333f;
 	m_style_text.use_blending = true;
+	m_style_text.font_size = m_font_size;
 
 	// configure style for final blending of whole overlay
 	overlay_style.fill_color = rgba(1.0f);
@@ -362,7 +362,7 @@ void tf_editor_lines::create_labels() {
 
 	// Set the font texts
 	if(auto ctx_ptr = get_context()) {
-		auto& font = cgv::g2d::ref_msdf_font(*ctx_ptr);
+		auto& font = cgv::g2d::ref_msdf_font_regular(*ctx_ptr);
 		if(font.is_initialized() && m_widget_polygons.size() > 3) {
 			vec2 centers[4];
 			for(int i = 0; i < 4; i++)
@@ -438,10 +438,10 @@ void tf_editor_lines::create_widget_lines() {
 	vec2 center_offset = -box.get_center();
 
 	// Offset applied after scaling (in pixel coordinates) to move the widgets to the center of the domain
-	vec2 offset = domain.box.get_center();
+	vec2 offset = domain.center();
 
 	// Factor to scale from unit to pixel coordinates
-	float scale = std::min(domain.size().x() / box.get_extent().x(), domain.size().y() / box.get_extent().y());
+	float scale = std::min(domain.w() / box.get_extent().x(), domain.h() / box.get_extent().y());
 
 	// Apply offsets and scale
 	for(size_t i = 0; i < 3; ++i) {
@@ -904,7 +904,7 @@ void tf_editor_lines::update_point_positions() {
 					if((j + 1) % 4 != 0) {
 						float c = primitive.focus_point[j / 4];
 
-						points[idx].pos = m_widget_lines.at(j).interpolate(c);
+						points[idx].position = m_widget_lines.at(j).interpolate(c);
 						++idx;
 					}
 				}

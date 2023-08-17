@@ -5,8 +5,9 @@
 #include <cgv_app/overlay.h>
 #include <cgv_gl/generic_renderer.h>
 #include <cgv_g2d/draggable.h>
-#include <cgv_g2d/draggables_collection.h>
+#include <cgv_g2d/draggable_collection.h>
 
+typedef cgv::app::overlay::ivec2 ivec2;
 typedef cgv::app::overlay::vec2 vec2;
 typedef cgv::app::overlay::vec4 vec4;
 typedef cgv::render::render_types::rgba rgba;
@@ -102,7 +103,7 @@ namespace tf_editor_shared_data_types
 	{
 		point(const ivec2& pos)
 		{
-			this->pos = pos;
+			position = pos;
 			size = vec2(6.0f);
 			position_is_center = true;
 			constraint_reference = CR_FULL_SIZE;
@@ -110,7 +111,7 @@ namespace tf_editor_shared_data_types
 
 		ivec2 get_render_position() const
 		{
-			return ivec2(pos + 0.5f);
+			return ivec2(position + 0.5f);
 		}
 
 		ivec2 get_render_size() const
@@ -137,18 +138,18 @@ namespace tf_editor_shared_data_types
 		}
 
 		void update_val() {
-			pos = m_parent_line->get_intersection(pos);
+			position = m_parent_line->get_intersection(position);
 		}
 
 		// Move the point according to a relative position along the line
 		void move_along_line(float value) {
-			pos = m_parent_line->interpolate(value);
+			position = m_parent_line->interpolate(value);
 		}
 
 		// Gets the relative position of the point along the line
 		// Leftmost value would be 0.0f, while rightmost would be 1.0f
 		float get_relative_line_position() {
-			return ((cgv::math::length(pos - m_parent_line->a) / m_parent_line->get_length()));
+			return ((cgv::math::length(position - m_parent_line->a) / m_parent_line->get_length()));
 		}
 	};
 
@@ -170,8 +171,9 @@ namespace tf_editor_shared_data_types
 
 		// Make sure the point stays in its rectangle
 		void update_val() {
-			pos.x() = cgv::math::clamp(pos.x(), parent_rectangle->start.x(), parent_rectangle->end.x());
-			pos.y() = cgv::math::clamp(pos.y(), parent_rectangle->start.y(), parent_rectangle->end.y());
+			position = cgv::math::clamp(position, parent_rectangle->start, parent_rectangle->end);
+			//pos.x() = cgv::math::clamp(pos.x(), parent_rectangle->start.x(), parent_rectangle->end.x());
+			//pos.y() = cgv::math::clamp(pos.y(), parent_rectangle->start.y(), parent_rectangle->end.y());
 		}
 
 		float get_relative_position(float val, bool is_relative_x) {
